@@ -4,9 +4,10 @@ pragma solidity ^0.8.24;
 import {FHE, euint32, externalEuint32} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
-/// @title A simple FHE counter contract
+/// @title Temporary CP0 FHE capability probe
 /// @author fhevm-hardhat-template
-/// @notice A very basic example contract showing how to work with encrypted data using FHEVM.
+/// @notice Retained only for the SG-1 live Sepolia deployment, encrypted-write, and user-decryption probe.
+/// @dev This is not a production protocol contract and must not be used for prize-savings functionality.
 contract FHECounter is ZamaEthereumConfig {
     euint32 private _count;
 
