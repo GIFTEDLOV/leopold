@@ -1,0 +1,14 @@
+packages:
+  - "."
+  - "frontend"
+  - "keeper"
+  - "packages/*"
+
+allowBuilds:
+  esbuild: true
+  keccak: true
+  secp256k1: true
+  unrs-resolver: true
+
+overrides:
+  ws: 8.21.0

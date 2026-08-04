@@ -1,0 +1,39 @@
+# FHEVM
+fhevmTemp/
+
+# Generated directories
+.next/
+frontend/next-env.d.ts
+.coverage_artifacts/
+.coverage_cache/
+.coverage_contracts/
+artifacts/
+build/
+cache/
+coverage/
+dist/
+node_modules/
+tmp/
+types/
+
+# Local deployment manifests
+deployments/hardhat/
+deployments/localhost/
+deployments/anvil/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Logs and operating-system files
+*.log
+*.tsbuildinfo
+.DS_Store
+.pnp.*
+coverage.json
+
+# Non-pnpm package-manager locks
+package-lock.json
+yarn.lock
