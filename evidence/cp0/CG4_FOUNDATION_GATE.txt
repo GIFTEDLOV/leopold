@@ -1,0 +1,222 @@
+ZAMA SZN 4 — CG-4 Production Monorepo Foundation Gate
+UTC_CAPTURE=2026-08-04T13:37:25Z
+REPOSITORY=/home/dell/zama-szn4
+BASELINE_COMMIT=eb1dac3d956c4eb8e0bdd84dc8a7a7b3d47f61d2
+BASELINE_TREE=757ce2a32cefde3c38cbdb5dda5915510718f7a5
+AUTHOR=Emory <142720896+GIFTEDLOV@users.noreply.github.com>
+COMMIT_TIMESTAMP=2026-08-04T12:08:33+01:00
+SUBJECT=chore: establish CP0 production monorepo baseline
+BRANCH=main
+NODE=v22.23.2
+PNPM=11.0.9
+INITIAL_STATE=CLEAN
+
+===== FROZEN DEPENDENCY INSTALLATION =====
+Scope: all 4 workspace projects
+Already up to date
+Done in 395ms using pnpm v11.0.9
+
+===== UNAPPROVED BUILD-SCRIPT CHECK =====
+Automatically ignored builds during installation:
+  None
+
+===== COMPLETE MONOREPO QUALITY GATE =====
+$ pnpm check:contracts && pnpm check:frontend && pnpm check:keeper
+$ pnpm compile && pnpm test && pnpm lint && pnpm build:ts
+$ cross-env TS_NODE_TRANSPILE_ONLY=true hardhat compile
+Nothing to compile
+No need to generate any newer typings.
+$ pnpm typechain
+$ cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain
+$ hardhat test
+
+
+  FHECounter
+    ✔ encrypted count should be uninitialized after deployment
+    ✔ increment the counter by 1 (127ms)
+    ✔ decrement the counter by 1 (75ms)
+
+  FHECounterSepolia
+This hardhat test suite can only run on Sepolia Testnet
+    - increment the counter by 1
+
+
+  3 passing (288ms)
+  1 pending
+
+$ pnpm lint:sol && pnpm lint:ts && pnpm prettier:check
+$ solhint --max-warnings 0 "contracts/**/*.sol"
+A new version of Solhint is available: 6.2.3
+Please consider updating your Solhint package.
+
+$ eslint .
+$ prettier --check "**/*.{js,json,md,sol,ts,yml}"
+Checking formatting...
+All matched files use Prettier code style!
+$ tsc --project tsconfig.json
+$ pnpm --filter @zama-szn4/frontend typecheck && pnpm --filter @zama-szn4/frontend lint && pnpm --filter @zama-szn4/frontend test && pnpm --filter @zama-szn4/frontend build
+$ tsc --noEmit
+$ eslint .
+$ vitest run
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90m/home/dell/zama-szn4/frontend[39m
+
+ [32m✓[39m tests/smoke.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 14:41:32
+[2m   Duration [22m 178ms[2m (transform 20ms, setup 0ms, import 33ms, tests 3ms, environment 0ms)[22m
+
+$ next build
+▲ Next.js 16.3.0 (Turbopack)
+✓ Running next.config.ts took 26ms
+- Experiments (use with caution):
+  ⨯ useTypeScriptCli
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 128ms
+  Running TypeScript ...
+  Finished TypeScript in 5.4s ...
+  Collecting page data using 4 workers ...
+  Generating static pages using 4 workers (0/3) ...
+✓ Generating static pages using 4 workers (3/3) in 561ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+└ ○ /_not-found
+
+
+○  (Static)  prerendered as static content
+
+$ pnpm --filter @zama-szn4/keeper typecheck && pnpm --filter @zama-szn4/keeper lint && pnpm --filter @zama-szn4/keeper test && pnpm --filter @zama-szn4/keeper build && pnpm --filter @zama-szn4/keeper probe:fixture
+$ tsc --noEmit
+$ eslint .
+$ vitest run --config vitest.config.ts
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90m/home/dell/zama-szn4/keeper[39m
+
+ [32m✓[39m tests/config.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m   Start at [22m 14:41:51
+[2m   Duration [22m 480ms[2m (transform 39ms, setup 0ms, import 285ms, tests 50ms, environment 0ms)[22m
+
+$ tsc -p tsconfig.build.json
+$ tsx src/probe-fixture.ts
+{"level":30,"time":1785850917221,"service":"zama-szn4-keeper","chainId":11155111,"fundingCeilingWei":"100000000000000000","keeperAddress":"0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A","node":"v22.23.2","retryResult":"retry-ok","sdkExportCount":122,"msg":"keeper credential and runtime probe passed"}
+
+===== PRODUCTION DEPENDENCY AUDIT =====
+$ pnpm audit --prod
+No known vulnerabilities found
+
+===== EXISTING EVIDENCE INTEGRITY =====
+evidence/cp0/CG1_CG2_MANIFEST_AND_ALLOWLIST.txt: OK
+evidence/cp0/CG3_KEEPER_CREDENTIAL_ISOLATION.txt: OK
+
+===== BASELINE COMMIT WHITESPACE CHECK =====
+PASS: baseline commit whitespace check completed.
+
+===== BASELINE TRACKED TREE =====
+.env.example
+.gitattributes
+.github/workflows/ci.yml
+.gitignore
+.prettierignore
+.prettierrc.yml
+.solcover.js
+.solhint.json
+.solhintignore
+.vscode/extensions.json
+.vscode/settings.json
+LICENSE
+README.md
+benchmarks/randomness/.gitkeep
+contracts/FHECounter.sol
+deploy/deploy.ts
+docs/architecture/.gitkeep
+docs/architecture/CP0_TEMPLATE_PROBE.md
+docs/governance/.gitkeep
+docs/governance/EVIDENCE_STANDARD.md
+docs/operations/.gitkeep
+docs/operations/KEEPER_CREDENTIAL_POLICY.md
+docs/security/.gitkeep
+eslint.config.mjs
+evidence/INDEX.md
+evidence/README.md
+evidence/cp0/.gitkeep
+evidence/cp0/CG1_CG2_MANIFEST_AND_ALLOWLIST.txt
+evidence/cp0/CG1_CG2_MANIFEST_AND_ALLOWLIST.txt.sha256
+evidence/cp0/CG3_KEEPER_CREDENTIAL_ISOLATION.txt
+evidence/cp0/CG3_KEEPER_CREDENTIAL_ISOLATION.txt.sha256
+evidence/manifests/.gitkeep
+evidence/stage-0/.gitkeep
+frontend/app/layout.tsx
+frontend/app/page.tsx
+frontend/components/providers.tsx
+frontend/components/zama-import-probe.tsx
+frontend/eslint.config.mjs
+frontend/next.config.ts
+frontend/package.json
+frontend/tests/smoke.test.ts
+frontend/tsconfig.json
+hardhat.config.ts
+keeper/.env.example
+keeper/eslint.config.mjs
+keeper/package.json
+keeper/src/balance-guard.ts
+keeper/src/config.ts
+keeper/src/probe-fixture.ts
+keeper/src/probe.ts
+keeper/tests/config.test.ts
+keeper/tsconfig.build.json
+keeper/tsconfig.json
+keeper/vitest.config.ts
+package.json
+packages/shared/.gitkeep
+packages/shared/package.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+tasks/FHECounter.ts
+tasks/accounts.ts
+test/FHECounter.ts
+test/FHECounterSepolia.ts
+test/adversarial/.gitkeep
+test/fuzz/.gitkeep
+test/integration/.gitkeep
+test/invariant/.gitkeep
+test/unit/.gitkeep
+tsconfig.json
+TRACKED_FILE_COUNT=69
+
+===== COMMITTED PATH SAFETY ASSERTIONS =====
+PASS: required baseline path present: pnpm-lock.yaml
+PASS: required baseline path present: .env.example
+PASS: required baseline path present: keeper/.env.example
+PASS: frontend/next-env.d.ts is absent.
+PASS: no prohibited generated or secret-like committed path exists.
+
+===== COMMITTED 32-BYTE VALUE SCAN =====
+eb1dac3d956c4eb8e0bdd84dc8a7a7b3d47f61d2:keeper/src/probe-fixture.ts:4:  KEEPER_PRIVATE_KEY: "0x1111111111111111111111111111111111111111111111111111111111111111",
+eb1dac3d956c4eb8e0bdd84dc8a7a7b3d47f61d2:keeper/tests/config.test.ts:7:const keeperPrivateKey = "0x1111111111111111111111111111111111111111111111111111111111111111";
+PASS: exactly two permitted deterministic fixture-key occurrences found.
+
+
+===== COMMITTED CREDENTIAL-PATTERN SCAN =====
+eb1dac3d956c4eb8e0bdd84dc8a7a7b3d47f61d2:hardhat.config.ts:15:const LOCAL_MNEMONIC = "test test test test test test test test test test test junk";
+eb1dac3d956c4eb8e0bdd84dc8a7a7b3d47f61d2:keeper/src/probe-fixture.ts:4:  KEEPER_PRIVATE_KEY: "0x1111111111111111111111111111111111111111111111111111111111111111",
+PASS: only the permitted Hardhat mnemonic and deterministic keeper fixture key were found.
+PASS: no suspicious credential, seed phrase, populated secret literal, or credential-bearing RPC URL was found.
+
+===== KEEPER BUILD OUTPUT AND BASELINE INTEGRITY =====
+keeper/dist/balance-guard.js
+keeper/dist/config.js
+keeper/dist/probe-fixture.js
+keeper/dist/probe.js
+PASS: keeper/dist contains no compiled tests.
+PASS: baseline commit, tree, tracked files, dependencies, and pnpm lockfile remain unchanged.
+
+===== FINAL RESULT =====
+PASS: CG-4 production monorepo foundation gate completed for baseline eb1dac3d956c4eb8e0bdd84dc8a7a7b3d47f61d2.
