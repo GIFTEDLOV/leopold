@@ -1,0 +1,209 @@
+{
+  "schema": "zama-szn4.sg3-weight-domain-evidence.v1",
+  "gate": "SG-3",
+  "status": "PASS",
+  "repository": "/home/dell/zama-szn4",
+  "gitCommit": "8d99551ac5ea59e07323e8e548d7d7770a68736c",
+  "gitTree": "c02f448ecde1b1ec94446638e2f41cbffbc3e666",
+  "derivationCommand": "pnpm --silent sg3:derive",
+  "derivationSha256": "db120335a65835bd67d0841b9ca84392912ab9daea677a54febd3de91f675753",
+  "derivationBytes": "9176",
+  "derivation": {
+    "schema": "sg3-weight-domain/v1",
+    "status": "PASS",
+    "repositoryInspection": {
+      "requestedScopeDocumentsPresent": false,
+      "absentRequestedDocuments": [
+        "00_SCOPE_REGISTER.md",
+        "CP0_INDEPENDENT_REVIEW.md",
+        "03_RANDOMNESS_ARCHITECTURE_LOCK.md",
+        "01_SUCCESS_AND_RELEASE_CRITERIA.md"
+      ],
+      "strongerCommittedPoolOrDurationCeilingFound": false,
+      "envelopeResolution": "The supplied minimum production envelope is locked as the SG-3 maximum supported envelope."
+    },
+    "assumptions": {
+      "tokenSymbol": "cUSDT",
+      "tokenDecimals": "6",
+      "tokenScale": "1000000",
+      "maximumPoolWholeTokens": "1000000000",
+      "maximumPoolBaseUnits": "1000000000000000",
+      "timeGranularitySeconds": "1",
+      "maximumRoundDurationDays": "365",
+      "maximumRoundDurationSeconds": "31536000",
+      "singleParticipantMayHoldFullPool": true,
+      "participantCountLimitAssumed": false,
+      "roundingOrTimeCompressionPermitted": false
+    },
+    "formulas": {
+      "maximumPoolBaseUnits": "MAX_POOL_WHOLE_TOKENS * TOKEN_SCALE",
+      "maximumRoundDurationSeconds": "MAX_ROUND_DURATION_DAYS * 24 * 60 * 60",
+      "maximumUserTwab": "MAX_USER_BALANCE_BASE_UNITS * MAX_ROUND_DURATION_SECONDS",
+      "maximumAggregateTwab": "MAX_POOL_BASE_UNITS * MAX_ROUND_DURATION_SECONDS",
+      "requiredBits": "smallest w such that x <= 2^w - 1",
+      "rejectionLimit": "floor(2^w / T) * T",
+      "acceptanceProbability": "REJECTION_LIMIT / 2^w",
+      "expectedAttempts": "2^w / REJECTION_LIMIT"
+    },
+    "derivedBounds": {
+      "maximumUserBalanceBaseUnits": "1000000000000000",
+      "maximumUserTwab": "31536000000000000000000",
+      "maximumAggregateTwab": "31536000000000000000000",
+      "maximumPrefixWeight": "31536000000000000000000",
+      "maximumAcceptedTicket": "31535999999999999999999",
+      "requiredBalanceBits": "50",
+      "requiredElapsedTimeBits": "25",
+      "requiredProductBits": "75",
+      "requiredTwabBits": "75",
+      "requiredAggregateBits": "75",
+      "requiredTicketBits": "75"
+    },
+    "recommendedTypes": {
+      "encryptedBalance": "euint64",
+      "publicTimestamp": "uint64",
+      "publicElapsed": "uint64 (checked), then exact uint128 scalar cast for FHE.mul",
+      "widenedBalanceOperand": "euint128",
+      "weightedDelta": "euint128",
+      "perUserTwab": "euint128",
+      "aggregateTwab": "euint128",
+      "cumulativePrefixWeight": "euint128",
+      "randomCandidate": "euint128",
+      "acceptedTicket": "euint128",
+      "rejectionValidity": "ebool",
+      "publicRejectionArithmetic": "uint256"
+    },
+    "widthDecisions": [
+      {
+        "widthBits": "64",
+        "maximumRepresentable": "18446744073709551615",
+        "balanceEnvelopeFits": true,
+        "userTwabEnvelopeFits": false,
+        "aggregateTwabEnvelopeFits": false,
+        "prefixWeightEnvelopeFits": false,
+        "ticketEnvelopeFits": false,
+        "capacityMarginAgainstMaximumTwab": "-31517553255926290448385",
+        "unusedHeadroomBits": "-11",
+        "maximumWholeTokenPoolForLockedDuration": "584942",
+        "maximumRoundDurationSecondsForLockedPool": "18446",
+        "mathematicalVerdict": "NO-GO",
+        "installedTicketApiVerdict": "MATHEMATICALLY_UNSAFE"
+      },
+      {
+        "widthBits": "128",
+        "maximumRepresentable": "340282366920938463463374607431768211455",
+        "balanceEnvelopeFits": true,
+        "userTwabEnvelopeFits": true,
+        "aggregateTwabEnvelopeFits": true,
+        "prefixWeightEnvelopeFits": true,
+        "ticketEnvelopeFits": true,
+        "capacityMarginAgainstMaximumTwab": "340282366920938431927374607431768211455",
+        "unusedHeadroomBits": "53",
+        "maximumWholeTokenPoolForLockedDuration": "10790283070806014188970529",
+        "maximumRoundDurationSecondsForLockedPool": "340282366920938463463374",
+        "mathematicalVerdict": "GO",
+        "installedTicketApiVerdict": "GO"
+      },
+      {
+        "widthBits": "256",
+        "maximumRepresentable": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+        "balanceEnvelopeFits": true,
+        "userTwabEnvelopeFits": true,
+        "aggregateTwabEnvelopeFits": true,
+        "prefixWeightEnvelopeFits": true,
+        "ticketEnvelopeFits": true,
+        "capacityMarginAgainstMaximumTwab": "115792089237316195423570985008687907853269984665640564007921584007913129639935",
+        "unusedHeadroomBits": "181",
+        "maximumWholeTokenPoolForLockedDuration": "3671743063080802746815416825491118336290905145409708398004109081",
+        "maximumRoundDurationSecondsForLockedPool": "115792089237316195423570985008687907853269984665640564039457584",
+        "mathematicalVerdict": "GO",
+        "installedTicketApiVerdict": "BLOCKED: installed FHE.sol lacks euint256 ordered comparison and public-scalar remainder"
+      }
+    ],
+    "installedFheApi": {
+      "source": "@fhevm/solidity 0.11.1 lib/FHE.sol",
+      "encryptedWidthsInspected": [
+        "euint64",
+        "euint128",
+        "euint256"
+      ],
+      "randomGeneration": [
+        "FHE.randEuint64()",
+        "FHE.randEuint128()",
+        "FHE.randEuint256()"
+      ],
+      "productionComparison": "FHE.lt(euint128,uint128) returns ebool",
+      "productionRemainder": "FHE.rem(euint128,uint128) returns euint128",
+      "productionMultiplication": "FHE.mul(euint128,uint128) returns euint128",
+      "wideningCast": "FHE.asEuint128(euint64) returns euint128",
+      "automaticMultiplicationWidening": false,
+      "encryptedOverflowPolicy": "Fixed-width results are not exposed as checked arithmetic; SG-3 forbids reaching overflow and requires pre-operation widening and proven bounds.",
+      "euint256Limitation": "randEuint256 exists, but euint256 ordered comparison, multiplication, and public-scalar remainder overloads are absent."
+    },
+    "rejectionSampling": {
+      "candidateWidthBits": "128",
+      "domainSize": "340282366920938463463374607431768211456",
+      "maximumTotal": "31536000000000000000000",
+      "quotientAtMaximumTotal": "10790283070806014",
+      "rejectionLimitAtMaximumTotal": "340282366920938457504000000000000000000",
+      "rejectedCandidatesAtMaximumTotal": "5959374607431768211456",
+      "acceptanceProbabilityAtMaximumTotal": {
+        "numerator": "340282366920938457504000000000000000000",
+        "denominator": "340282366920938463463374607431768211456"
+      },
+      "expectedAttemptsAtMaximumTotal": {
+        "numerator": "340282366920938463463374607431768211456",
+        "denominator": "340282366920938457504000000000000000000"
+      },
+      "guaranteedAcceptanceProbabilityLowerBound": {
+        "numerator": "340282366920938431927374607431768211457",
+        "denominator": "340282366920938463463374607431768211456",
+        "proof": "2^w mod T <= T - 1 <= MAX_AGGREGATE_TWAB - 1",
+        "strictlyGreaterThanOneHalf": true
+      },
+      "guaranteedExpectedAttemptsUpperBound": {
+        "numerator": "340282366920938463463374607431768211456",
+        "denominator": "340282366920938431927374607431768211457"
+      },
+      "zeroTotal": "No draw, no candidate, and no modulo operation.",
+      "oneTotal": "All candidates are valid and the accepted encrypted ticket is deterministically zero.",
+      "divisorOfDomainSize": "REJECTION_LIMIT equals 2^w and is not representable in w bits; set encrypted VALID to true and compute encrypted remainder, with T=1 specialized to encrypted zero.",
+      "nonDivisor": "REJECTION_LIMIT is at most 2^w - 1, is checked before uint128 conversion, VALID is FHE.lt(R, limit), and ticket is FHE.rem(R, T).",
+      "confidentiality": "R and accepted ticket remain encrypted forever; only T at the permitted draw stage and encrypted VALID may be publicly decrypted.",
+      "rerollRule": "A valid candidate is immutable; exactly one replacement is allowed only after VALID decrypts false."
+    },
+    "twabTransition": {
+      "sequence": [
+        "effectiveTime = min(currentTimestamp, roundEnd)",
+        "require effectiveTime >= lastUpdate",
+        "elapsed = effectiveTime - lastUpdate",
+        "weightedDelta = widen(balance to euint128) * exact uint128(elapsed)",
+        "cumulativeTwab += weightedDelta",
+        "lastUpdate = effectiveTime",
+        "mutate balance only after accrual"
+      ],
+      "sameTimestampDelta": "0",
+      "closeBehavior": "Accrual is clamped to roundEnd; later updates add zero to closed-round TWAB.",
+      "aggregateProof": "sum(user TWAB) = integral(sum(user balances)) dt <= MAX_POOL_BASE_UNITS * MAX_ROUND_DURATION_SECONDS, independent of participant count."
+    },
+    "privacyClassification": {
+      "userBalance": "CONFIDENTIAL",
+      "userTwab": "CONFIDENTIAL",
+      "aggregateTwabBeforeDraw": "CONFIDENTIAL",
+      "aggregateTwabAtPermittedDraw": "PUBLICLY_DECRYPTABLE",
+      "randomCandidate": "CONFIDENTIAL_FOREVER",
+      "acceptedTicket": "CONFIDENTIAL_FOREVER",
+      "rejectionValidity": "PUBLICLY_DECRYPTABLE",
+      "timestamps": "PUBLIC_EXACT_SECONDS"
+    },
+    "reopenConditions": [
+      "pool ceiling exceeds 1,000,000,000 whole cUSDT",
+      "round duration exceeds 365 days",
+      "token precision changes from 6 decimals",
+      "time resolution changes from exact seconds",
+      "aggregate or prefix semantics exceed the pool-time integral bound",
+      "winner selection requires a domain larger than the aggregate TWAB",
+      "installed FHE arithmetic or casting semantics change",
+      "SG-4 cannot execute the required euint128 production path within accepted limits"
+    ]
+  }
+}
