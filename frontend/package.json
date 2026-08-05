@@ -12,8 +12,10 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "test": "vitest run",
+    "test": "vitest run --exclude \"e2e/**\"",
     "test:e2e": "playwright test",
+    "test:sg5": "vitest run tests/sg5-protocol.test.ts",
+    "test:sg5:browser": "playwright test e2e/sg5-browser.spec.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
