@@ -88,6 +88,7 @@
     "sg2:preflight": "node scripts/sg2-launcher.cjs preflight",
     "sg2:prepare": "node scripts/sg2-launcher.cjs prepare --",
     "sg2:verify": "node scripts/sg2-launcher.cjs verify --",
+    "sg3:derive": "ts-node --transpile-only scripts/sg3-domain.ts",
     "test": "hardhat test",
     "test:sepolia": "hardhat test --network sepolia",
     "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain",
