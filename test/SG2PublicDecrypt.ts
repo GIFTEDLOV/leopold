@@ -48,6 +48,9 @@ type LauncherModule = {
   ARGUMENT_ERROR: string;
   BOOTSTRAP_ERROR: string;
   DEBUG_ERROR: string;
+  DISPATCHER_LOADING_ERROR: string;
+  DISPATCH_ERROR: string;
+  HARDHAT_BOOTSTRAP_ERROR: string;
   VERBOSE_ERROR: string;
   executeLaunch(options: LauncherRuntimeOptions): Promise<void>;
   runCli(
@@ -67,7 +70,10 @@ type LauncherModule = {
 type FreshLauncherReport = {
   authorizationAfterExit?: string;
   authorizationAtRun?: string;
+  bootstrapStages: string[];
   hardhatLoads: number;
+  hardhatRegisterLoads: number;
+  handlerEntries: string[];
   loadedRequests: string[];
   networkAtLoad?: string;
   processArgumentsAtLoad?: string[];
@@ -96,6 +102,7 @@ function runFreshLauncher(
   argumentsList: string[],
   mode:
     | "hardhat-throw"
+    | "dispatcher-throw"
     | "normal"
     | "mismatch"
     | "esm-observe"
@@ -130,7 +137,15 @@ const launcherPath = ${JSON.stringify(launcherPath)};
 const stateAliasPath = ${JSON.stringify(options.stateAliasPath)};
 const mode = ${JSON.stringify(mode)};
 const originalLoad = Module._load;
-const report = { dispatchCalls: [], errorWrites: [], hardhatLoads: 0, loadedRequests: [] };
+const report = {
+  bootstrapStages: [],
+  dispatchCalls: [],
+  errorWrites: [],
+  hardhatLoads: 0,
+  hardhatRegisterLoads: 0,
+  handlerEntries: [],
+  loadedRequests: [],
+};
 let dispatchedCapability;
 let dispatchedTaskName;
 const originalStderrWrite = process.stderr.write.bind(process.stderr);
@@ -154,8 +169,15 @@ if (mode === "esm-observe") {
 }
 Module._load = function observedLoad(request, parent, isMain) {
   report.loadedRequests.push(String(request));
+  if (request === "hardhat/register") {
+    report.hardhatRegisterLoads += 1;
+    report.bootstrapStages.push("typescript-bootstrap");
+    return {};
+  }
   if (request === "hardhat") {
+    if (report.hardhatRegisterLoads !== 1) throw new Error("mocked TypeScript bootstrap unavailable");
     report.hardhatLoads += 1;
+    report.bootstrapStages.push("hre-bootstrap");
     report.networkAtLoad = process.env.HARDHAT_NETWORK;
     report.processArgumentsAtLoad = [...process.argv];
     report.secureMarkerAtLoad = process.env.SG2_SECURE_LAUNCH;
@@ -165,6 +187,8 @@ Module._load = function observedLoad(request, parent, isMain) {
     return { mockedHardhat: true };
   }
   if (request === taskModulePath) {
+    if (mode === "dispatcher-throw") throw new Error("uncontrolled mocked dispatcher detail");
+    report.bootstrapStages.push("dispatcher-load");
     const state = originalLoad(bootstrapStatePath, module, false);
     return {
       dispatchSg2: async (_hre, action, taskArguments, capability) => {
@@ -177,6 +201,7 @@ Module._load = function observedLoad(request, parent, isMain) {
         if (mode === "mismatch") state.consumeDispatchCapability(capability, "sg2:verify");
         else state.consumeDispatchCapability(capability, taskName);
         if (mode === "repeat") state.consumeDispatchCapability(capability, taskName);
+        report.handlerEntries.push(action);
       },
     };
   }
@@ -650,12 +675,32 @@ describe("SG-2 task safety helpers", function () {
     expect(result.status).to.equal(0);
     expect(result.stderr).to.equal("");
     expect(result.report.hardhatLoads).to.equal(1);
+    expect(result.report.hardhatRegisterLoads).to.equal(1);
     expect(result.report.networkAtLoad).to.equal("sepolia");
     expect(result.report.secureMarkerAtLoad).to.equal("1");
     expect(result.report.processArgumentsAtLoad).to.have.lengthOf(2);
     expect(result.report.authorizationAtRun).to.equal("sg2:prepare");
     expect(result.report.authorizationAfterExit).to.equal(undefined);
     expect(result.report.revokedCapabilityRejected).to.equal(true);
+  });
+
+  it("installs Hardhat's TypeScript bootstrap before HRE and reaches the mocked preflight handler", function () {
+    const result = runFreshLauncher("preflight", []);
+    expect(result.status).to.equal(0);
+    expect(result.stderr).to.equal("");
+    expect(result.report.bootstrapStages).to.deep.equal(["typescript-bootstrap", "hre-bootstrap", "dispatcher-load"]);
+    expect(result.report.handlerEntries).to.deep.equal(["preflight"]);
+    expect(result.report.dispatchCalls).to.deep.equal([{ action: "preflight", taskArguments: {} }]);
+
+    const launcherSource = readFileSync(resolve(__dirname, "../scripts/sg2-launcher.cjs"), "utf8");
+    const registerOffset = launcherSource.indexOf('require("hardhat/register")');
+    const hardhatOffset = launcherSource.indexOf('require("hardhat")');
+    expect(registerOffset).to.be.greaterThan(0);
+    expect(hardhatOffset).to.be.greaterThan(registerOffset);
+
+    const installedRegisterSource = readFileSync(resolve(__dirname, "../node_modules/hardhat/register.js"), "utf8");
+    expect(installedRegisterSource).to.include("willRunWithTypescript");
+    expect(installedRegisterSource).to.include("loadTsNode");
   });
 
   it("sets the secure-launch marker only after complete validation", async function () {
@@ -692,29 +737,34 @@ describe("SG-2 task safety helpers", function () {
   it("binds authorization to one matching task consumption and revokes it", function () {
     const mismatch = runFreshLauncher("prepare", ["--", "--address", contractAddress], "mismatch");
     expect(mismatch.status).to.equal(1);
-    expect(freshErrorOutput(mismatch)).to.equal(sg2Launcher.BOOTSTRAP_ERROR);
+    expect(freshErrorOutput(mismatch)).to.equal(sg2Launcher.DISPATCH_ERROR);
     expect(mismatch.report.authorizationAtRun).to.equal("sg2:prepare");
     expect(mismatch.report.authorizationAfterExit).to.equal(undefined);
     expect(mismatch.report.revokedCapabilityRejected).to.equal(true);
 
     const repeated = runFreshLauncher("deploy", [], "repeat");
     expect(repeated.status).to.equal(1);
-    expect(freshErrorOutput(repeated)).to.equal(sg2Launcher.BOOTSTRAP_ERROR);
+    expect(freshErrorOutput(repeated)).to.equal(sg2Launcher.DISPATCH_ERROR);
     expect(repeated.report.authorizationAfterExit).to.equal(undefined);
     expect(repeated.report.revokedCapabilityRejected).to.equal(true);
 
     const reauthorized = runFreshLauncher("verify", ["--", "--address", contractAddress], "reauthorize");
     expect(reauthorized.status).to.equal(1);
-    expect(freshErrorOutput(reauthorized)).to.equal(sg2Launcher.BOOTSTRAP_ERROR);
+    expect(freshErrorOutput(reauthorized)).to.equal(sg2Launcher.DISPATCH_ERROR);
     expect(reauthorized.report.authorizationAfterExit).to.equal(undefined);
     expect(reauthorized.report.revokedCapabilityRejected).to.equal(true);
   });
 
-  it("converts fresh-process bootstrap failures to one fixed non-zero launcher failure", function () {
-    for (const mode of ["hardhat-throw", "throw"] as const) {
+  it("reports fixed sanitized Hardhat, dispatcher-loading, and dispatch stage failures", function () {
+    const cases = [
+      ["hardhat-throw", sg2Launcher.HARDHAT_BOOTSTRAP_ERROR],
+      ["dispatcher-throw", sg2Launcher.DISPATCHER_LOADING_ERROR],
+      ["throw", sg2Launcher.DISPATCH_ERROR],
+    ] as const;
+    for (const [mode, expectedError] of cases) {
       const result = runFreshLauncher("deploy", [], mode);
       expect(result.status).to.equal(1);
-      expect(freshErrorOutput(result)).to.equal(sg2Launcher.BOOTSTRAP_ERROR);
+      expect(freshErrorOutput(result)).to.equal(expectedError);
       expect(result.stderr).not.to.include("uncontrolled");
       expect(result.report.authorizationAfterExit).to.equal(undefined);
     }

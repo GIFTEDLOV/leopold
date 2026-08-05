@@ -17,6 +17,9 @@ const VERBOSE_ERROR = "SG2 launcher rejected Hardhat verbose mode; sensitive det
 const DEBUG_ERROR = "SG2 launcher rejected unsafe debug configuration; sensitive details suppressed.";
 const ARGUMENT_ERROR = "SG2 launcher arguments are invalid; sensitive details suppressed.";
 const BOOTSTRAP_ERROR = "SG2 launcher bootstrap failed; sensitive details suppressed.";
+const HARDHAT_BOOTSTRAP_ERROR = "SG2 launcher Hardhat bootstrap failed; sensitive details suppressed.";
+const DISPATCHER_LOADING_ERROR = "SG2 launcher dispatcher loading failed; sensitive details suppressed.";
+const DISPATCH_ERROR = "SG2 launcher dispatch failed; sensitive details suppressed.";
 const AUTHORIZATION_ERROR = "SG2 process-local authorization failed; sensitive details suppressed.";
 const TRUSTED_ROOT = "/home/dell/zama-szn4";
 // Locked Hardhat 2.28.6 and @fhevm/hardhat-plugin 0.4.2 debug namespaces.
@@ -234,6 +237,10 @@ function installedAddressValidator(address) {
 }
 
 async function loadInstalledHardhat() {
+  // Hardhat's supported programmatic register entry installs ts-node for this
+  // TypeScript project before loading hardhat.config.ts and constructing HRE.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("hardhat/register");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require("hardhat");
 }
@@ -269,16 +276,32 @@ async function executeLaunch({
     environment[HARDHAT_NETWORK_ENVIRONMENT_VARIABLE] = SEPOLIA_NETWORK_NAME;
     processArguments.splice(2);
 
-    const hre = await loadHardhat();
-    if (typeof hre !== "object" || hre === null) {
-      throw new Error("invalid Hardhat runtime");
+    let hre;
+    try {
+      hre = await loadHardhat();
+      if (typeof hre !== "object" || hre === null) {
+        throw new Error("invalid Hardhat runtime");
+      }
+    } catch {
+      throw new LauncherValidationError(HARDHAT_BOOTSTRAP_ERROR);
     }
-    const dispatchSg2 = await loadDispatcher();
+
+    let dispatchSg2;
+    try {
+      dispatchSg2 = await loadDispatcher();
+    } catch {
+      throw new LauncherValidationError(DISPATCHER_LOADING_ERROR);
+    }
     if (session.readAction() !== request.taskName) {
       throw new Error(BOOTSTRAP_ERROR);
     }
-    await dispatchSg2(hre, request.action, request.taskArguments, session.capability);
-  } catch {
+    try {
+      await dispatchSg2(hre, request.action, request.taskArguments, session.capability);
+    } catch {
+      throw new LauncherValidationError(DISPATCH_ERROR);
+    }
+  } catch (error) {
+    if (error instanceof LauncherValidationError) throw error;
     throw new Error(BOOTSTRAP_ERROR);
   } finally {
     session.revoke();
@@ -331,6 +354,9 @@ module.exports = {
   ARGUMENT_ERROR,
   BOOTSTRAP_ERROR,
   DEBUG_ERROR,
+  DISPATCHER_LOADING_ERROR,
+  DISPATCH_ERROR,
+  HARDHAT_BOOTSTRAP_ERROR,
   VERBOSE_ERROR,
   executeLaunch,
   requireSafePreBootstrapEnvironment,
