@@ -9,9 +9,44 @@ import type { HardhatUserConfig } from "hardhat/config";
 import { vars } from "hardhat/config";
 import "solidity-coverage";
 
+import { realpathSync } from "node:fs";
+
 import "./tasks/accounts";
 import "./tasks/FHECounter";
 import "./tasks/sg1";
+import {
+  classifyHardhatCommand,
+  guardSg2TaskBeforeConfiguration,
+  requireSafeFhevmDebugConfiguration,
+} from "./tasks/sg2";
+
+type Sg2BootstrapState = Readonly<{
+  peekAuthorizedAction(): string | undefined;
+}>;
+
+const SG2_CONFIGURATION_ERROR = "SG2 secure launcher is required; sensitive details suppressed.";
+const SG2_TASK_NAMES = new Set(["sg2:preflight", "sg2:deploy", "sg2:prepare", "sg2:verify"]);
+const SG2_BOOTSTRAP_STATE_PATH = "/home/dell/zama-szn4/scripts/sg2-bootstrap-state.cjs";
+
+function failSg2Configuration(): never {
+  const failure = new Error(SG2_CONFIGURATION_ERROR);
+  failure.stack = SG2_CONFIGURATION_ERROR;
+  throw failure;
+}
+
+function loadCanonicalSg2BootstrapState(): Sg2BootstrapState {
+  try {
+    if (realpathSync.native(SG2_BOOTSTRAP_STATE_PATH) !== SG2_BOOTSTRAP_STATE_PATH) {
+      throw new Error("invalid state");
+    }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const state = require(SG2_BOOTSTRAP_STATE_PATH) as Sg2BootstrapState;
+    if (typeof state.peekAuthorizedAction !== "function") throw new Error("invalid state");
+    return state;
+  } catch {
+    return failSg2Configuration();
+  }
+}
 
 const LOCAL_MNEMONIC = "test test test test test test test test test test test junk";
 
@@ -42,7 +77,45 @@ function selectedTask(): string {
 const activeNetwork = selectedNetwork();
 const activeTask = selectedTask();
 const isSepolia = activeNetwork === "sepolia";
-const isSg1Task = activeTask === "sg1:preflight" || activeTask === "sg1:deploy" || activeTask === "sg1:probe";
+const hardhatCommand = classifyHardhatCommand(process.argv.slice(2), {
+  HARDHAT_VERBOSE: process.env.HARDHAT_VERBOSE,
+});
+let isDirectSg2CapabilityTask: boolean;
+try {
+  isDirectSg2CapabilityTask = guardSg2TaskBeforeConfiguration(
+    process.argv.slice(2),
+    { HARDHAT_VERBOSE: process.env.HARDHAT_VERBOSE },
+    requireSafeFhevmDebugConfiguration,
+  );
+} catch {
+  failSg2Configuration();
+}
+const isSg2LauncherBootstrap = process.env.SG2_SECURE_LAUNCH === "1";
+const authorizedSg2Task =
+  isDirectSg2CapabilityTask || isSg2LauncherBootstrap
+    ? loadCanonicalSg2BootstrapState().peekAuthorizedAction()
+    : undefined;
+if (isDirectSg2CapabilityTask) {
+  // The supported launcher never places an SG-2 task token in Hardhat argv.
+  // Compare the attempted task with the read-only authorization first, then
+  // reject all direct Hardhat SG-2 execution before any configVariable access.
+  if (authorizedSg2Task !== hardhatCommand.selectedTask) failSg2Configuration();
+  failSg2Configuration();
+}
+if (isSg2LauncherBootstrap) {
+  if (
+    authorizedSg2Task === undefined ||
+    !SG2_TASK_NAMES.has(authorizedSg2Task) ||
+    !isSepolia ||
+    hardhatCommand.verbose
+  ) {
+    failSg2Configuration();
+  }
+  requireSafeFhevmDebugConfiguration();
+}
+const isSg2CapabilityTask = authorizedSg2Task !== undefined;
+const isCapabilityTask =
+  activeTask === "sg1:preflight" || activeTask === "sg1:deploy" || activeTask === "sg1:probe" || isSg2CapabilityTask;
 const isVerificationTask = activeTask === "verify" || activeTask.startsWith("verify:");
 
 function optionalVariable(name: string): string {
@@ -56,7 +129,7 @@ function optionalVariable(name: string): string {
 function sepoliaVariable(name: string): string {
   const value = optionalVariable(name);
 
-  if (isSepolia && !isSg1Task && value.length === 0) {
+  if (isSepolia && !isCapabilityTask && value.length === 0) {
     throw new Error(
       `Missing required Hardhat variable ${name} for Sepolia. ` +
         `Set it with "pnpm exec hardhat vars set ${name}" or provide ` +
