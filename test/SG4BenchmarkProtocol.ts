@@ -326,8 +326,15 @@ function validSample(publicDecrypt = false): Record<string, unknown> {
     calldataByteLength: "4",
     deployedBytecodeLength: null,
     hcuConsumed: "1",
+    hcuDepthConsumed: "1",
     hcuSource: "PLUGIN_RECEIPT_COPROCESSOR_EVENTS",
     authoritativeHcuCeiling: "100",
+    authoritativeHcuDepthCeiling: "100",
+    totalSafetyThreshold: "15000000",
+    depthSafetyThreshold: "3750000",
+    totalSafetyResult: "PASS",
+    depthSafetyResult: "PASS",
+    combinedHcuVerdict: "GO",
     currentBlockGasLimit: "1000000",
     submissionTimestamp: timestamp,
     receiptTimestamp: timestamp,
@@ -395,7 +402,18 @@ function validRawResult(): Record<string, unknown> {
       status: "AUTHORITATIVE",
       source: "PLUGIN_RECEIPT_COPROCESSOR_EVENTS",
       transactionCeiling: "100",
+      transactionDepthCeiling: "100",
+      totalSafetyThreshold: "15000000",
+      depthSafetyThreshold: "3750000",
+      safetyBoundSemantics: "EXCLUSIVE",
       applicableBlockOrBatchCeiling: null,
+      applicableBlockOrBatchCeilingState: "PROVEN_ABSENT_IN_VERIFIED_IMPLEMENTATION",
+      authorityVerification: {
+        verdict: "PASS",
+        authorityProtocolDigest: "0".repeat(64),
+        pinnedBlockNumber: "1",
+        pinnedBlockHash: `0x${"1".repeat(64)}`,
+      },
       gasSubstituted: false,
     },
     deployments: [],
@@ -1537,23 +1555,27 @@ describe("SG-4 local encrypted harness execution", function () {
 });
 
 describe("SG-4 scope", function () {
-  it("changes only the five permitted paths", function () {
+  /* Reviewed SG-4 HCU-authority preparation scope. Contracts are deliberately absent: the
+   * amendment changes no Solidity. */
+  it("changes only the reviewed SG-4 authority preparation paths", function () {
     const status = spawnSync("git", ["status", "--short"], { cwd: root, encoding: "utf8" });
     const paths = status.stdout
       .trimEnd()
       .split("\n")
       .filter(Boolean)
       .map((line) => line.slice(3));
-    expect(
-      paths.every((path) =>
-        [
-          "package.json",
-          "contracts/benchmarks/",
-          "docs/security/SG4_BENCHMARK_PROTOCOL.md",
-          "scripts/sg4-protocol.ts",
-          "test/SG4BenchmarkProtocol.ts",
-        ].includes(path),
-      ),
-    ).to.equal(true);
+    const permitted = [
+      "package.json",
+      "pnpm-lock.yaml",
+      "docs/security/SG4_BENCHMARK_PROTOCOL.md",
+      "docs/security/SG4_HCU_AUTHORITY_PROTOCOL.md",
+      "scripts/sg4-protocol.ts",
+      "scripts/sg4-hcu-authority-launcher.cjs",
+      "scripts/sg4-hcu-authority-protocol.ts",
+      "scripts/sg4-hcu-authority.ts",
+      "test/SG4BenchmarkProtocol.ts",
+      "test/SG4HcuAuthority.ts",
+    ];
+    expect(paths.filter((path) => !permitted.includes(path))).to.deep.equal([]);
   });
 });

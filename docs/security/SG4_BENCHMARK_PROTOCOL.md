@@ -11,11 +11,45 @@ accepted ticket use `euint128`. Exact one-second accrual, a 1-billion-cUSDT pool
 sampling, encrypted accepted tickets, and the no-reroll rule are unchanged. Performance cannot select `euint64` for a
 75-bit domain. An operationally infeasible mandatory `euint128` path is architecture NO-GO and reopens design review.
 
-Live execution remains blocked: installed local packages expose receipt-derived HCU calculation, but no locally
-authoritative numeric Sepolia transaction, block, or batch HCU ceiling. Missing measurement or ceiling is
-`BLOCKED_NOT_GO`; gas cannot substitute for HCU. Local mock execution also reports `HCUTransactionDepthLimitExceeded`
-for the exact sequential 32-step winner circuit. That is a local feasibility signal, not a live result. It is retained
-rather than hidden; `WINNER_CHUNK_32` cannot receive GO unless authoritative live execution succeeds within every limit.
+Live execution remains blocked, but the reason has changed. This protocol is amended by
+`sg4-benchmark-protocol/v2+hcu-dual-control`, superseding the protocol whose SHA-256 was
+`01dd281bba5277c1fd6c989cc2e412b3fd51808a864fa5cdc5396121f6a015db`.
+
+The earlier statement that no locally authoritative numeric ceiling existed was incorrect.
+`docs/security/SG4_HCU_AUTHORITY_PROTOCOL.md` reads **two** expected per-transaction controls from installed,
+integrity-pinned code:
+
+- transaction total 20,000,000 HCU, measured by `globalHCU`, internal safety boundary 15,000,000;
+- dependency depth 5,000,000 HCU, measured by `maxHCUDepth`, internal safety boundary 3,750,000.
+
+Both are **local expected values pending live deployment binding** (`LOCAL_EXPECTED_PENDING_LIVE_BINDING`) and both
+block. A value read from an installed file is an expectation about a package, not a verified fact about the contract
+deployed behind the authority proxy.
+
+The block or batch control is `UNRESOLVED` and blocking. It is **not** recorded as proven absent: establishing absence
+requires enumerating the complete interface, storage, and enforcement surface of the exact deployed implementation,
+which only the live read-only verification can identify. A pattern scan for one constant shape cannot establish it.
+
+Further controls are also unresolved and blocking: the operation-schedule authority; the immutable upstream provenance
+(recorded from prior review, pending reverification); the **network ceiling semantics**, because the locally installed
+implementation reverts on `>=` while the prior-reviewed current deployment reverts on `>`; the current official artifact
+identity; and the preparation A→B binding record.
+
+Both **internal** safety boundaries are exclusive: equality is NO-GO, and that holds regardless of whether the network
+ceiling itself turns out to be inclusive. Combined GO requires both comparisons to pass; neither metric may substitute
+for the other, a missing metric is `BLOCKED_NOT_GO`, and no single combined HCU number may stand in for the two. Gas
+cannot substitute for HCU.
+
+Permanent execution now blocks on the authority verifier rather than on a missing number: it stays blocked until
+`scripts/sg4-hcu-authority.ts` passes, the result is pinned to an exact block number and hash, the executor and
+authority implementation are verified, both limit values and scopes are verified, table compatibility is verified, SG-4
+operation coverage is complete, and no unresolved applicable ceiling remains.
+
+Local mock execution reports `HCUTransactionDepthLimitExceeded` for the exact sequential 32-step winner circuit. That is
+a local feasibility signal, not a live result. It is retained rather than hidden, and it is now explained: the failing
+control is dependency depth, not transaction total. Under the previous single-ceiling model that failure had no
+corresponding rule, which is the defect this amendment closes. `WINNER_CHUNK_32` cannot receive GO unless authoritative
+live execution succeeds within every limit.
 
 ## Installed API and instrumentation
 
@@ -35,10 +69,17 @@ Arithmetic does not widen implicitly. The harness casts the encrypted balance be
 randomness but not the complete installed ordered-comparison/public-divisor-remainder path needed by the ticket flow.
 
 The plugin's `hre.fhevm.computeTransactionHCU(receipt)` derives HCU from receipt coprocessor events and the installed
-`HCUByOperator` table. The live runner must prove cost-table/host compatibility, complete operation recognition, and the
-authority of its source. The local HCULimit ABI exposes enforcement functions and errors but no numeric ceiling getter.
-Every applicable numeric ceiling must be resolved from an authoritative machine-verifiable source before a window
-begins. Unsafe, non-integral, or non-finite plugin numbers are rejected before decimal-string conversion.
+`HCUByOperator` table. It returns **two** independent measurements from the same receipt derivation — `globalHCU` and
+`maxHCUDepth` — and both are recorded and assessed separately for every measured transaction. The live runner must prove
+cost-table/host compatibility, complete operation recognition, and the authority of its source.
+
+The HCULimit ABI exposes enforcement functions and errors but no numeric ceiling getter, so both constants are
+`private constant` and are established from their executable enforcement paths and confirmed by address-normalized
+bytecode identity, never from a comment, a revert, or an observed failure. Note that the depth constant's docstring
+misdescribes it as per block; its symbol name, enforcement path, call sites, and `tstore`/`tload` transient-storage
+state transitions all establish per-transaction scope. Every applicable numeric ceiling must be resolved from an
+authoritative machine-verifiable source before a window begins, and a ceiling that is merely unresolved remains
+blocking. Unsafe, non-integral, or non-finite plugin numbers are rejected before decimal-string conversion.
 
 ## Exact circuit catalogue
 
@@ -234,10 +275,26 @@ selective unfavorable replacement is forbidden. Contract, FHE, API, HCU, and cor
 
 Each applicable raw sample requires protocol digest/version, commit/tree, circuit/vector/window/run identity,
 classification/index, contract/transaction/block identifiers, status, gas, effective gas price, calldata/deployed-byte
-lengths, HCU consumed/source/ceiling, current block gas limit, UTC submission/receipt times, receipt latency, post-state
-correctness, and sanitized failure category. Public-decryption samples additionally require relayer-ready and completion
-times, receipt-to-relayer and total durations, clear-value correctness, proof/signature-flow correctness, and leakage
-PASS.
+lengths, current block gas limit, UTC submission/receipt times, receipt latency, post-state correctness, and sanitized
+failure category.
+
+Every measured sample additionally stores and assesses both HCU controls independently: `hcuConsumed` (`globalHCU`),
+`hcuDepthConsumed` (`maxHCUDepth`), `hcuSource`, `authoritativeHcuCeiling`, `authoritativeHcuDepthCeiling`,
+`totalSafetyThreshold`, `depthSafetyThreshold`, `totalSafetyResult`, `depthSafetyResult`, and `combinedHcuVerdict`.
+Required edge behaviour, enforced behaviourally by tests rather than asserted in prose:
+
+| Measurement   | Value        | Result              |
+| ------------- | ------------ | ------------------- |
+| `globalHCU`   | 14,999,999   | total safety passes |
+| `globalHCU`   | 15,000,000   | total safety fails  |
+| `globalHCU`   | > 15,000,000 | total safety fails  |
+| `maxHCUDepth` | 3,749,999    | depth safety passes |
+| `maxHCUDepth` | 3,750,000    | depth safety fails  |
+| `maxHCUDepth` | > 3,750,000  | depth safety fails  |
+
+A missing `globalHCU` or a missing `maxHCUDepth` is `BLOCKED_NOT_GO`. Public-decryption samples additionally require
+relayer-ready and completion times, receipt-to-relayer and total durations, clear-value correctness,
+proof/signature-flow correctness, and leakage PASS.
 
 Stateful samples additionally require setup record/definition, pre-state, expected-post-state, participant-instance,
 equivalence-class, pre/post verification, and sequence-classification fields. Independent performance samples require a
@@ -274,8 +331,12 @@ unknown properties.
 
 ## GO/NO-GO rules
 
-- Every mandatory production circuit needs authoritative measured HCU and applicable numeric ceilings.
-- `maxHcu*4 <= transactionCeiling*3`; `maxGas*4 <= currentBlockGasLimit*3`.
+- Every mandatory production circuit needs both authoritative measured HCU values and both applicable numeric ceilings.
+- `maxHcu*4 < transactionCeiling*3`; `maxHcuDepth*4 < transactionDepthCeiling*3`; `maxGas*4 <= currentBlockGasLimit*3`.
+  The two HCU comparisons are **strict**: the implementation rejects equality with the safety boundary, so an inclusive
+  `<=` would contradict the code and admit the exact case the rule excludes.
+- Combined HCU GO requires `globalHCU < 15000000` **and** `maxHCUDepth < 3750000`. Equality with either boundary is
+  NO-GO. Neither control may substitute for the other.
 - Deployment bytecode is strictly below 24,576 bytes.
 - Missing HCU authority/ceiling is BLOCKED, never GO; hard-limit exceedance is NO-GO.
 - Correctness is 100%; unexpected reverts, cast/overflow errors, plaintext bypasses, semantic mismatches, valid-ticket
@@ -299,13 +360,21 @@ Reopen SG-4 before changing any locked field, authoritative HCU source/ceiling, 
 ticket-acceptance stage, confidentiality rule, or protocol digest. Reopen SG-3 before changing the product envelope or
 mandatory widths. Mandatory euint128 infeasibility requires architecture review, not a downgrade.
 
+Reopen this protocol as well before changing the HCU authority state, the control set, or either safety boundary.
+
 Phase 1 may start only after the HCU blocker is resolved through reviewed, machine-verifiable authority and the live
-runner implements this exact plan/schema. SG-4 remains PENDING after this preparation commit.
+runner implements this exact plan/schema. The authority resolution is preregistered in
+`docs/security/SG4_HCU_AUTHORITY_PROTOCOL.md`; its live read-only verification has been prepared but deliberately not
+executed. SG-4 remains PENDING and SG-5 remains PENDING after this amendment commit.
 
 ## Audit checklist
 
 - [ ] Protocol digest verified before every window.
+- [ ] SG-4 HCU-authority verifier PASS, pinned to an exact block number and hash, before any permanent execution.
 - [ ] Authoritative HCU source and every applicable numeric ceiling resolved.
+- [ ] Both `globalHCU` and `maxHCUDepth` recorded and assessed independently for every measured sample.
+- [ ] Both exclusive safety boundaries applied; equality with either is NO-GO.
+- [ ] Block/batch control recorded as proven absent, not as unresolved.
 - [ ] Exact 588-record circuit/instance/run plan consumed without reordering.
 - [ ] Excluded setup transactions recorded and not counted.
 - [ ] Candidate validity accepted before general-ticket winner scanning.
@@ -315,3 +384,23 @@ runner implements this exact plan/schema. SG-4 remains PENDING after this prepar
 - [ ] Complete JSON Schema validation and append-only provenance pass.
 - [ ] HCU, gas, latency, bytecode, correctness, throughput, and decryption rules pass.
 - [ ] No sensitive material appears in raw or summarized results.
+
+## The canonical operation-variant manifest
+
+The circuit registry is the single source of truth for what SG-4 executes. `OP` is the only place a circuit may name an
+FHE call; `FHE_OPERATION_SEMANTICS` gives each of those calls its exact executor semantics; and
+`deriveCanonicalOperationManifest(BUILDER_CIRCUITS)` produces `SG4_CANONICAL_OPERATION_VARIANTS` by walking the
+registered circuits themselves.
+
+The HCU-authority layer derives its pricing closure from that manifest. It maintains no operation table of its own, so
+the two cannot drift: a variant no circuit executes cannot appear in the closure, and a variant some circuit executes
+cannot be missing from it.
+
+Each variant carries its circuit ids, canonical operation, enforcement/calculator operation, operand mode, exact ordered
+operand types, result type, cost-table key, arity, and the Solidity calls that reach it. Overloads and literals are
+resolved explicitly rather than inferred by a reader — most notably `FHE.asEuint128(0)`, whose integer literal resolves
+to the `uint128` TrivialEncrypt overload through its `euint128` assignment target.
+
+Calls that execute only in the constructor or in operator-only excluded setup entry points are enumerated exactly, under
+`EXCLUDED_SETUP_TRIVIAL_ENCRYPT`. They are real homomorphic work, but in transactions whose gas and HCU never enter
+measured statistics, so they belong to no measured circuit and appear in no canonical variant.

@@ -1,5 +1,55 @@
 /* Deterministic, offline CP0/SG-4 benchmark-protocol preregistration. */
 
+/* ---------------------------------------------------------------------------------------------
+ * The two enforced per-transaction HCU controls and their internal 75% safety boundaries.
+ *
+ * These live HERE, in the benchmark layer, because the dependency between the two protocols runs
+ * one way: the benchmark layer is the leaf that declares what SG-4 executes and what it must stay
+ * under, and the HCU-authority layer imports from it. The reverse direction would be a cycle, and
+ * a cycle is how a derived manifest ends up undefined at module-evaluation time.
+ *
+ * There is still exactly one definition of each value; the authority protocol re-exports these.
+ * ------------------------------------------------------------------------------------------- */
+
+export const HCU_TRANSACTION_TOTAL_CEILING = 20_000_000n;
+export const HCU_TRANSACTION_DEPTH_CEILING = 5_000_000n;
+
+/* 75% of each ceiling, compared with a STRICT `<`: equality is NO-GO. */
+export const HCU_TOTAL_SAFETY_THRESHOLD = (HCU_TRANSACTION_TOTAL_CEILING * 3n) / 4n;
+export const HCU_DEPTH_SAFETY_THRESHOLD = (HCU_TRANSACTION_DEPTH_CEILING * 3n) / 4n;
+
+export type SampleHcuMeasurements = { globalHCU?: bigint; maxHCUDepth?: bigint };
+
+export type SampleHcuAssessment = {
+  totalSafetyResult: "PASS" | "FAIL";
+  depthSafetyResult: "PASS" | "FAIL";
+  combinedHcuVerdict: "GO" | "NO_GO";
+  missing: string[];
+};
+
+/* Per-sample dual-control assessment.
+ *
+ * Both metrics are mandatory and are compared against their own exclusive safety boundary:
+ * equality with a boundary is NO-GO. A missing metric fails rather than being skipped, so neither
+ * control can be satisfied by the other. */
+export function assessSampleHcu(measurements: SampleHcuMeasurements): SampleHcuAssessment {
+  const missing: string[] = [];
+  if (typeof measurements.globalHCU !== "bigint") missing.push("globalHCU");
+  if (typeof measurements.maxHCUDepth !== "bigint") missing.push("maxHCUDepth");
+  const totalSafetyResult =
+    typeof measurements.globalHCU === "bigint" && measurements.globalHCU < HCU_TOTAL_SAFETY_THRESHOLD ? "PASS" : "FAIL";
+  const depthSafetyResult =
+    typeof measurements.maxHCUDepth === "bigint" && measurements.maxHCUDepth < HCU_DEPTH_SAFETY_THRESHOLD
+      ? "PASS"
+      : "FAIL";
+  return {
+    totalSafetyResult,
+    depthSafetyResult,
+    combinedHcuVerdict: totalSafetyResult === "PASS" && depthSafetyResult === "PASS" ? "GO" : "NO_GO",
+    missing,
+  };
+}
+
 export const PROTOCOL_VERSION = "sg4-benchmark-protocol/v2";
 export const TOKEN_DECIMALS = 6n;
 export const TOKEN_SCALE = 1_000_000n;
@@ -131,6 +181,384 @@ const OP = {
   public128: "FHE.makePubliclyDecryptable(euint128)",
   publicBool: "FHE.makePubliclyDecryptable(ebool)",
 } as const;
+
+/* ---------------------------------------------------------------------------------------------
+ * INVARIANT A — the canonical SG-4 operation-variant vocabulary.
+ *
+ * `OP` above is the ONLY place a benchmark circuit may name an FHE call. This table gives each of
+ * those calls its exact executor semantics, so the operation set the circuits actually execute and
+ * the variant manifest exported to the HCU-authority layer are the same thing derived once, rather
+ * than two hand-maintained tables that can drift apart.
+ *
+ * `hcuPriced: false` marks calls the coprocessor does not price as homomorphic work — ACL grants
+ * and public-decryption requests are gas-only bookkeeping.
+ * ------------------------------------------------------------------------------------------- */
+
+export type FheOperationSemantics = {
+  /* The exact Solidity call as written in the circuit definition. */
+  solidityCall: string;
+  /* The executor operation name, as the cost table keys it. */
+  canonicalOperation: string | null;
+  /* The enforcement-surface name, where the two differ. */
+  enforcementOperation: string | null;
+  operandMode: "scalar" | "nonScalar" | "types" | null;
+  /* Exact ordered operand types as the call is written. */
+  operandTypes: readonly string[];
+  resultType: string | null;
+  costKeyType: string | null;
+  arity: number;
+  hcuPriced: boolean;
+  /* How an overload or literal argument was resolved, stated explicitly rather than assumed. */
+  overloadResolution: string;
+};
+
+export const FHE_OPERATION_SEMANTICS: Readonly<Record<string, FheOperationSemantics>> = deepFreeze({
+  [OP.allowBool]: {
+    solidityCall: OP.allowBool,
+    canonicalOperation: null,
+    enforcementOperation: null,
+    operandMode: null,
+    operandTypes: ["ebool"],
+    resultType: null,
+    costKeyType: null,
+    arity: 1,
+    hcuPriced: false,
+    overloadResolution: "ACL grant; no homomorphic work and no cost-table entry",
+  },
+  [OP.allow64]: {
+    solidityCall: OP.allow64,
+    canonicalOperation: null,
+    enforcementOperation: null,
+    operandMode: null,
+    operandTypes: ["euint64"],
+    resultType: null,
+    costKeyType: null,
+    arity: 1,
+    hcuPriced: false,
+    overloadResolution: "ACL grant; no homomorphic work and no cost-table entry",
+  },
+  [OP.allow128]: {
+    solidityCall: OP.allow128,
+    canonicalOperation: null,
+    enforcementOperation: null,
+    operandMode: null,
+    operandTypes: ["euint128"],
+    resultType: null,
+    costKeyType: null,
+    arity: 1,
+    hcuPriced: false,
+    overloadResolution: "ACL grant; no homomorphic work and no cost-table entry",
+  },
+  [OP.allow256]: {
+    solidityCall: OP.allow256,
+    canonicalOperation: null,
+    enforcementOperation: null,
+    operandMode: null,
+    operandTypes: ["euint256"],
+    resultType: null,
+    costKeyType: null,
+    arity: 1,
+    hcuPriced: false,
+    overloadResolution: "ACL grant; no homomorphic work and no cost-table entry",
+  },
+  [OP.public128]: {
+    solidityCall: OP.public128,
+    canonicalOperation: null,
+    enforcementOperation: null,
+    operandMode: null,
+    operandTypes: ["euint128"],
+    resultType: null,
+    costKeyType: null,
+    arity: 1,
+    hcuPriced: false,
+    overloadResolution: "public-decryption request; no homomorphic work and no cost-table entry",
+  },
+  [OP.publicBool]: {
+    solidityCall: OP.publicBool,
+    canonicalOperation: null,
+    enforcementOperation: null,
+    operandMode: null,
+    operandTypes: ["ebool"],
+    resultType: null,
+    costKeyType: null,
+    arity: 1,
+    hcuPriced: false,
+    overloadResolution: "public-decryption request; no homomorphic work and no cost-table entry",
+  },
+  [OP.rand64]: {
+    solidityCall: OP.rand64,
+    canonicalOperation: "FheRand",
+    enforcementOperation: "FheRand",
+    operandMode: "types",
+    operandTypes: [],
+    resultType: "euint64",
+    costKeyType: "Uint64",
+    arity: 0,
+    hcuPriced: true,
+    overloadResolution: "nullary width-selecting overload; the width is the result type",
+  },
+  [OP.rand128]: {
+    solidityCall: OP.rand128,
+    canonicalOperation: "FheRand",
+    enforcementOperation: "FheRand",
+    operandMode: "types",
+    operandTypes: [],
+    resultType: "euint128",
+    costKeyType: "Uint128",
+    arity: 0,
+    hcuPriced: true,
+    overloadResolution: "nullary width-selecting overload; the width is the result type",
+  },
+  [OP.rand256]: {
+    solidityCall: OP.rand256,
+    canonicalOperation: "FheRand",
+    enforcementOperation: "FheRand",
+    operandMode: "types",
+    operandTypes: [],
+    resultType: "euint256",
+    costKeyType: "Uint256",
+    arity: 0,
+    hcuPriced: true,
+    overloadResolution: "nullary width-selecting overload; the width is the result type",
+  },
+  [OP.as128From64]: {
+    solidityCall: OP.as128From64,
+    canonicalOperation: "Cast",
+    enforcementOperation: "Cast",
+    operandMode: "types",
+    operandTypes: ["euint64"],
+    resultType: "euint128",
+    costKeyType: "Uint128",
+    arity: 1,
+    hcuPriced: true,
+    overloadResolution: "ciphertext operand selects the Cast overload; priced at the RESULT width",
+  },
+  [OP.as128Public]: {
+    solidityCall: OP.as128Public,
+    canonicalOperation: "TrivialEncrypt",
+    enforcementOperation: "TrivialEncrypt",
+    operandMode: "types",
+    operandTypes: ["uint128"],
+    resultType: "euint128",
+    costKeyType: "Uint128",
+    arity: 1,
+    hcuPriced: true,
+    overloadResolution: "plaintext operand selects the TrivialEncrypt overload, not Cast",
+  },
+  [OP.as128Zero]: {
+    solidityCall: OP.as128Zero,
+    canonicalOperation: "TrivialEncrypt",
+    enforcementOperation: "TrivialEncrypt",
+    operandMode: "types",
+    operandTypes: ["uint128"],
+    resultType: "euint128",
+    costKeyType: "Uint128",
+    arity: 1,
+    hcuPriced: true,
+    /* The literal is the point: `0` has no type of its own, so the overload it selects has to be
+     * stated rather than inferred by a reader. */
+    overloadResolution:
+      "the integer literal 0 is resolved to the uint128 TrivialEncrypt overload by the euint128 assignment target; it is NOT a Cast and NOT a bool",
+  },
+  [OP.mul128Public]: {
+    solidityCall: OP.mul128Public,
+    canonicalOperation: "FheMul",
+    enforcementOperation: "FheMul",
+    operandMode: "scalar",
+    operandTypes: ["euint128", "uint128"],
+    resultType: "euint128",
+    costKeyType: "Uint128",
+    arity: 2,
+    hcuPriced: true,
+    overloadResolution: "plaintext second operand selects the scalar cost group",
+  },
+  [OP.add128]: {
+    solidityCall: OP.add128,
+    canonicalOperation: "FheAdd",
+    enforcementOperation: "FheAdd",
+    operandMode: "nonScalar",
+    operandTypes: ["euint128", "euint128"],
+    resultType: "euint128",
+    costKeyType: "Uint128",
+    arity: 2,
+    hcuPriced: true,
+    overloadResolution: "two ciphertext operands select the non-scalar cost group",
+  },
+  [OP.lt128Public]: {
+    solidityCall: OP.lt128Public,
+    canonicalOperation: "FheLt",
+    enforcementOperation: "FheLt",
+    operandMode: "scalar",
+    operandTypes: ["euint128", "uint128"],
+    resultType: "ebool",
+    costKeyType: "Uint128",
+    arity: 2,
+    hcuPriced: true,
+    overloadResolution: "plaintext second operand selects the scalar cost group; priced at the OPERAND width",
+  },
+  [OP.lt128]: {
+    solidityCall: OP.lt128,
+    canonicalOperation: "FheLt",
+    enforcementOperation: "FheLt",
+    operandMode: "nonScalar",
+    operandTypes: ["euint128", "euint128"],
+    resultType: "ebool",
+    costKeyType: "Uint128",
+    arity: 2,
+    hcuPriced: true,
+    overloadResolution: "two ciphertext operands select the non-scalar cost group; priced at the OPERAND width",
+  },
+  [OP.rem128Public]: {
+    solidityCall: OP.rem128Public,
+    canonicalOperation: "FheRem",
+    enforcementOperation: "FheRem",
+    operandMode: "scalar",
+    operandTypes: ["euint128", "uint128"],
+    resultType: "euint128",
+    costKeyType: "Uint128",
+    arity: 2,
+    hcuPriced: true,
+    overloadResolution: "plaintext divisor selects the scalar cost group",
+  },
+  [OP.notBool]: {
+    solidityCall: OP.notBool,
+    canonicalOperation: "FheNot",
+    enforcementOperation: "FheNot",
+    operandMode: "types",
+    operandTypes: ["ebool"],
+    resultType: "ebool",
+    costKeyType: "Bool",
+    arity: 1,
+    hcuPriced: true,
+    overloadResolution: "unary boolean negation; the single cost group is keyed by type",
+  },
+  [OP.andBool]: {
+    solidityCall: OP.andBool,
+    canonicalOperation: "FheBitAnd",
+    enforcementOperation: "FheBitAnd",
+    operandMode: "nonScalar",
+    operandTypes: ["ebool", "ebool"],
+    resultType: "ebool",
+    costKeyType: "Bool",
+    arity: 2,
+    hcuPriced: true,
+    overloadResolution: "two ciphertext operands select the non-scalar cost group",
+  },
+  [OP.orBool]: {
+    solidityCall: OP.orBool,
+    canonicalOperation: "FheBitOr",
+    enforcementOperation: "FheBitOr",
+    operandMode: "nonScalar",
+    operandTypes: ["ebool", "ebool"],
+    resultType: "ebool",
+    costKeyType: "Bool",
+    arity: 2,
+    hcuPriced: true,
+    overloadResolution: "two ciphertext operands select the non-scalar cost group",
+  },
+  [OP.select128]: {
+    solidityCall: OP.select128,
+    canonicalOperation: "FheIfThenElse",
+    enforcementOperation: "IfThenElse",
+    operandMode: "types",
+    operandTypes: ["ebool", "euint128", "euint128"],
+    resultType: "euint128",
+    costKeyType: "Uint128",
+    arity: 3,
+    hcuPriced: true,
+    overloadResolution: "ternary select; the branch width is the result type and the cost key",
+  },
+  [OP.select64]: {
+    solidityCall: OP.select64,
+    canonicalOperation: "FheIfThenElse",
+    enforcementOperation: "IfThenElse",
+    operandMode: "types",
+    operandTypes: ["ebool", "euint64", "euint64"],
+    resultType: "euint64",
+    costKeyType: "Uint64",
+    arity: 3,
+    hcuPriced: true,
+    overloadResolution: "ternary select; the branch width is the result type and the cost key",
+  },
+});
+
+/* One HCU-priced variant, with every circuit that actually executes it. */
+export type CanonicalOperationVariant = {
+  variantId: string;
+  canonicalOperation: string;
+  enforcementOperation: string;
+  operandMode: "scalar" | "nonScalar" | "types";
+  operandTypes: readonly string[];
+  resultType: string;
+  costKeyType: string;
+  arity: number;
+  solidityCalls: readonly string[];
+  circuits: readonly string[];
+};
+
+export function canonicalVariantId(variant: {
+  canonicalOperation: string;
+  operandMode: string;
+  costKeyType: string;
+}): string {
+  return `${variant.canonicalOperation}.${variant.operandMode}.${variant.costKeyType}`;
+}
+
+/* INVARIANT A — derived from the REGISTERED CIRCUITS, so it cannot describe an operation no circuit
+ * executes and cannot omit one that some circuit does. An FHE call with no declared semantics is an
+ * error rather than a silent omission. */
+export function deriveCanonicalOperationManifest(
+  circuits: readonly CircuitDefinition[],
+  semantics: Readonly<Record<string, FheOperationSemantics>> = FHE_OPERATION_SEMANTICS,
+): CanonicalOperationVariant[] {
+  const byVariant = new Map<string, CanonicalOperationVariant>();
+  for (const circuit of circuits) {
+    for (const call of circuit.operations) {
+      if (!call.startsWith("FHE.")) continue;
+      const declared = semantics[call];
+      if (declared === undefined) {
+        throw new Error(`SG4 circuit ${circuit.id} executes ${call}, which has no declared operation semantics`);
+      }
+      if (!declared.hcuPriced) continue;
+      const variant: CanonicalOperationVariant = {
+        variantId: canonicalVariantId({
+          canonicalOperation: declared.canonicalOperation as string,
+          operandMode: declared.operandMode as string,
+          costKeyType: declared.costKeyType as string,
+        }),
+        canonicalOperation: declared.canonicalOperation as string,
+        enforcementOperation: declared.enforcementOperation as string,
+        operandMode: declared.operandMode as "scalar" | "nonScalar" | "types",
+        operandTypes: declared.operandTypes,
+        resultType: declared.resultType as string,
+        costKeyType: declared.costKeyType as string,
+        arity: declared.arity,
+        solidityCalls: [call],
+        circuits: [circuit.id],
+      };
+      const existing = byVariant.get(variant.variantId);
+      if (existing === undefined) {
+        byVariant.set(variant.variantId, variant);
+        continue;
+      }
+      /* Two calls may reach one variant only if they agree on every priced semantic field. */
+      if (
+        existing.resultType !== variant.resultType ||
+        existing.arity !== variant.arity ||
+        existing.enforcementOperation !== variant.enforcementOperation ||
+        JSON.stringify(existing.operandTypes) !== JSON.stringify(variant.operandTypes)
+      ) {
+        throw new Error(`SG4 operation semantics describe ${variant.variantId} two incompatible ways`);
+      }
+      byVariant.set(variant.variantId, {
+        ...existing,
+        solidityCalls: [...new Set([...existing.solidityCalls, call])].sort(),
+        circuits: [...new Set([...existing.circuits, circuit.id])].sort(),
+      });
+    }
+  }
+  return [...byVariant.values()].sort((left, right) => left.variantId.localeCompare(right.variantId));
+}
 
 const store = (name: string) => `STORE.${name}`;
 const WINNER_STEP_OPERATIONS = [
@@ -2099,6 +2527,13 @@ export const EXPECTED_PUBLIC_DECRYPTION_PAIRS_LITERAL = [
 ] as const;
 export const EXPECTED_PUBLIC_DECRYPTION_PAIRS = deepFreeze(EXPECTED_PUBLIC_DECRYPTION_PAIRS_LITERAL);
 // Compatibility export for existing protocol consumers. Validation never uses this builder alias.
+/* The one canonical manifest, derived from the REGISTERED CIRCUITS. The HCU-authority layer
+ * derives its pricing closure from THIS, so a variant no circuit executes cannot appear and a
+ * variant some circuit executes cannot be missing. */
+export const SG4_CANONICAL_OPERATION_VARIANTS: readonly CanonicalOperationVariant[] = deepFreeze(
+  deriveCanonicalOperationManifest(BUILDER_CIRCUITS),
+);
+
 export const CIRCUITS = BUILDER_CIRCUITS;
 const CIRCUIT_IDS = BUILDER_CIRCUITS.map(({ id }) => id);
 
@@ -4555,12 +4990,52 @@ function rawResultSchema() {
       hcuResolution: {
         type: "object",
         additionalProperties: false,
-        required: ["status", "source", "transactionCeiling", "applicableBlockOrBatchCeiling", "gasSubstituted"],
+        required: [
+          "status",
+          "source",
+          "transactionCeiling",
+          "transactionDepthCeiling",
+          "totalSafetyThreshold",
+          "depthSafetyThreshold",
+          "safetyBoundSemantics",
+          "applicableBlockOrBatchCeiling",
+          "applicableBlockOrBatchCeilingState",
+          "authorityVerification",
+          "gasSubstituted",
+        ],
         properties: {
           status: { enum: ["AUTHORITATIVE", "BLOCKED"] },
           source: { enum: ["PLUGIN_RECEIPT_COPROCESSOR_EVENTS", "NETWORK_AUTHORITATIVE_RECEIPT_FIELD", "UNRESOLVED"] },
+          /* Enforced per-transaction total ceiling; measured against globalHCU. */
           transactionCeiling: { anyOf: [decimalString, { type: "null" }] },
+          /* Enforced per-transaction dependency-depth ceiling; measured against maxHCUDepth. A
+           * single combined number can never stand in for these two independent controls. */
+          transactionDepthCeiling: { anyOf: [decimalString, { type: "null" }] },
+          totalSafetyThreshold: { anyOf: [decimalString, { type: "null" }] },
+          depthSafetyThreshold: { anyOf: [decimalString, { type: "null" }] },
+          safetyBoundSemantics: { const: "EXCLUSIVE" },
+          /* A bare null carries no authority meaning; the accompanying state is mandatory. */
           applicableBlockOrBatchCeiling: { anyOf: [decimalString, { type: "null" }] },
+          applicableBlockOrBatchCeilingState: {
+            enum: [
+              "LOCAL_EXPECTED_PENDING_LIVE_BINDING",
+              "NOT_APPLICABLE",
+              "PROVEN_ABSENT_IN_VERIFIED_IMPLEMENTATION",
+              "PROVEN_PRESENT",
+              "UNRESOLVED",
+            ],
+          },
+          authorityVerification: {
+            type: "object",
+            additionalProperties: false,
+            required: ["verdict", "authorityProtocolDigest", "pinnedBlockNumber", "pinnedBlockHash"],
+            properties: {
+              verdict: { enum: ["PASS", "BLOCKED", "FAIL"] },
+              authorityProtocolDigest: { anyOf: [digest, { type: "null" }] },
+              pinnedBlockNumber: { anyOf: [decimalString, { type: "null" }] },
+              pinnedBlockHash: { anyOf: [hash, { type: "null" }] },
+            },
+          },
           gasSubstituted: { const: false },
         },
       },
@@ -4694,8 +5169,15 @@ function rawResultSchema() {
           "calldataByteLength",
           "deployedBytecodeLength",
           "hcuConsumed",
+          "hcuDepthConsumed",
           "hcuSource",
           "authoritativeHcuCeiling",
+          "authoritativeHcuDepthCeiling",
+          "totalSafetyThreshold",
+          "depthSafetyThreshold",
+          "totalSafetyResult",
+          "depthSafetyResult",
+          "combinedHcuVerdict",
           "currentBlockGasLimit",
           "submissionTimestamp",
           "receiptTimestamp",
@@ -4738,9 +5220,19 @@ function rawResultSchema() {
           effectiveGasPrice: decimalString,
           calldataByteLength: decimalString,
           deployedBytecodeLength: { anyOf: [decimalString, { type: "null" }] },
+          /* globalHCU from computeTransactionHCU(receipt): the transaction-total control. */
           hcuConsumed: decimalString,
+          /* maxHCUDepth from the same receipt derivation: the dependency-depth control. Both are
+           * mandatory; a missing value is a failure, never a skipped check. */
+          hcuDepthConsumed: decimalString,
           hcuSource: { enum: ["PLUGIN_RECEIPT_COPROCESSOR_EVENTS", "NETWORK_AUTHORITATIVE_RECEIPT_FIELD"] },
           authoritativeHcuCeiling: decimalString,
+          authoritativeHcuDepthCeiling: decimalString,
+          totalSafetyThreshold: decimalString,
+          depthSafetyThreshold: decimalString,
+          totalSafetyResult: { enum: ["PASS", "FAIL"] },
+          depthSafetyResult: { enum: ["PASS", "FAIL"] },
+          combinedHcuVerdict: { enum: ["GO", "NO_GO"] },
           currentBlockGasLimit: decimalString,
           submissionTimestamp: timestamp,
           receiptTimestamp: timestamp,
@@ -5137,11 +5629,40 @@ function buildProtocol() {
         source:
           "hre.fhevm.computeTransactionHCU(receipt) backed by receipt coprocessor events and installed HCUByOperator",
         liveAuthorityMustBeVerified: true,
+        /* The same receipt derivation yields two independent measurements. Both are recorded and
+         * assessed separately for every measured transaction. */
+        measurements: {
+          globalHCU: "TRANSACTION_TOTAL_HCU",
+          maxHCUDepth: "TRANSACTION_DEPTH_HCU",
+        },
+        bothMeasurementsMandatory: true,
+        singleCombinedNumberForbidden: true,
       },
       hcuCeiling: {
         status: "EXECUTION_BLOCKER_UNTIL_AUTHORITATIVE_NUMERIC_CEILING_IS_MACHINE_VERIFIED",
         gasMaySubstitute: false,
         missingMeasurementOrCeilingVerdict: "BLOCKED_NOT_GO",
+        /* Resolved by the SG-4 HCU-authority protocol; both are per-transaction controls and the
+         * depth control is the one the sequential winner circuits actually bind against. */
+        transactionTotalCeiling: decimal(HCU_TRANSACTION_TOTAL_CEILING),
+        transactionDepthCeiling: decimal(HCU_TRANSACTION_DEPTH_CEILING),
+        /* Unresolved. The locally installed implementation reverts on `>=` (configured ceiling
+         * exclusive); the prior-reviewed current deployment reverts on `>` (configured ceiling
+         * inclusive). Which one the deployed contract uses is a live question, so neither is
+         * recorded as fact. This says nothing about the internal 75% safety rule below, which is
+         * strict in either case. */
+        ceilingSemantics: "UNRESOLVED",
+        ceilingSemanticsBlocking: true,
+        localInstalledCeilingSemantics: "CONFIGURED_CEILING_EXCLUSIVE_REVERT_ON_GREATER_THAN_OR_EQUAL",
+        priorReviewedCurrentDeploymentCeilingSemantics: "CONFIGURED_CEILING_INCLUSIVE_REVERT_ON_GREATER_THAN",
+        internalSafetyPolicyIsIndependentOfCeilingSemantics: true,
+        /* Unresolved, not proven absent. Absence can only be concluded from the complete surface of
+         * the exact deployed implementation, which requires the live read-only verification. */
+        blockOrBatchCeilingState: "UNRESOLVED",
+        blockOrBatchCeiling: null,
+        blockOrBatchCeilingBlocking: true,
+        provenAbsentIsNotUnresolved: true,
+        unresolvedRemainsBlocking: true,
       },
       localMockFeasibility: {
         WINNER_CHUNK_32: "HCUTransactionDepthLimitExceeded",
@@ -5157,10 +5678,30 @@ function buildProtocol() {
       ],
     },
     limits: {
+      /* Strict, not `<=`. The implementation rejects equality with the safety boundary
+       * (`value < threshold`), so a `<=` declaration would contradict the code it describes and
+       * would admit exactly the boundary case the rule exists to exclude. */
       hcuMaximumFraction: {
         numerator: "3",
         denominator: "4",
-        comparison: "maxHcu*4 <= authoritativeTransactionHcuCeiling*3",
+        comparison: "maxHcu*4 < authoritativeTransactionHcuCeiling*3",
+        boundSemantics: "EXCLUSIVE",
+      },
+      /* The 75% rule applies to the dependency-depth control as well. Depth is not derivable from
+       * the total, so it is expressed as its own exclusive safety boundary. */
+      hcuDepthMaximumFraction: {
+        numerator: "3",
+        denominator: "4",
+        comparison: "maxHcuDepth*4 < authoritativeTransactionHcuDepthCeiling*3",
+        boundSemantics: "EXCLUSIVE",
+      },
+      hcuSafetyThresholds: {
+        total: decimal(HCU_TOTAL_SAFETY_THRESHOLD),
+        depth: decimal(HCU_DEPTH_SAFETY_THRESHOLD),
+        boundSemantics: "EXCLUSIVE",
+        goRequiresGlobalHcuBelow: decimal(HCU_TOTAL_SAFETY_THRESHOLD),
+        goRequiresMaxHcuDepthBelow: decimal(HCU_DEPTH_SAFETY_THRESHOLD),
+        equalityVerdict: "NO_GO",
       },
       gasMaximumFraction: { numerator: "3", denominator: "4", comparison: "maxGas*4 <= currentBlockGasLimit*3" },
       deploymentBytecodeBytesExclusiveUpperBound: decimal(EIP170_BYTE_LIMIT),
@@ -5181,7 +5722,15 @@ function buildProtocol() {
     },
     goNoGo: {
       mandatoryHcuMeasurement: true,
+      mandatoryHcuDepthMeasurement: true,
       missingHcuOrCeilingVerdict: "BLOCKED_NOT_GO",
+      missingGlobalHcuVerdict: "BLOCKED_NOT_GO",
+      missingMaxHcuDepthVerdict: "BLOCKED_NOT_GO",
+      /* Combined GO requires both exclusive comparisons to pass; neither metric may substitute for
+       * the other and no single combined HCU number is accepted in their place. */
+      combinedHcuVerdictRequiresBothControls: true,
+      totalMayNotSubstituteForDepth: true,
+      depthMayNotSubstituteForTotal: true,
       gasCannotReplaceHcu: true,
       resourceHeadroomNumerator: "3",
       resourceHeadroomDenominator: "4",
@@ -5193,6 +5742,65 @@ function buildProtocol() {
       sensitiveLeakageAllowed: "0",
       publicDecryptionP90Milliseconds: "180000",
     },
+    /* Amendment record. The protocol identifier is unchanged; the committed digest is the binding
+     * identity and it changes with this amendment. */
+    amendment: {
+      id: "sg4-benchmark-protocol/v2+hcu-dual-control",
+      supersededProtocolSha256: "01dd281bba5277c1fd6c989cc2e412b3fd51808a864fa5cdc5396121f6a015db",
+      reason:
+        "The HCU authority resolved two independent per-transaction controls. The prior protocol modelled a single ceiling and a single measurement, so it could have granted GO to a configuration the network rejects on dependency depth.",
+      authorityProtocolVersion: "sg4-hcu-authority-protocol/v1",
+    },
+
+    /* Permanent benchmark execution stays blocked until the authority verifier passes. */
+    hcuAuthority: {
+      protocolVersion: "sg4-hcu-authority-protocol/v1",
+      verifier: "scripts/sg4-hcu-authority.ts",
+      authorityRootPackage: "@fhevm/host-contracts",
+      authorityRootVersion: "0.10.0",
+      controls: {
+        TRANSACTION_TOTAL_HCU: {
+          measurement: "globalHCU",
+          ceiling: decimal(HCU_TRANSACTION_TOTAL_CEILING),
+          safetyThreshold: decimal(HCU_TOTAL_SAFETY_THRESHOLD),
+          authorityState: "LOCAL_EXPECTED_PENDING_LIVE_BINDING",
+          blocking: true,
+        },
+        TRANSACTION_DEPTH_HCU: {
+          measurement: "maxHCUDepth",
+          ceiling: decimal(HCU_TRANSACTION_DEPTH_CEILING),
+          safetyThreshold: decimal(HCU_DEPTH_SAFETY_THRESHOLD),
+          authorityState: "LOCAL_EXPECTED_PENDING_LIVE_BINDING",
+          blocking: true,
+        },
+        BLOCK_OR_BATCH_HCU: {
+          measurement: null,
+          ceiling: null,
+          safetyThreshold: null,
+          authorityState: "UNRESOLVED",
+          blocking: true,
+        },
+      },
+      /* The operation-schedule discrepancy and the missing immutable provenance are recorded in
+       * `docs/security/SG4_HCU_AUTHORITY_PROTOCOL.md` and block alongside the controls above. */
+      operationScheduleAuthorityState: "UNRESOLVED",
+      immutableProvenanceState: "UNRESOLVED",
+      permanentExecutionBlockedUntil: [
+        "HCU-authority verifier PASS",
+        "address-normalized code identity verified against the deployed implementation",
+        "authority result pinned to an exact block number and block hash",
+        "block/batch control resolved to proven present or proven absent, never unresolved",
+        "both limit values and scopes bound to the verified deployed implementation",
+        "executor and authority implementation verified",
+        "immutable upstream provenance resolved",
+        "no unresolved applicable ceiling remaining",
+        "operation-schedule authority resolved",
+        "operation-table compatibility verified",
+        "SG-4 operation coverage complete",
+      ],
+      permanentBenchmarkExecutionAllowed: false,
+    },
+
     rejectionAndAcceptance: {
       generalRemainderIsAcceptedTicket: false,
       generalCandidateMayMutateWinnerState: false,
@@ -5214,6 +5822,8 @@ function buildProtocol() {
         "schema",
         "verdicts",
         "outagePolicy",
+        "hcuAuthority",
+        "hcuDualControlThresholds",
       ],
       unfavorableSamplesMayBeReplaced: false,
       changesRequireReviewedSg4Reopen: true,
@@ -5250,6 +5860,7 @@ function buildProtocol() {
       "vector or run plan changes",
       "statistics, schema, threshold, or verdict changes",
       "authoritative HCU source or ceiling changes",
+      "HCU authority state, control set, or safety-boundary changes",
       "installed lineage changes",
       "mandatory euint128 infeasibility",
       "product envelope or privacy changes",
@@ -5558,6 +6169,149 @@ export function validateProtocol(candidate: unknown): asserts candidate is Proto
     protocol.limits.hcuMaximumFraction.numerator === "3" && protocol.limits.hcuMaximumFraction.denominator === "4",
     "HCU headroom drift",
   );
+
+  /* Dual per-transaction HCU controls. */
+  invariant(
+    protocol.limits.hcuDepthMaximumFraction.numerator === "3" &&
+      protocol.limits.hcuDepthMaximumFraction.denominator === "4",
+    "HCU depth headroom drift",
+  );
+  /* The comparison declarations are inspected as exact committed strings, not only through the
+   * helper's behaviour: a declaration that says `<=` while the helper rejects equality is a
+   * contradiction that behavioural tests alone would not surface. */
+  invariant(
+    protocol.limits.hcuMaximumFraction.comparison === "maxHcu*4 < authoritativeTransactionHcuCeiling*3",
+    "HCU total comparison must be the strict/exclusive form",
+  );
+  invariant(
+    protocol.limits.hcuDepthMaximumFraction.comparison === "maxHcuDepth*4 < authoritativeTransactionHcuDepthCeiling*3",
+    "HCU depth comparison must be the strict/exclusive form",
+  );
+  invariant(
+    !protocol.limits.hcuMaximumFraction.comparison.includes("<=") &&
+      !protocol.limits.hcuDepthMaximumFraction.comparison.includes("<="),
+    "an inclusive `<=` HCU comparison contradicts the exclusive safety rule",
+  );
+  invariant(
+    protocol.limits.hcuMaximumFraction.boundSemantics === "EXCLUSIVE" &&
+      protocol.limits.hcuDepthMaximumFraction.boundSemantics === "EXCLUSIVE",
+    "HCU comparison bound semantics drift",
+  );
+  /* The declared comparison must agree with the helper at the exact boundary. */
+  invariant(
+    assessSampleHcu({ globalHCU: HCU_TOTAL_SAFETY_THRESHOLD, maxHCUDepth: 1n }).totalSafetyResult === "FAIL" &&
+      assessSampleHcu({ globalHCU: 1n, maxHCUDepth: HCU_DEPTH_SAFETY_THRESHOLD }).depthSafetyResult === "FAIL",
+    "declared strict comparison disagrees with the implemented boundary behaviour",
+  );
+  invariant(
+    HCU_TOTAL_SAFETY_THRESHOLD * 4n === HCU_TRANSACTION_TOTAL_CEILING * 3n &&
+      HCU_DEPTH_SAFETY_THRESHOLD * 4n === HCU_TRANSACTION_DEPTH_CEILING * 3n,
+    "HCU safety thresholds are not 75% of their ceilings",
+  );
+  invariant(
+    protocol.limits.hcuSafetyThresholds.total === decimal(HCU_TOTAL_SAFETY_THRESHOLD) &&
+      protocol.limits.hcuSafetyThresholds.depth === decimal(HCU_DEPTH_SAFETY_THRESHOLD) &&
+      protocol.limits.hcuSafetyThresholds.boundSemantics === "EXCLUSIVE" &&
+      protocol.limits.hcuSafetyThresholds.equalityVerdict === "NO_GO",
+    "HCU safety threshold drift",
+  );
+  invariant(
+    protocol.goNoGo.mandatoryHcuDepthMeasurement &&
+      protocol.goNoGo.combinedHcuVerdictRequiresBothControls &&
+      protocol.goNoGo.totalMayNotSubstituteForDepth &&
+      protocol.goNoGo.depthMayNotSubstituteForTotal &&
+      protocol.goNoGo.missingGlobalHcuVerdict === "BLOCKED_NOT_GO" &&
+      protocol.goNoGo.missingMaxHcuDepthVerdict === "BLOCKED_NOT_GO",
+    "dual HCU control requirement weakened",
+  );
+  invariant(
+    protocol.instrumentation.hcuConsumed.bothMeasurementsMandatory &&
+      protocol.instrumentation.hcuConsumed.singleCombinedNumberForbidden &&
+      protocol.instrumentation.hcuConsumed.measurements.globalHCU === "TRANSACTION_TOTAL_HCU" &&
+      protocol.instrumentation.hcuConsumed.measurements.maxHCUDepth === "TRANSACTION_DEPTH_HCU",
+    "HCU measurement mapping drift",
+  );
+  invariant(
+    protocol.instrumentation.hcuCeiling.transactionTotalCeiling === decimal(HCU_TRANSACTION_TOTAL_CEILING) &&
+      protocol.instrumentation.hcuCeiling.transactionDepthCeiling === decimal(HCU_TRANSACTION_DEPTH_CEILING),
+    "HCU ceiling drift",
+  );
+  invariant(
+    protocol.instrumentation.hcuCeiling.blockOrBatchCeilingState === "UNRESOLVED" &&
+      protocol.instrumentation.hcuCeiling.blockOrBatchCeiling === null &&
+      protocol.instrumentation.hcuCeiling.blockOrBatchCeilingBlocking === true &&
+      protocol.instrumentation.hcuCeiling.provenAbsentIsNotUnresolved &&
+      protocol.instrumentation.hcuCeiling.unresolvedRemainsBlocking,
+    "block/batch authority state drift",
+  );
+  invariant(
+    !protocol.hcuAuthority.permanentBenchmarkExecutionAllowed &&
+      protocol.hcuAuthority.controls.TRANSACTION_TOTAL_HCU.measurement === "globalHCU" &&
+      protocol.hcuAuthority.controls.TRANSACTION_DEPTH_HCU.measurement === "maxHCUDepth" &&
+      protocol.hcuAuthority.controls.BLOCK_OR_BATCH_HCU.ceiling === null,
+    "HCU authority gate drift",
+  );
+  /* Every recorded HCU control blocks until the live verification binds it to the deployment. */
+  invariant(
+    Object.values(protocol.hcuAuthority.controls).every((control) => control.blocking === true),
+    "an HCU control stopped blocking before the live authority verification",
+  );
+  invariant(
+    protocol.hcuAuthority.controls.BLOCK_OR_BATCH_HCU.authorityState === "UNRESOLVED",
+    "block/batch must remain UNRESOLVED until the deployed implementation is verified",
+  );
+  invariant(
+    protocol.hcuAuthority.operationScheduleAuthorityState === "UNRESOLVED" &&
+      protocol.hcuAuthority.immutableProvenanceState === "UNRESOLVED",
+    "schedule authority and immutable provenance must remain unresolved and blocking",
+  );
+  /* Network ceiling semantics are unresolved and must not be conflated with the internal rule. */
+  invariant(
+    protocol.instrumentation.hcuCeiling.ceilingSemantics === "UNRESOLVED" &&
+      protocol.instrumentation.hcuCeiling.ceilingSemanticsBlocking === true,
+    "network ceiling semantics must remain unresolved and blocking",
+  );
+  invariant(
+    protocol.instrumentation.hcuCeiling.localInstalledCeilingSemantics !==
+      protocol.instrumentation.hcuCeiling.priorReviewedCurrentDeploymentCeilingSemantics,
+    "the two recorded ceiling semantics collapsed into one",
+  );
+  invariant(
+    protocol.instrumentation.hcuCeiling.internalSafetyPolicyIsIndependentOfCeilingSemantics === true,
+    "the internal 75% safety rule was made dependent on the network ceiling semantics",
+  );
+
+  /* Required exclusive edge behaviour, asserted behaviourally rather than by inspection. */
+  invariant(
+    assessSampleHcu({ globalHCU: HCU_TOTAL_SAFETY_THRESHOLD - 1n, maxHCUDepth: 1n }).totalSafetyResult === "PASS",
+    "total threshold minus one must pass",
+  );
+  invariant(
+    assessSampleHcu({ globalHCU: HCU_TOTAL_SAFETY_THRESHOLD, maxHCUDepth: 1n }).totalSafetyResult === "FAIL",
+    "total threshold equality must fail",
+  );
+  invariant(
+    assessSampleHcu({ globalHCU: HCU_TOTAL_SAFETY_THRESHOLD + 1n, maxHCUDepth: 1n }).totalSafetyResult === "FAIL",
+    "total threshold plus one must fail",
+  );
+  invariant(
+    assessSampleHcu({ globalHCU: 1n, maxHCUDepth: HCU_DEPTH_SAFETY_THRESHOLD - 1n }).depthSafetyResult === "PASS",
+    "depth threshold minus one must pass",
+  );
+  invariant(
+    assessSampleHcu({ globalHCU: 1n, maxHCUDepth: HCU_DEPTH_SAFETY_THRESHOLD }).depthSafetyResult === "FAIL",
+    "depth threshold equality must fail",
+  );
+  invariant(
+    assessSampleHcu({ globalHCU: 1n, maxHCUDepth: HCU_DEPTH_SAFETY_THRESHOLD + 1n }).depthSafetyResult === "FAIL",
+    "depth threshold plus one must fail",
+  );
+  invariant(
+    assessSampleHcu({ globalHCU: 1n }).combinedHcuVerdict === "NO_GO" &&
+      assessSampleHcu({ maxHCUDepth: 1n }).combinedHcuVerdict === "NO_GO" &&
+      assessSampleHcu({ globalHCU: 1n, maxHCUDepth: 1n }).combinedHcuVerdict === "GO",
+    "combined HCU verdict must require both controls",
+  );
   invariant(
     protocol.limits.gasMaximumFraction.numerator === "3" && protocol.limits.gasMaximumFraction.denominator === "4",
     "gas headroom drift",
@@ -5610,6 +6364,32 @@ export function validateProtocol(candidate: unknown): asserts candidate is Proto
   );
   invariant(protocol.rawResultSchema.$id === "urn:zama-szn4:sg4-benchmark-results:v2", "raw schema identity drift");
   invariant(protocol.rawResultSchema.$defs.sample.required.includes("hcuConsumed"), "sample HCU requirement missing");
+  for (const field of [
+    "hcuDepthConsumed",
+    "authoritativeHcuDepthCeiling",
+    "totalSafetyThreshold",
+    "depthSafetyThreshold",
+    "totalSafetyResult",
+    "depthSafetyResult",
+    "combinedHcuVerdict",
+  ]) {
+    invariant(
+      protocol.rawResultSchema.$defs.sample.required.includes(field),
+      `sample dual-HCU field missing: ${field}`,
+    );
+  }
+  for (const field of [
+    "transactionDepthCeiling",
+    "totalSafetyThreshold",
+    "depthSafetyThreshold",
+    "applicableBlockOrBatchCeilingState",
+    "authorityVerification",
+  ]) {
+    invariant(
+      protocol.rawResultSchema.$defs.hcuResolution.required.includes(field),
+      `hcuResolution authority field missing: ${field}`,
+    );
+  }
   invariant(
     protocol.rawResultSchema.$defs.sample.required.includes("authoritativeHcuCeiling"),
     "sample HCU ceiling missing",
@@ -5658,8 +6438,15 @@ export function validateProtocol(candidate: unknown): asserts candidate is Proto
         "calldataByteLength",
         "deployedBytecodeLength",
         "hcuConsumed",
+        "hcuDepthConsumed",
         "hcuSource",
         "authoritativeHcuCeiling",
+        "authoritativeHcuDepthCeiling",
+        "totalSafetyThreshold",
+        "depthSafetyThreshold",
+        "totalSafetyResult",
+        "depthSafetyResult",
+        "combinedHcuVerdict",
         "currentBlockGasLimit",
         "submissionTimestamp",
         "receiptTimestamp",
@@ -5748,6 +6535,7 @@ export function validateProtocol(candidate: unknown): asserts candidate is Proto
         "vector or run plan changes",
         "statistics, schema, threshold, or verdict changes",
         "authoritative HCU source or ceiling changes",
+        "HCU authority state, control set, or safety-boundary changes",
         "installed lineage changes",
         "mandatory euint128 infeasibility",
         "product envelope or privacy changes",

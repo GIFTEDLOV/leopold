@@ -29,6 +29,7 @@
   "devDependencies": {
     "@eslint/js": "9.39.2",
     "@fhevm/hardhat-plugin": "0.4.2",
+    "@fhevm/host-contracts": "0.10.0",
     "@nomicfoundation/hardhat-chai-matchers": "2.1.0",
     "@nomicfoundation/hardhat-ethers": "3.1.3",
     "@nomicfoundation/hardhat-network-helpers": "1.1.2",
@@ -89,6 +90,9 @@
     "sg2:prepare": "node scripts/sg2-launcher.cjs prepare --",
     "sg2:verify": "node scripts/sg2-launcher.cjs verify --",
     "sg3:derive": "ts-node --transpile-only scripts/sg3-domain.ts",
+    "sg4:hcu-authority:live": "node scripts/sg4-hcu-authority-launcher.cjs live",
+    "sg4:hcu-authority:preflight": "node scripts/sg4-hcu-authority-launcher.cjs preflight",
+    "sg4:hcu-authority:protocol": "ts-node --transpile-only scripts/sg4-hcu-authority-protocol.ts",
     "sg4:protocol": "ts-node --transpile-only scripts/sg4-protocol.ts",
     "sg5:preflight": "node scripts/sg5-launcher.cjs preflight",
     "sg5:live": "node scripts/sg5-launcher.cjs live",

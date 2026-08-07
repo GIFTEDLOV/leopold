@@ -36,6 +36,9 @@ importers:
       '@fhevm/hardhat-plugin':
         specifier: 0.4.2
         version: 0.4.2(@fhevm/mock-utils@0.4.2(@zama-fhe/relayer-sdk@0.4.1)(ethers@6.17.0)(typescript@5.9.3))(@fhevm/solidity@0.11.1)(@nomicfoundation/hardhat-ethers@3.1.3(ethers@6.17.0)(hardhat@2.28.6(ts-node@10.9.2(@types/node@20.19.30)(typescript@5.9.3))(typescript@5.9.3)))(@zama-fhe/relayer-sdk@0.4.1)(encrypted-types@0.0.4)(ethers@6.17.0)(hardhat@2.28.6(ts-node@10.9.2(@types/node@20.19.30)(typescript@5.9.3))(typescript@5.9.3))
+      '@fhevm/host-contracts':
+        specifier: 0.10.0
+        version: 0.10.0
       '@nomicfoundation/hardhat-chai-matchers':
         specifier: 2.1.0
         version: 2.1.0(@nomicfoundation/hardhat-ethers@3.1.3(ethers@6.17.0)(hardhat@2.28.6(ts-node@10.9.2(@types/node@20.19.30)(typescript@5.9.3))(typescript@5.9.3)))(chai@4.5.0)(ethers@6.17.0)(hardhat@2.28.6(ts-node@10.9.2(@types/node@20.19.30)(typescript@5.9.3))(typescript@5.9.3))
