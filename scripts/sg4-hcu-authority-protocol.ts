@@ -21,13 +21,12 @@ import {
 export { SG4_CANONICAL_OPERATION_VARIANTS };
 export type { CanonicalOperationVariant };
 
-/* v2: authoritative normalization became implementation-address-relative over PUSH32 compiler
- * immutables, and the official build became a reproduced-build provenance type consumed from real
- * Hardhat build-info. Both are material semantic changes, so every dependent identifier is bumped
- * rather than silently redefined. */
-export const AUTHORITY_PROTOCOL_VERSION = "sg4-hcu-authority-protocol/v2";
-export const AUTHORITY_PROTOCOL_SCHEMA = "zama-szn4.sg4-hcu-authority-protocol.v2";
-export const AUTHORITY_RESULT_SCHEMA = "urn:zama-szn4:sg4-hcu-authority-result:v2";
+/* v3 adds a separately authenticated executor artifact chain. An executor proxy is accepted only
+ * after its shell, exact ERC-1967 implementation, pinned implementation address, and independently
+ * reproduced implementation runtime all verify in order. */
+export const AUTHORITY_PROTOCOL_VERSION = "sg4-hcu-authority-protocol/v3";
+export const AUTHORITY_PROTOCOL_SCHEMA = "zama-szn4.sg4-hcu-authority-protocol.v3";
+export const AUTHORITY_RESULT_SCHEMA = "urn:zama-szn4:sg4-hcu-authority-result:v3";
 
 /* ---------------------------------------------------------------------------------------------
  * Network identity and configured host contracts.
@@ -344,6 +343,41 @@ export const REPRODUCED_OFFICIAL_BUILD = {
   runsAgreedByteForByte: true,
 } as const;
 
+/* The executor is a distinct compiled artifact. It shares the upstream source tree and compiler
+ * family with HCULimit, but has its own selected source, generated-address input, build-info and
+ * runtime layout. It must never be accepted through the HCULimit build provenance. */
+export const REPRODUCED_OFFICIAL_EXECUTOR_BUILD = {
+  kind: REPRODUCED_BUILD_PROVENANCE_KIND,
+  repository: "https://github.com/zama-ai/fhevm",
+  tag: "v0.13.2",
+  commit: "07fb05fb75f0aa6cea934088640ddb4539d0b1b9",
+  buildRoot: "host-contracts",
+  selectedSourcePath: "contracts/FHEVMExecutor.sol",
+  selectedContractName: "FHEVMExecutor",
+  executorSourceSha256: "457f29242f4028442a5332e0b009aeef69cb30f7e9361683680d46ef33a2add9",
+  reproductionCommand: "HARDHAT_NETWORK=hardhat npx hardhat compile:specific --contract contracts/FHEVMExecutor.sol",
+  dependencyLockSha256: "a776b0091003101212a877924358a50192c1d76d58cb3cad7849eb9f5fdac64c",
+  hardhatConfigSha256: "99c41c5aff0f395ebffb82dc031238b9a94b7d1703307d94f85dbda67dd07e93",
+  upstreamSepoliaHostConfigurationSha256: "2cc1578666ec51d0ebe3b386516e74fe1f3f1963bf7629c6a8a173f35a729a26",
+  generatedHostAddressesSha256: "9194c8b8e085aa4372d5dc70c8bf76fd3b645257437364f8ed8c4b9742bed8cc",
+  buildInfoId: "4d775fb2ba96328ce842168d97046c84",
+  buildInfoSha256: "50ed161472e207da6462aa180856d0047aa52396abdba05e9bf566f5ccfd63dd",
+  artifactJsonSha256: "ccb20916c2989f8814ae2844c873bf43b92e5fb86d8042e83533e3bb2696ea8b",
+  runtimeByteLength: 21_535,
+  normalizedRuntimeSha256: "23ab0dc924c946764c63383ae7c0e17f6b2e9c57d2ac9e2822f30b4c63f0158a",
+  metadataTrailerHex: "0xa164736f6c6343000818000a",
+  hasNoLinkReferences: true,
+  solcVersion: "0.8.24",
+  solcLongVersion: "0.8.24+commit.e11b9ed9",
+  reproducedIndependently: true,
+  reproductionRuns: 2,
+  runsAgreedByteForByte: true,
+} as const;
+
+/* The independently reproduced executor source reports this exact version string. It is a
+ * PASS-relevant binding fact, not a value inferred from the authority artifact. */
+export const REPRODUCED_EXECUTOR_VERSION = "FHEVMExecutor v0.4.0";
+
 /* The closed field set of a REPRODUCED_BUILD provenance entry. A build is not a committed file, so
  * it carries build evidence instead of a repository `path`. */
 export const REPRODUCED_BUILD_ENTRY_FIELDS: readonly string[] = [
@@ -369,8 +403,43 @@ export const REPRODUCED_BUILD_ENTRY_FIELDS: readonly string[] = [
   "tag",
 ];
 
+export const REPRODUCED_EXECUTOR_BUILD_ENTRY_FIELDS: readonly string[] = [
+  "artifactJsonSha256",
+  "buildInfoId",
+  "buildInfoSha256",
+  "buildRoot",
+  "commit",
+  "dependencyLockSha256",
+  "generatedHostAddressesSha256",
+  "hardhatConfigSha256",
+  "hasNoLinkReferences",
+  "kind",
+  "metadataTrailerHex",
+  "normalizedRuntimeSha256",
+  "repository",
+  "reproductionCommand",
+  "reverified",
+  "runtimeByteLength",
+  "selectedContractName",
+  "selectedSourcePath",
+  "solcLongVersion",
+  "solcVersion",
+  "subject",
+  "tag",
+  "upstreamSepoliaHostConfigurationSha256",
+];
+
+export function reproducedBuildEntryFieldsForSubject(subject: string): readonly string[] | null {
+  if (subject === "CURRENT_OFFICIAL_ARTIFACT_BUILD") return REPRODUCED_BUILD_ENTRY_FIELDS;
+  if (subject === "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD") return REPRODUCED_EXECUTOR_BUILD_ENTRY_FIELDS;
+  return null;
+}
+
 /* Which provenance subjects are reproduced builds rather than committed files. */
-export const REPRODUCED_BUILD_SUBJECTS: readonly string[] = ["CURRENT_OFFICIAL_ARTIFACT_BUILD"];
+export const REPRODUCED_BUILD_SUBJECTS: readonly string[] = [
+  "CURRENT_OFFICIAL_ARTIFACT_BUILD",
+  "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD",
+];
 
 /* ---------------------------------------------------------------------------------------------
  * THE COMPILER IMMUTABLE, AS THE REPRODUCED BUILD ACTUALLY CONTAINS IT.
@@ -406,8 +475,17 @@ export const UUPS_SELF_IMMUTABLE = {
     "UUPSUpgradeable stores address(this) at construction so a delegatecall can detect that it is executing through a proxy. The value is therefore the IMPLEMENTATION address, and normalizing it against the executor address would compare the wrong thing entirely.",
 } as const;
 
+/* The executor compiler output declares the same UUPS immutable declaration, but the references
+ * belong to the executor artifact and are intentionally recorded in a separate manifest. */
+export const EXECUTOR_UUPS_SELF_IMMUTABLE = {
+  ...UUPS_SELF_IMMUTABLE,
+  offsets: [14424, 14465, 14991] as readonly number[],
+  referenceCount: 3,
+} as const;
+
 /* The reproduced runtime, as measured. */
 export const REPRODUCED_RUNTIME_BYTE_LENGTH = 20_231;
+export const REPRODUCED_EXECUTOR_RUNTIME_BYTE_LENGTH = 21_535;
 
 /* ---------------------------------------------------------------------------------------------
  * WHAT MUST *NOT* BE NORMALIZED.
@@ -694,6 +772,17 @@ export const IMMUTABLE_PROVENANCE = {
       reverified: false,
     },
     {
+      subject: "CURRENT_OFFICIAL_EXECUTOR_SOURCE",
+      artifact: "FHEVMExecutor.sol",
+      repository: "https://github.com/zama-ai/fhevm",
+      tag: "v0.13.2",
+      commit: "07fb05fb75f0aa6cea934088640ddb4539d0b1b9",
+      path: "host-contracts/contracts/FHEVMExecutor.sol",
+      contentSha256: REPRODUCED_OFFICIAL_EXECUTOR_BUILD.executorSourceSha256,
+      origin: "INDEPENDENTLY_REPRODUCED_FROM_THE_PINNED_SOURCE_TREE",
+      reverified: false,
+    },
+    {
       /* The compiled build is a different artifact from the source it was compiled from: different
        * bytes, therefore its own buildInfoSha256, therefore its own reproduced-build evidence.
        * Sharing one digest would have meant one digest authenticating two different blobs. */
@@ -710,6 +799,19 @@ export const IMMUTABLE_PROVENANCE = {
       buildInfoSha256: REPRODUCED_OFFICIAL_BUILD.buildInfoSha256,
       buildInfoId: REPRODUCED_OFFICIAL_BUILD.buildInfoId,
       artifactJsonSha256: REPRODUCED_OFFICIAL_BUILD.artifactJsonSha256,
+      origin: "INDEPENDENTLY_REPRODUCED_FROM_THE_PINNED_SOURCE_TREE",
+      reverified: false,
+    },
+    {
+      subject: "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD",
+      artifact: "hardhat build-info",
+      kind: REPRODUCED_BUILD_PROVENANCE_KIND,
+      repository: REPRODUCED_OFFICIAL_EXECUTOR_BUILD.repository,
+      tag: REPRODUCED_OFFICIAL_EXECUTOR_BUILD.tag,
+      commit: REPRODUCED_OFFICIAL_EXECUTOR_BUILD.commit,
+      buildInfoSha256: REPRODUCED_OFFICIAL_EXECUTOR_BUILD.buildInfoSha256,
+      buildInfoId: REPRODUCED_OFFICIAL_EXECUTOR_BUILD.buildInfoId,
+      artifactJsonSha256: REPRODUCED_OFFICIAL_EXECUTOR_BUILD.artifactJsonSha256,
       origin: "INDEPENDENTLY_REPRODUCED_FROM_THE_PINNED_SOURCE_TREE",
       reverified: false,
     },
@@ -912,6 +1014,8 @@ export const SOURCE_RANGE_FIELDS: readonly string[] = ["endByte", "sha256", "sta
 export const SOURCE_MATERIAL_SUBJECTS: readonly string[] = [
   "authoritySource",
   "officialArtifactBuild",
+  "executorSource",
+  "officialExecutorArtifactBuild",
   "priceSchedule",
 ];
 
@@ -919,6 +1023,8 @@ export const SOURCE_MATERIAL_SUBJECTS: readonly string[] = [
 export const SOURCE_MATERIAL_PROVENANCE: Readonly<Record<string, string>> = {
   authoritySource: "CURRENT_OFFICIAL_AUTHORITY_SOURCE",
   officialArtifactBuild: "CURRENT_OFFICIAL_ARTIFACT_BUILD",
+  executorSource: "CURRENT_OFFICIAL_EXECUTOR_SOURCE",
+  officialExecutorArtifactBuild: "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD",
   priceSchedule: "CURRENT_OFFICIAL_OPERATION_PRICE_SCHEDULE",
 };
 
@@ -1023,9 +1129,25 @@ export const PASS_DEPENDENCY_GRAPH: Readonly<Record<string, string>> = {
   codeIdentityResult: "DERIVED",
   deployedAuthorityRoot: "RECOMPUTED",
   depthHcuOnChainReading: "LIVE_READ",
+  erc1967SlotReadCount: "DERIVED",
   executorCodeHash: "LIVE_READ",
   executorCodeIdentityResult: "DERIVED",
   executorDeploymentModel: "DERIVED",
+  executorAuthorityDerivationResult: "DERIVED",
+  executorExpectedImplementationAddress: "DERIVED",
+  executorExpectedImplementationCodeHash: "RECOMPUTED",
+  executorExpectedNormalizedImplementationHash: "RECOMPUTED",
+  executorExpectedVersion: "RECOMPUTED",
+  executorImplementationAddress: "LIVE_READ",
+  executorImplementationAddressPolicyResult: "DERIVED",
+  executorImplementationCodeHash: "LIVE_READ",
+  executorImplementationCodeIdentityResult: "DERIVED",
+  executorImplementationResolutionResult: "DERIVED",
+  executorNormalizedImplementationHash: "LIVE_READ",
+  executorProxyCodeHash: "LIVE_READ",
+  executorProxyCodeIdentityResult: "DERIVED",
+  executorReproducedBuildInfoSha256: "RECOMPUTED",
+  executorReproducedBuildResult: "DERIVED",
   executorVersion: "LIVE_READ",
   executorVersionResult: "DERIVED",
   expectedDeployedNormalizedHash: "RECOMPUTED",
@@ -1070,10 +1192,11 @@ export const PASS_DEPENDENCY_GRAPH: Readonly<Record<string, string>> = {
 export const BLOCKING_PASS_FIELD_CLASSES: readonly string[] = ["DERIVED", "LIVE_READ", "MEASUREMENT", "RECOMPUTED"];
 
 export const BINDING_RECORD_PATH = "scripts/sg4-hcu-authority-binding.json";
-/* v2: the record now carries a REPRODUCED_BUILD provenance entry and real Hardhat build-info in
- * sourceMaterial.officialArtifactBuild. A v1 record cannot satisfy the v2 verifier. */
-export const BINDING_RECORD_SCHEMA = "zama-szn4.sg4-hcu-authority-binding.v2";
-export const BINDING_RECORD_VERSION = 2;
+/* v3: the record carries distinct HCULimit and FHEVMExecutor REPRODUCED_BUILD entries plus real
+ * Hardhat build-info in their separate source-material fields. Earlier record schemas cannot
+ * satisfy the v3 verifier. */
+export const BINDING_RECORD_SCHEMA = "zama-szn4.sg4-hcu-authority-binding.v3";
+export const BINDING_RECORD_VERSION = 3;
 
 /* Where a facet's authoritative fact came from. The local fixture is never a PASS origin. */
 export const FACET_ORIGINS: readonly string[] = [
@@ -1089,26 +1212,15 @@ export const FACET_ORIGINS_FORBIDDEN_FOR_PASS: readonly string[] = ["LOCAL_INSTA
  * when the reviewed binding record proves that model for the deployment in question. */
 export const DEPLOYMENT_MODELS: readonly string[] = ["DIRECT", "ERC1967_PROXY"];
 
-/* F21 — the executor deployment model is restricted to DIRECT.
- *
- * A proxied executor was declarable but only half verified: its proxy runtime was hashed while its
- * implementation was never resolved, read, code-identified or version-checked, so the
- * getHCULimitAddress() derivation ran against an unauthenticated implementation. Rather than leave
- * a partially supported enum, ERC1967_PROXY is rejected for the executor until an executor-proxy
- * verifier exists. The AUTHORITY proxy path is fully implemented and remains available. */
-export const EXECUTOR_DEPLOYMENT_MODELS: readonly string[] = ["DIRECT"];
+/* F21 — executor proxy verification is a complete chain, never a shell-only code hash. */
+export const EXECUTOR_DEPLOYMENT_MODELS: readonly string[] = ["DIRECT", "ERC1967_PROXY"];
 
 export const EXECUTOR_PROXY_SUPPORT = {
-  supported: false,
-  rejectedModel: "ERC1967_PROXY",
+  supported: true,
+  supportedModel: "ERC1967_PROXY",
   reason:
-    "A proxied executor would require resolving its implementation at the pinned block, verifying the recorded implementation address, reading and code-identifying the implementation, verifying its version and metadata, and binding getHCULimitAddress() to that verified chain. None of that is implemented, so declaring the model is refused rather than half-checked.",
-  reopenRequires: [
-    "an executor implementation resolution mechanism recorded and reviewed",
-    "executor implementation code identity against an independently reviewed artifact",
-    "executor implementation version and reciprocal linkage verification",
-    "getHCULimitAddress() bound to the verified implementation chain",
-  ],
+    "An ERC-1967 executor is accepted only after proxy identity, exact implementation-slot resolution, an exact-pinned implementation-address policy, independently reproduced implementation identity, version, and authority derivation all verify in order.",
+  codeIdenticalUpgradePermitted: false,
 } as const;
 
 export const IMPLEMENTATION_RESOLUTION_MECHANISMS: readonly string[] = [
@@ -1245,6 +1357,15 @@ export const ACCEPTED_METADATA_STRUCTURES: readonly string[] = ["CBOR_SOLC_ONLY_
  * no IPFS, no BZZ and no source hash — which is what makes the full-runtime digest usable as an
  * equality target at all. */
 export const REPRODUCED_METADATA_TRAILER = {
+  structure: "CBOR_SOLC_ONLY_NO_SOURCE_HASH",
+  cborPayloadHex: "0xa164736f6c6343000818",
+  trailerHex: "0xa164736f6c6343000818000a",
+  trailerByteLength: 12,
+  solcVersionEncoded: "0.8.24",
+  carriesSourceHash: false,
+} as const;
+
+export const REPRODUCED_EXECUTOR_METADATA_TRAILER = {
   structure: "CBOR_SOLC_ONLY_NO_SOURCE_HASH",
   cborPayloadHex: "0xa164736f6c6343000818",
   trailerHex: "0xa164736f6c6343000818000a",
@@ -1446,6 +1567,15 @@ export const APPLICABILITY_INTERPRETATION_RETURN_TYPE: Readonly<Record<string, s
 
 /* A target is a verified role in the deployment chain, never an arbitrary address. */
 export const CONTRACT_ROLES: readonly string[] = ["AUTHORITY", "EXECUTOR"];
+/* Implementation roles are execution-plan roles only: interface manifests may call the verified
+ * proxy-facing surfaces, while raw code reads use these resolved implementation addresses. */
+export const LIVE_TARGET_ROLES: readonly string[] = [
+  "AUTHORITY",
+  "AUTHORITY_IMPLEMENTATION",
+  "EXECUTOR",
+  "EXECUTOR_IMPLEMENTATION",
+  "NONE",
+];
 
 /* How a subject's EVM address is established. The benchmark harness is not deployed before the
  * gate, so its relevance must be resolved without requiring a deployed address. */
@@ -1827,9 +1957,15 @@ export const AUTHORITY_BINDING_RECORD_SHAPE = {
       "address",
       "configurationSourceReference",
       "deploymentModel",
-      "expectedRuntimeSha256",
+      "expectedProxyRuntimeSha256",
+      "implementationAddressPolicy",
+      "implementationResolutionMechanism",
+      "implementationSlot",
+      "expectedImplementationNormalizedRuntimeSha256",
+      "expectedImplementationVersion",
       "expectedVersion",
       "provenanceSubject",
+      "sourceProvenanceSubject",
     ],
     authority: [
       "addressDerivation",
@@ -1862,6 +1998,8 @@ export const AUTHORITY_BINDING_RECORD_SHAPE = {
   provenanceSubjects: [
     "CURRENT_OFFICIAL_ARTIFACT_BUILD",
     "CURRENT_OFFICIAL_AUTHORITY_SOURCE",
+    "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD",
+    "CURRENT_OFFICIAL_EXECUTOR_SOURCE",
     "CURRENT_OFFICIAL_OPERATION_PRICE_SCHEDULE",
     "INSTALLED_CALCULATOR",
     "INSTALLED_OPERATION_COST_TABLE",
@@ -2460,10 +2598,26 @@ export function buildResultSchema() {
       "depthHcuLimit",
       "depthHcuOnChainReading",
       "depthSafetyThreshold",
+      "erc1967SlotReadCount",
       "executorAddress",
+      "executorAuthorityDerivationResult",
       "executorCodeHash",
       "executorCodeIdentityResult",
       "executorDeploymentModel",
+      "executorExpectedImplementationAddress",
+      "executorExpectedImplementationCodeHash",
+      "executorExpectedNormalizedImplementationHash",
+      "executorExpectedVersion",
+      "executorImplementationAddress",
+      "executorImplementationAddressPolicyResult",
+      "executorImplementationCodeHash",
+      "executorImplementationCodeIdentityResult",
+      "executorImplementationResolutionResult",
+      "executorNormalizedImplementationHash",
+      "executorProxyCodeHash",
+      "executorProxyCodeIdentityResult",
+      "executorReproducedBuildInfoSha256",
+      "executorReproducedBuildResult",
       "executorVersion",
       "executorVersionResult",
       "expectedDeployedNormalizedHash",
@@ -2610,7 +2764,23 @@ export function buildResultSchema() {
       implementationAddressPolicyResult: { enum: IMPLEMENTATION_ADDRESS_POLICY_RESULTS },
       executorAddress: { const: SEPOLIA_EXECUTOR_ADDRESS },
       executorCodeHash: HASH_OR_UNRESOLVED,
-      /* Code existence is not identity. The executor's runtime must match the binding record. */
+      erc1967SlotReadCount: { type: "integer", minimum: 0 },
+      executorProxyCodeHash: HASH_OR_UNRESOLVED,
+      executorProxyCodeIdentityResult: { enum: ["MISMATCH", "UNRESOLVED", "VERIFIED"] },
+      executorImplementationAddress: ADDRESS_OR_UNRESOLVED,
+      executorExpectedImplementationAddress: ADDRESS_OR_UNRESOLVED,
+      executorExpectedImplementationCodeHash: HASH_OR_UNRESOLVED,
+      executorImplementationResolutionResult: { enum: IMPLEMENTATION_RESOLUTION_RESULTS },
+      executorImplementationAddressPolicyResult: { enum: IMPLEMENTATION_ADDRESS_POLICY_RESULTS },
+      executorImplementationCodeHash: HASH_OR_UNRESOLVED,
+      executorNormalizedImplementationHash: HASH_OR_UNRESOLVED,
+      executorExpectedNormalizedImplementationHash: HASH_OR_UNRESOLVED,
+      executorExpectedVersion: { type: "string" },
+      executorImplementationCodeIdentityResult: { enum: ["MISMATCH", "UNRESOLVED", "VERIFIED"] },
+      executorReproducedBuildInfoSha256: HASH_OR_UNRESOLVED,
+      executorReproducedBuildResult: { enum: ["MATCHES_PINNED_REPRODUCED_BUILD", "MISMATCH", "UNRESOLVED"] },
+      executorAuthorityDerivationResult: { enum: ["MISMATCH", "UNRESOLVED", "VERIFIED"] },
+      /* Compatibility summary: this is implementation identity, never a proxy-shell shortcut. */
       executorCodeIdentityResult: { enum: ["MISMATCH", "UNRESOLVED", "VERIFIED"] },
       executorDeploymentModel: { enum: [...EXECUTOR_DEPLOYMENT_MODELS, "UNRESOLVED"] },
       executorVersion: { type: "string" },
@@ -2727,9 +2897,10 @@ export function buildResultSchema() {
       "depth HCU reading read on chain or proven from the code-identified artifact, never NOT_APPLICABLE",
       "every facet origin is an authoritative binding-record origin, never the local fixture",
       "every facetArtifactBinding entry equal to authoritativeArtifactId",
-      "executor deployment model DIRECT; a proxied executor is refused rather than half-verified",
-      "executorAddress exact and executorCodeHash resolved",
-      "executorCodeIdentityResult VERIFIED against the binding record",
+      "executor deployment model is reviewed; a proxy requires proxy identity, exact ERC-1967 resolution, exact implementation-address policy and authenticated implementation identity",
+      "executorAddress exact and executor code identity derived from the independently authenticated FHEVMExecutor reproduced build",
+      "executorCodeIdentityResult and executorImplementationCodeIdentityResult VERIFIED against the authenticated executor artifact",
+      "executorReproducedBuildResult MATCHES_PINNED_REPRODUCED_BUILD",
       "executorVersionResult MATCHES_BINDING_RECORD",
       "expectedDeployedNormalizedHash resolved",
       "greatestAcceptedTotalHcu and greatestAcceptedDepthHcu coherent with liveLimitSemantics",
@@ -2827,9 +2998,13 @@ export function buildAuthorityProtocol() {
     measurementToolchainRoot: MEASUREMENT_TOOLCHAIN_ROOT,
     /* The independently reproduced official build, and what its compiler immutable actually is. */
     reproducedOfficialBuild: REPRODUCED_OFFICIAL_BUILD,
+    reproducedOfficialExecutorBuild: REPRODUCED_OFFICIAL_EXECUTOR_BUILD,
     uupsSelfImmutable: UUPS_SELF_IMMUTABLE,
+    executorUupsSelfImmutable: EXECUTOR_UUPS_SELF_IMMUTABLE,
     reproducedMetadataTrailer: REPRODUCED_METADATA_TRAILER,
+    reproducedExecutorMetadataTrailer: REPRODUCED_EXECUTOR_METADATA_TRAILER,
     reproducedRuntimeByteLength: REPRODUCED_RUNTIME_BYTE_LENGTH,
+    reproducedExecutorRuntimeByteLength: REPRODUCED_EXECUTOR_RUNTIME_BYTE_LENGTH,
     nonNormalizableCompileTimeConstants: NON_NORMALIZABLE_COMPILE_TIME_CONSTANTS,
     reproducedBuildEntryFields: REPRODUCED_BUILD_ENTRY_FIELDS,
     reproducedBuildSubjects: REPRODUCED_BUILD_SUBJECTS,
@@ -3008,12 +3183,15 @@ export function buildAuthorityProtocol() {
       steps: [
         "Verify eth_chainId equals the committed chain ID.",
         "Pin one block number and its block hash and bind every subsequent call to that exact block.",
-        "Fetch code at the committed executor address and require it to be non-empty.",
-        "Derive the authority proxy address from the verified executor via FHEVMExecutor.getHCULimitAddress().",
-        "Read the exact ERC-1967 implementation slot of the authority proxy with eth_getStorageAt at the pinned block.",
-        "Fetch the implementation runtime code and apply address-normalized comparison.",
+        "Fetch code at the configured executor address and authenticate the executor proxy shell when the reviewed deployment model is ERC1967_PROXY.",
+        "For an executor proxy, read the exact ERC-1967 implementation slot, enforce the reviewed exact implementation-address policy, and only then fetch implementation code.",
+        "For a direct executor, authenticate the configured address itself against the independently reproduced FHEVMExecutor artifact; no proxy slot read is applicable.",
+        "Authenticate the resolved executor implementation with address-normalized comparison before issuing executor getters.",
+        "Verify the executor getVersion() string only after executor implementation identity is verified.",
+        "Derive the authority address from the verified executor via FHEVMExecutor.getHCULimitAddress(), then authenticate the authority proxy/direct deployment chain.",
+        "Verify the executor getHCULimitAddress() result only after executor implementation identity and version are verified.",
         "Verify reciprocal linkage: HCULimit.getFHEVMExecutorAddress() must return the configured executor address.",
-        "Verify the executor and authority getVersion() strings.",
+        "Verify the authority getVersion() string after authority implementation identity.",
         "Confirm the embedded executor immediates in the deployed implementation equal the configured executor address.",
         "Enumerate the verified implementation's complete relevant surface and only then classify the block/batch control.",
         "Compare the verified implementation's operation surface against the installed calculator and fail closed on any operation the calculator cannot price.",
@@ -3325,7 +3503,7 @@ export function validateAuthorityProtocol(protocol: AuthorityProtocol): void {
     !protocol.provenance.independentlyReverified && !protocol.provenance.deployedLinkageEstablished,
     "provenance may not claim reverification or deployed linkage during offline preparation",
   );
-  invariant(protocol.provenance.required.length === 6, "provenance subject count drift");
+  invariant(protocol.provenance.required.length === 8, "provenance subject count drift");
   invariant(
     protocol.provenance.required.every((entry) => entry.repository !== null && entry.commit !== null),
     "a known immutable provenance tuple was discarded and left null",
@@ -3496,7 +3674,7 @@ export function validateAuthorityProtocol(protocol: AuthorityProtocol): void {
   ]) {
     invariant(section in shape.sections, `binding record is missing the ${section} section`);
   }
-  invariant(shape.provenanceSubjects.length === 6, "binding record provenance subject count drift");
+  invariant(shape.provenanceSubjects.length === 8, "binding record provenance subject count drift");
   invariant(
     stable([...shape.provenanceSubjects].sort()) ===
       stable([...IMMUTABLE_PROVENANCE.required.map((entry) => entry.subject)].sort()),
@@ -3598,18 +3776,19 @@ export function validateAuthorityProtocol(protocol: AuthorityProtocol): void {
     invariant(PRICING_ENTRY_FIELDS.includes(field), `pricing entry is missing ${field}`);
   }
 
-  /* F21 — the executor deployment model is restricted rather than half-supported. */
+  /* F21 — executor proxy support is closed over the two explicit reviewed models. */
   invariant(isSortedUnique(EXECUTOR_DEPLOYMENT_MODELS), "executor deployment models must be sorted and unique");
   invariant(
-    EXECUTOR_DEPLOYMENT_MODELS.length === 1 && EXECUTOR_DEPLOYMENT_MODELS[0] === "DIRECT",
-    "the executor deployment model must be restricted to DIRECT until an executor-proxy verifier exists",
+    EXECUTOR_DEPLOYMENT_MODELS.length === 2 &&
+      EXECUTOR_DEPLOYMENT_MODELS.includes("DIRECT") &&
+      EXECUTOR_DEPLOYMENT_MODELS.includes("ERC1967_PROXY"),
+    "the executor proxy deployment model set drifted",
   );
+  invariant(EXECUTOR_PROXY_SUPPORT.supported, "executor proxy support was removed");
   invariant(
-    !EXECUTOR_DEPLOYMENT_MODELS.includes("ERC1967_PROXY"),
-    "a partially supported executor proxy enum was reintroduced",
+    !EXECUTOR_PROXY_SUPPORT.codeIdenticalUpgradePermitted,
+    "executor code-identical upgrades must remain disabled",
   );
-  invariant(!EXECUTOR_PROXY_SUPPORT.supported, "executor proxy support claimed without a verifier");
-  invariant(EXECUTOR_PROXY_SUPPORT.reopenRequires.length >= 4, "executor proxy reopen conditions were weakened");
 
   /* F22 — provenance subjects are exact and unique. */
   invariant(

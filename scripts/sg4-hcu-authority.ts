@@ -25,18 +25,25 @@ import {
   APPLICABILITY_PROOF_FIELDS,
   ARTIFACT_BUILD_EXTRACTOR,
   REPRODUCED_BUILD_ENTRY_FIELDS,
+  REPRODUCED_EXECUTOR_BUILD_ENTRY_FIELDS,
   REPRODUCED_BUILD_PROVENANCE_KIND,
   REPRODUCED_BUILD_SUBJECTS,
   REPRODUCED_METADATA_TRAILER,
+  REPRODUCED_EXECUTOR_METADATA_TRAILER,
   REPRODUCED_OFFICIAL_BUILD,
+  REPRODUCED_OFFICIAL_EXECUTOR_BUILD,
+  REPRODUCED_EXECUTOR_VERSION,
   REPRODUCED_RUNTIME_BYTE_LENGTH,
+  REPRODUCED_EXECUTOR_RUNTIME_BYTE_LENGTH,
   UUPS_SELF_IMMUTABLE,
+  EXECUTOR_UUPS_SELF_IMMUTABLE,
   AUTHORITY_SOURCE_PARSER,
   PRICE_SCHEDULE_EXTRACTOR,
   SOURCE_MATERIAL_ENCODINGS,
   SOURCE_MATERIAL_FIELDS,
   SOURCE_MATERIAL_PROVENANCE,
   SOURCE_MATERIAL_SUBJECTS,
+  reproducedBuildEntryFieldsForSubject,
   CANONICAL_SIGNATURE_GRAMMAR,
   CONTRACT_ROLES,
   DERIVATION_CHAIN_POLICY,
@@ -172,7 +179,7 @@ export const ROOT = join(__dirname, "..");
 /* Committed digests of the two deterministic protocols. Any edit to either generator changes its
  * digest and fails preflight until the change is reviewed and the constant is updated. */
 export const EXPECTED_SG4_PROTOCOL_SHA256 = "88d6f8c1522a0668d769f34ddafaf3e71134cbc9434a1b9676f78d5bdeb0968e";
-export const EXPECTED_AUTHORITY_PROTOCOL_SHA256 = "2925e130d3b9a691ca95254be1d9b582add6b79147ed3319008c8c6bb89bce7b";
+export const EXPECTED_AUTHORITY_PROTOCOL_SHA256 = "3bf7a49507c057aa1595ff09186e6310d84936de37249e8960fd8fca12f90e99";
 
 /* Resolved through the repository root node_modules. This path exists only because
  * @fhevm/host-contracts is a direct dependency: with the transitive-only arrangement the authority
@@ -2363,6 +2370,7 @@ export function runOfflinePreflight(): { schema: string; mode: string; verdict: 
   let planDetail = referencePlan.map((call) => `${call.callId}:${call.method}`).join(",");
   try {
     assertLiveCallPlanIsReadOnly(referencePlan);
+    assertLiveCallPlanMatchesDeploymentModels(referencePlan, offlinePlanReferenceRecord() as AuthorityBindingRecord);
   } catch (error) {
     planReadOnly = false;
     planDetail = error instanceof Error ? error.message : "plan is not read-only";
@@ -2380,8 +2388,8 @@ export function runOfflinePreflight(): { schema: string; mode: string; verdict: 
   checks.push(
     check(
       "ERC1967_RESOLUTION_MECHANISM_VALID",
-      referencePlan.some(
-        (call) => call.method === "eth_getStorageAt" && call.callId === "ERC1967_IMPLEMENTATION_SLOT",
+      ["EXECUTOR_ERC1967_IMPLEMENTATION_SLOT", "AUTHORITY_ERC1967_IMPLEMENTATION_SLOT"].every((callId) =>
+        referencePlan.some((call) => call.method === "eth_getStorageAt" && call.callId === callId),
       ) &&
         LIVE_RPC_ALLOWED_METHODS.includes("eth_getStorageAt") &&
         protocol.onChainCorroboration.erc1967Resolution.mechanism ===
@@ -2501,7 +2509,7 @@ export function runOfflinePreflight(): { schema: string; mode: string; verdict: 
     check(
       "IMMUTABLE_PROVENANCE_RECORDED_FROM_PRIOR_REVIEW",
       protocol.provenance.state === "EXPECTED_FROM_PRIOR_REVIEW_PENDING_REVERIFICATION" &&
-        protocol.provenance.required.length === 6 &&
+        protocol.provenance.required.length === 8 &&
         protocol.provenance.required.every((entry) => entry.repository !== null && entry.commit !== null) &&
         protocol.provenance.required.every((entry) => entry.reverified === false),
       `${protocol.provenance.required.length} subjects recorded, none reverified`,
@@ -2557,7 +2565,7 @@ export type LiveCall = {
   step: number;
   callId: string;
   method: string;
-  targetRole: "AUTHORITY" | "AUTHORITY_IMPLEMENTATION" | "EXECUTOR" | "NONE";
+  targetRole: "AUTHORITY" | "AUTHORITY_IMPLEMENTATION" | "EXECUTOR" | "EXECUTOR_IMPLEMENTATION" | "NONE";
   data: string | null;
   purpose: string;
   boundToPinnedBlock: boolean;
@@ -2636,6 +2644,7 @@ export function offlinePlanReferenceRecord(): Record<string, unknown> {
     };
   };
   return {
+    executor: { deploymentModel: "ERC1967_PROXY" },
     authority: { deploymentModel: "ERC1967_PROXY" },
     limits: {
       getterAvailability: {
@@ -2663,6 +2672,7 @@ export function offlinePlanReferenceRecord(): Record<string, unknown> {
 }
 
 export function generateLiveCallPlan(record: AuthorityBindingRecord): LiveCall[] {
+  const executor = record.executor as Record<string, unknown>;
   const authority = record.authority as Record<string, unknown>;
   const iface = record.onChainInterface as Record<string, unknown>;
   const limits = record.limits as Record<string, unknown>;
@@ -2742,23 +2752,45 @@ export function generateLiveCallPlan(record: AuthorityBindingRecord): LiveCall[]
       callObjectKeys: null,
       expectedResponse: "BLOCK_OR_NULL",
     },
-    codeCall(3, "EXECUTOR_CODE", "EXECUTOR", "executor runtime code identity"),
-    ethCall(4, "EXECUTOR_VERSION", "EXECUTOR", declared("EXECUTOR_VERSION"), "executor version", "ABI_STRING"),
+    codeCall(3, "EXECUTOR_CODE", "EXECUTOR", "executor proxy or direct runtime code identity"),
+  ];
+  let step = 4;
+  if (executor.deploymentModel === "ERC1967_PROXY") {
+    plan.push({
+      step: step++,
+      callId: "EXECUTOR_ERC1967_IMPLEMENTATION_SLOT",
+      method: "eth_getStorageAt",
+      targetRole: "EXECUTOR",
+      data: null,
+      purpose: "ERC-1967 implementation slot of the executor proxy",
+      boundToPinnedBlock: true,
+      params: [PLAN_TARGET_PLACEHOLDER, ERC1967_IMPLEMENTATION_SLOT, PLAN_PINNED_BLOCK_PLACEHOLDER],
+      parameterCount: 3,
+      callObjectKeys: null,
+      expectedResponse: "STORAGE_WORD",
+    });
+    plan.push(
+      codeCall(step++, "EXECUTOR_IMPLEMENTATION_CODE", "EXECUTOR_IMPLEMENTATION", "executor implementation code"),
+    );
+  }
+  plan.push(
+    ethCall(step++, "EXECUTOR_VERSION", "EXECUTOR", declared("EXECUTOR_VERSION"), "executor version", "ABI_STRING"),
+  );
+  plan.push(
     ethCall(
-      5,
+      step++,
       "EXECUTOR_AUTHORITY_GETTER",
       "EXECUTOR",
       declared("EXECUTOR_AUTHORITY_GETTER"),
       "derive the authority address from the verified executor",
       "ADDRESS_WORD",
     ),
-    codeCall(6, "AUTHORITY_CODE", "AUTHORITY", "authority runtime code identity"),
-  ];
-  let step = 7;
+  );
+  plan.push(codeCall(step++, "AUTHORITY_CODE", "AUTHORITY", "authority runtime code identity"));
   if (authority.deploymentModel === "ERC1967_PROXY") {
     plan.push({
       step: step++,
-      callId: "ERC1967_IMPLEMENTATION_SLOT",
+      callId: "AUTHORITY_ERC1967_IMPLEMENTATION_SLOT",
       method: "eth_getStorageAt",
       targetRole: "AUTHORITY",
       data: null,
@@ -2920,11 +2952,68 @@ export function assertLiveCallPlanIsReadOnly(plan: readonly LiveCall[]): void {
       throw new Error(`live plan contains a forbidden method: ${call.method}`);
     }
   }
-  /* If the plan resolves an implementation at all, it must do so through eth_getStorageAt. A
-   * DIRECT deployment has no such step, and demanding one would contradict its reviewed model. */
-  const resolution = plan.find((call) => call.purpose.includes("ERC-1967"));
-  if (resolution && resolution.method !== "eth_getStorageAt") {
-    throw new Error("ERC-1967 implementation resolution must use eth_getStorageAt");
+  /* Security-critical proxy coverage is structural: role-specific call IDs, method, target role,
+   * exact slot and pinned-block placeholder. Purpose prose is never authorization evidence. */
+  for (const [callId, targetRole] of [
+    ["EXECUTOR_ERC1967_IMPLEMENTATION_SLOT", "EXECUTOR"],
+    ["AUTHORITY_ERC1967_IMPLEMENTATION_SLOT", "AUTHORITY"],
+  ] as const) {
+    const matches = plan.filter((call) => call.callId === callId);
+    if (matches.length > 1) throw new Error(`${callId} appears more than once`);
+    if (matches.length === 0) continue;
+    const resolution = matches[0];
+    if (
+      resolution.method !== "eth_getStorageAt" ||
+      resolution.targetRole !== targetRole ||
+      resolution.parameterCount !== 3 ||
+      resolution.params[1] !== ERC1967_IMPLEMENTATION_SLOT ||
+      resolution.params[2] !== PLAN_PINNED_BLOCK_PLACEHOLDER
+    ) {
+      throw new Error(`${callId} must be the exact pinned ERC-1967 eth_getStorageAt request`);
+    }
+  }
+}
+
+/* A read-only plan is still insufficient if it omits a proxy implementation step. Bind the
+ * role-specific call structure to the reviewed deployment models before the plan is installed. */
+export function assertLiveCallPlanMatchesDeploymentModels(
+  plan: readonly LiveCall[],
+  record: AuthorityBindingRecord,
+): void {
+  const executor = (record.executor ?? {}) as Record<string, unknown>;
+  const authority = (record.authority ?? {}) as Record<string, unknown>;
+  const requiredFor = (deploymentModel: unknown, slotCallId: string, implementationCodeCallId: string): void => {
+    const slotCount = plan.filter((call) => call.callId === slotCallId).length;
+    const codeCount = plan.filter((call) => call.callId === implementationCodeCallId).length;
+    if (deploymentModel === "ERC1967_PROXY") {
+      if (slotCount !== 1 || codeCount !== 1) {
+        throw new Error(`proxied deployment requires exactly one ${slotCallId} and ${implementationCodeCallId}`);
+      }
+      const slotIndex = plan.findIndex((call) => call.callId === slotCallId);
+      const codeIndex = plan.findIndex((call) => call.callId === implementationCodeCallId);
+      if (slotIndex < 0 || codeIndex !== slotIndex + 1) {
+        throw new Error(`${slotCallId} must immediately precede ${implementationCodeCallId}`);
+      }
+    } else if (deploymentModel === "DIRECT") {
+      if (slotCount !== 0 || codeCount !== 0) {
+        throw new Error(`direct deployment may not plan ${slotCallId} or ${implementationCodeCallId}`);
+      }
+    } else {
+      throw new Error("live plan has an unsupported deployment model");
+    }
+  };
+  requiredFor(executor.deploymentModel, "EXECUTOR_ERC1967_IMPLEMENTATION_SLOT", "EXECUTOR_IMPLEMENTATION_CODE");
+  requiredFor(authority.deploymentModel, "AUTHORITY_ERC1967_IMPLEMENTATION_SLOT", "AUTHORITY_IMPLEMENTATION_CODE");
+
+  const executorCode = plan.findIndex((call) => call.callId === "EXECUTOR_CODE");
+  const executorVersion = plan.findIndex((call) => call.callId === "EXECUTOR_VERSION");
+  const executorAuthorityGetter = plan.findIndex((call) => call.callId === "EXECUTOR_AUTHORITY_GETTER");
+  const executorImplementationCode = plan.findIndex((call) => call.callId === "EXECUTOR_IMPLEMENTATION_CODE");
+  const executorIdentityIndex = executorImplementationCode >= 0 ? executorImplementationCode : executorCode;
+  if (executorCode < 0 || executorVersion <= executorIdentityIndex || executorAuthorityGetter <= executorVersion) {
+    throw new Error(
+      "executor version and authority getter must follow the authenticated executor implementation chain",
+    );
   }
 }
 
@@ -3705,6 +3794,7 @@ export type ExtractedArtifactBuild = {
   inputSourceSha256: string;
   runtimeByteLength: number;
   runtimeSha256: string;
+  expectedDeployedRuntimeSha256: string;
   compilerVersion: string;
   buildId: string;
   compilerReferenceManifest: Record<string, unknown>;
@@ -3713,13 +3803,41 @@ export type ExtractedArtifactBuild = {
   failures: string[];
 };
 
+type ReproducedArtifactExtractionDefinition = {
+  pinned: typeof REPRODUCED_OFFICIAL_BUILD | typeof REPRODUCED_OFFICIAL_EXECUTOR_BUILD;
+  runtimeByteLength: number;
+  immutable: typeof UUPS_SELF_IMMUTABLE | typeof EXECUTOR_UUPS_SELF_IMMUTABLE;
+  metadata: typeof REPRODUCED_METADATA_TRAILER | typeof REPRODUCED_EXECUTOR_METADATA_TRAILER;
+  provenanceSubject: "CURRENT_OFFICIAL_ARTIFACT_BUILD" | "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD";
+  sourceLabel: "HCULIMIT" | "EXECUTOR";
+};
+
+const AUTHORITY_ARTIFACT_EXTRACTION: ReproducedArtifactExtractionDefinition = {
+  pinned: REPRODUCED_OFFICIAL_BUILD,
+  runtimeByteLength: REPRODUCED_RUNTIME_BYTE_LENGTH,
+  immutable: UUPS_SELF_IMMUTABLE,
+  metadata: REPRODUCED_METADATA_TRAILER,
+  provenanceSubject: "CURRENT_OFFICIAL_ARTIFACT_BUILD",
+  sourceLabel: "HCULIMIT",
+};
+
+const EXECUTOR_ARTIFACT_EXTRACTION: ReproducedArtifactExtractionDefinition = {
+  pinned: REPRODUCED_OFFICIAL_EXECUTOR_BUILD,
+  runtimeByteLength: REPRODUCED_EXECUTOR_RUNTIME_BYTE_LENGTH,
+  immutable: EXECUTOR_UUPS_SELF_IMMUTABLE,
+  metadata: REPRODUCED_EXECUTOR_METADATA_TRAILER,
+  provenanceSubject: "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD",
+  sourceLabel: "EXECUTOR",
+};
+
 export function extractArtifactBuild(
   material: AuthenticatedMaterial,
   deployment: { implementationAddress: string },
   authenticatedSourceSha256: string | null,
+  definition: ReproducedArtifactExtractionDefinition = AUTHORITY_ARTIFACT_EXTRACTION,
 ): ExtractedArtifactBuild {
   const failures: string[] = [];
-  const pinned = REPRODUCED_OFFICIAL_BUILD;
+  const { immutable, metadata: reproducedMetadata, pinned } = definition;
   const empty = (reason: string): ExtractedArtifactBuild => {
     failures.push(reason);
     return {
@@ -3729,6 +3847,7 @@ export function extractArtifactBuild(
       buildInfoId: "UNRESOLVED",
       runtimeByteLength: 0,
       runtimeSha256: "UNRESOLVED",
+      expectedDeployedRuntimeSha256: "UNRESOLVED",
       compilerVersion: "UNRESOLVED",
       solcLongVersion: "UNRESOLVED",
       buildId: "UNRESOLVED",
@@ -3839,7 +3958,7 @@ export function extractArtifactBuild(
     if (authenticatedSourceSha256 === null) {
       failures.push("BUILD_INFO_SOURCE_CROSS_LINK_UNRESOLVED");
     } else if (inputSourceSha256 !== authenticatedSourceSha256) {
-      failures.push("BUILD_INFO_COMPILED_A_DIFFERENT_HCULIMIT_SOURCE");
+      failures.push(`BUILD_INFO_COMPILED_A_DIFFERENT_${definition.sourceLabel}_SOURCE`);
     }
   }
 
@@ -3854,16 +3973,68 @@ export function extractArtifactBuild(
     return empty(`BUILD_INFO_CONTRACT_ABSENT:${pinned.selectedSourcePath}:${pinned.selectedContractName}`);
   }
   const evm = isObject(contract.evm) ? (contract.evm as Record<string, unknown>) : null;
+  const strictExecutorBuild = definition.sourceLabel === "EXECUTOR";
   const deployedBytecode =
     evm !== null && isObject(evm.deployedBytecode) ? (evm.deployedBytecode as Record<string, unknown>) : null;
   if (deployedBytecode === null) return empty("BUILD_INFO_DEPLOYED_BYTECODE_ABSENT");
+  const creationBytecode = evm !== null && isObject(evm.bytecode) ? (evm.bytecode as Record<string, unknown>) : null;
+  if (strictExecutorBuild && creationBytecode === null) return empty("BUILD_INFO_CREATION_BYTECODE_ABSENT");
+
+  /* Hardhat emits linkReferences on both bytecode objects. Treating a missing or malformed
+   * structure as `{}` would turn an unauthenticated artifact into a no-link-reference artifact.
+   * Validate the compiler shape before applying the pinned no-links conclusion. */
+  const structurallyValidLinkReferences = (value: unknown): value is Record<string, unknown> => {
+    if (!isObject(value)) return false;
+    for (const libraryReferences of Object.values(value)) {
+      if (!isObject(libraryReferences)) return false;
+      for (const references of Object.values(libraryReferences)) {
+        if (!Array.isArray(references)) return false;
+        for (const reference of references) {
+          if (!isObject(reference)) return false;
+          const keys = Object.keys(reference).sort();
+          if (JSON.stringify(keys) !== JSON.stringify(["length", "start"])) return false;
+          if (
+            typeof reference.start !== "number" ||
+            !Number.isSafeInteger(reference.start) ||
+            reference.start < 0 ||
+            typeof reference.length !== "number" ||
+            !Number.isSafeInteger(reference.length) ||
+            reference.length <= 0
+          ) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  };
+  if (strictExecutorBuild) {
+    for (const [bytecode, label] of [
+      [deployedBytecode, "DEPLOYED"],
+      [creationBytecode as Record<string, unknown>, "CREATION"],
+    ] as const) {
+      if (!("linkReferences" in bytecode)) return empty(`BUILD_INFO_${label}_LINK_REFERENCES_ABSENT`);
+      const references = bytecode.linkReferences;
+      if (!structurallyValidLinkReferences(references)) {
+        return empty(`BUILD_INFO_${label}_LINK_REFERENCES_MALFORMED`);
+      }
+      if (Object.keys(references).length > 0) failures.push(`BUILD_INFO_UNEXPECTED_${label}_LINK_REFERENCES`);
+    }
+  } else {
+    const hasLinkReferences = (references: unknown): boolean =>
+      isObject(references) &&
+      Object.values(references).some((byLibrary) => isObject(byLibrary) && Object.keys(byLibrary).length > 0);
+    if (hasLinkReferences(deployedBytecode.linkReferences) || hasLinkReferences(creationBytecode?.linkReferences)) {
+      failures.push("BUILD_INFO_UNEXPECTED_LINK_REFERENCES");
+    }
+  }
 
   const objectHex = typeof deployedBytecode.object === "string" ? deployedBytecode.object : null;
   if (objectHex === null || !/^(0x)?[0-9a-fA-F]*$/u.test(objectHex) || objectHex.length < 4) {
     return empty("BUILD_INFO_RUNTIME_ABSENT");
   }
   const runtime = Buffer.from(objectHex.replace(/^0x/u, ""), "hex");
-  if (runtime.length !== REPRODUCED_RUNTIME_BYTE_LENGTH) {
+  if (runtime.length !== definition.runtimeByteLength) {
     failures.push(`RUNTIME_LENGTH_MISMATCH:${runtime.length}`);
   }
 
@@ -3872,6 +4043,13 @@ export function extractArtifactBuild(
     ? (deployedBytecode.immutableReferences as Record<string, unknown>)
     : null;
   if (immutableReferences === null) return empty("BUILD_INFO_IMMUTABLE_REFERENCES_ABSENT");
+  const expectedImmutableAstKey = String(immutable.compilerAstId);
+  if (
+    Object.keys(immutableReferences).length !== 1 ||
+    Object.keys(immutableReferences)[0] !== expectedImmutableAstKey
+  ) {
+    failures.push(`IMMUTABLE_REFERENCE_SET_MISMATCH:${Object.keys(immutableReferences).join(",")}`);
+  }
 
   /* ----- resolve every immutable id through the AST to its declaration ----- */
   const declarationFor = (astId: number): Record<string, unknown> | null => {
@@ -3883,8 +4061,8 @@ export function extractArtifactBuild(
     }
     return null;
   };
-  if (declarationFor(UUPS_SELF_IMMUTABLE.compilerAstId) === null) {
-    failures.push(`BUILD_INFO_OUTPUT_SOURCES_AST_MISSING:${UUPS_SELF_IMMUTABLE.compilerAstId}`);
+  if (declarationFor(immutable.compilerAstId) === null) {
+    failures.push(`BUILD_INFO_OUTPUT_SOURCES_AST_MISSING:${immutable.compilerAstId}`);
   }
 
   const compilerEntries: {
@@ -3898,8 +4076,8 @@ export function extractArtifactBuild(
   const immutableDeclarations: Record<string, unknown>[] = [];
 
   for (const [astIdText, entries] of Object.entries(immutableReferences)) {
-    const astId = Number.parseInt(astIdText, 10);
-    if (!Number.isInteger(astId)) {
+    const astId = /^(0|[1-9][0-9]*)$/u.test(astIdText) ? Number(astIdText) : Number.NaN;
+    if (!Number.isSafeInteger(astId) || astId < 0) {
       failures.push(`IMMUTABLE_ID_MALFORMED:${astIdText}`);
       continue;
     }
@@ -3933,15 +4111,27 @@ export function extractArtifactBuild(
         failures.push(`IMMUTABLE_REFERENCE_MALFORMED:${astId}:${index}`);
         continue;
       }
-      const offset = Number(reference.start);
-      const byteLength = Number(reference.length);
+      const offset = reference.start;
+      const byteLength = reference.length;
+      if (typeof offset !== "number" || !Number.isSafeInteger(offset) || offset < 0) {
+        failures.push(`IMMUTABLE_REFERENCE_START_MALFORMED:${astId}:${index}`);
+        continue;
+      }
+      if (typeof byteLength !== "number" || !Number.isSafeInteger(byteLength) || byteLength <= 0) {
+        failures.push(`IMMUTABLE_REFERENCE_LENGTH_MALFORMED:${astId}:${index}`);
+        continue;
+      }
+      if (offset >= runtime.length || byteLength > runtime.length - offset) {
+        failures.push(`IMMUTABLE_REFERENCE_OUT_OF_RANGE:solc:immutable:${astId}:${offset}`);
+        continue;
+      }
       compilerEntries.push({
         artifactPlaceholderBytes: `0x${runtime.subarray(offset, offset + byteLength).toString("hex")}`,
         astId,
         byteLength,
         id: `solc:immutable:${astId}:${offset}`,
         offset,
-        referenceKind: byteLength === UUPS_SELF_IMMUTABLE.wordByteLength ? "PUSH32_WORD_IMMUTABLE" : "UNSUPPORTED",
+        referenceKind: byteLength === immutable.wordByteLength ? "PUSH32_WORD_IMMUTABLE" : "UNSUPPORTED",
       });
     }
   }
@@ -3952,21 +4142,21 @@ export function extractArtifactBuild(
   /* The reproduced build's immutable is UUPSUpgradeable.__self, and that is what makes the value an
    * IMPLEMENTATION address. If the declaration is anything else, the deployment value shape below
    * would be wrong and normalization must not proceed on a guess. */
-  const self = immutableDeclarations.find((entry) => Number(entry.astId) === UUPS_SELF_IMMUTABLE.compilerAstId);
+  const self = immutableDeclarations.find((entry) => Number(entry.astId) === immutable.compilerAstId);
   if (!self) {
-    failures.push(`UUPS_SELF_IMMUTABLE_ABSENT:${UUPS_SELF_IMMUTABLE.compilerAstId}`);
+    failures.push(`UUPS_SELF_IMMUTABLE_ABSENT:${immutable.compilerAstId}`);
   } else {
-    if (self.name !== UUPS_SELF_IMMUTABLE.declarationName) failures.push("UUPS_SELF_IMMUTABLE_NAME_MISMATCH");
-    if (String(self.declarationSource) !== UUPS_SELF_IMMUTABLE.declarationSource) {
+    if (self.name !== immutable.declarationName) failures.push("UUPS_SELF_IMMUTABLE_NAME_MISMATCH");
+    if (String(self.declarationSource) !== immutable.declarationSource) {
       failures.push(`UUPS_SELF_IMMUTABLE_SOURCE_MISMATCH:${String(self.declarationSource)}`);
     }
-    if (self.typeString !== UUPS_SELF_IMMUTABLE.declarationTypeString) {
+    if (self.typeString !== immutable.declarationTypeString) {
       failures.push("UUPS_SELF_IMMUTABLE_TYPE_MISMATCH");
     }
     if (self.stateVariable !== UUPS_SELF_IMMUTABLE.stateVariable) failures.push("UUPS_SELF_IMMUTABLE_NOT_STATE");
   }
   for (const entry of compilerEntries) {
-    if (entry.astId !== UUPS_SELF_IMMUTABLE.compilerAstId) {
+    if (entry.astId !== immutable.compilerAstId) {
       failures.push(`UNEXPECTED_COMPILER_IMMUTABLE:${entry.astId}`);
     }
     if (entry.referenceKind !== "PUSH32_WORD_IMMUTABLE") {
@@ -3979,12 +4169,12 @@ export function extractArtifactBuild(
     /* PUSH32 immediately precedes a 32-byte word immutable. */
     if (runtime[entry.offset - 1] !== 0x7f) failures.push(`IMMUTABLE_REFERENCE_OPCODE:${entry.id}`);
     /* The artifact side of a solc immutable is a zero word. */
-    if (entry.artifactPlaceholderBytes !== UUPS_SELF_IMMUTABLE.artifactPlaceholderWordHex) {
+    if (entry.artifactPlaceholderBytes !== immutable.artifactPlaceholderWordHex) {
       failures.push(`ARTIFACT_PLACEHOLDER_NOT_A_ZERO_WORD:${entry.id}`);
     }
   }
   const offsets = compilerEntries.map((entry) => entry.offset);
-  if (JSON.stringify(offsets) !== JSON.stringify([...UUPS_SELF_IMMUTABLE.offsets])) {
+  if (JSON.stringify(offsets) !== JSON.stringify([...immutable.offsets])) {
     failures.push(`IMMUTABLE_OFFSETS_MISMATCH:${offsets.join(",")}`);
   }
   for (let index = 1; index < compilerEntries.length; index++) {
@@ -4005,10 +4195,10 @@ export function extractArtifactBuild(
   if (metadata === null) return empty("ARTIFACT_METADATA_UNREADABLE");
   if (metadata.carriesSourceHash) failures.push("ARTIFACT_METADATA_STRUCTURE_UNSUPPORTED");
   const trailer = runtime.subarray(metadata.codeSectionLength);
-  if (trailer.length !== REPRODUCED_METADATA_TRAILER.trailerByteLength) {
+  if (trailer.length !== reproducedMetadata.trailerByteLength) {
     failures.push(`METADATA_TRAILER_LENGTH:${trailer.length}`);
   }
-  if (`0x${trailer.toString("hex")}` !== REPRODUCED_METADATA_TRAILER.trailerHex) {
+  if (`0x${trailer.toString("hex")}` !== reproducedMetadata.trailerHex) {
     failures.push("METADATA_TRAILER_BYTES_MISMATCH");
   }
 
@@ -4017,7 +4207,7 @@ export function extractArtifactBuild(
     compilerVersion,
     entries: compilerEntries,
     immutableDeclarations,
-    provenanceSubject: "CURRENT_OFFICIAL_ARTIFACT_BUILD",
+    provenanceSubject: definition.provenanceSubject,
     referencesComplete: true,
     schema: COMPILER_REFERENCE_MANIFEST_SCHEMA,
     solcLongVersion,
@@ -4044,12 +4234,12 @@ export function extractArtifactBuild(
     metadataTrailerByteLength: trailer.length,
     metadataTrailerSha256: sha256(trailer),
     primaryImmutableReferences: primary,
-    requiredPrecedingOpcode: UUPS_SELF_IMMUTABLE.requiredPrecedingOpcode,
+    requiredPrecedingOpcode: immutable.requiredPrecedingOpcode,
     runtimeByteLength: runtime.length,
     schema: NORMALIZATION_MANIFEST_SCHEMA,
     supplementaryImmutableReferences: [] as Record<string, unknown>[],
     version: 2,
-    wordByteLength: UUPS_SELF_IMMUTABLE.wordByteLength,
+    wordByteLength: immutable.wordByteLength,
   };
 
   /* ----- the expected deployed normalized digest, RECOMPUTED -----
@@ -4084,6 +4274,7 @@ export function extractArtifactBuild(
     buildInfoId: buildId,
     runtimeByteLength: runtime.length,
     runtimeSha256: sha256(runtime),
+    expectedDeployedRuntimeSha256: word === null ? "UNRESOLVED" : sha256(deployedForm),
     compilerVersion,
     solcLongVersion,
     buildId,
@@ -4093,6 +4284,17 @@ export function extractArtifactBuild(
     expectedNormalizedRuntimeSha256: normalization.ok ? normalization.normalizedSha256 : "UNRESOLVED",
     failures: [...new Set(failures)].sort(),
   };
+}
+
+/* A distinct entry point prevents the executor chain from inheriting HCULimit build identity,
+ * source selection, offsets, or runtime expectations. The shared parser only consumes compiler
+ * output supplied by the explicit executor definition above. */
+export function extractExecutorArtifactBuild(
+  material: AuthenticatedMaterial,
+  deployment: { implementationAddress: string },
+  authenticatedSourceSha256: string | null,
+): ExtractedArtifactBuild {
+  return extractArtifactBuild(material, deployment, authenticatedSourceSha256, EXECUTOR_ARTIFACT_EXTRACTION);
 }
 
 /* The deployment-dependent value for a UUPS `__self` immutable: the implementation address, left
@@ -4179,7 +4381,7 @@ export function deriveAuthorityFromSourceMaterial(
       const parsed = parseAuthoritySource(authentication.material);
       blockers.push(...parsed.residue.map((entry) => `AUTHORITY_SOURCE_PARSE:${entry}`));
       derived.authoritySource = parsed;
-    } else {
+    } else if (subject === "officialArtifactBuild") {
       /* The build extraction is cross-linked to the INDEPENDENTLY authenticated authority source,
        * so a correctly shaped and reproducible build of a different HCULimit cannot satisfy it. */
       const authoritySourceTuple = selectedProvenanceTuple(record, "CURRENT_OFFICIAL_AUTHORITY_SOURCE");
@@ -4193,6 +4395,85 @@ export function deriveAuthorityFromSourceMaterial(
     }
   }
   return derived;
+}
+
+export type DerivedExecutor = {
+  blockers: string[];
+  executorBuild: ExtractedArtifactBuild | null;
+};
+
+/* The executor has its own authenticated source/build pair. This intentionally does not pass
+ * through the HCULimit extractor subjects or provenance tuple. */
+export function deriveExecutorFromSourceMaterial(
+  record: AuthorityBindingRecord,
+  deployment: { implementationAddress: string | null } = { implementationAddress: null },
+): DerivedExecutor {
+  const blockers: string[] = [];
+  const source = authenticateSourceMaterial(record, "executorSource");
+  if (!source.ok) blockers.push(source.reason);
+  const build = authenticateSourceMaterial(record, "officialExecutorArtifactBuild");
+  if (!build.ok) blockers.push(build.reason);
+  if (!build.ok) return { blockers, executorBuild: null };
+  const executor = (record.executor ?? {}) as Record<string, unknown>;
+  const policy = isObject(executor.implementationAddressPolicy)
+    ? (executor.implementationAddressPolicy as Record<string, unknown>)
+    : null;
+  /* Offline derivation uses only a reviewed address: a DIRECT executor's configured address, or
+   * a proxy's exact reviewed implementation pin. Live verification replaces this with the slot
+   * result only after its proxy and address-policy checks succeed. */
+  const reviewedImplementationAddress =
+    deployment.implementationAddress ??
+    (executor.deploymentModel === "DIRECT"
+      ? typeof executor.address === "string"
+        ? executor.address
+        : null
+      : typeof policy?.expectedImplementationAddress === "string"
+        ? policy.expectedImplementationAddress
+        : null);
+  const sourceTuple = selectedProvenanceTuple(record, "CURRENT_OFFICIAL_EXECUTOR_SOURCE");
+  const executorBuild = extractExecutorArtifactBuild(
+    build.material,
+    { implementationAddress: reviewedImplementationAddress ?? "" },
+    provenanceContentSha256(sourceTuple),
+  );
+  blockers.push(...executorBuild.failures.map((entry) => `EXECUTOR_ARTIFACT_BUILD_EXTRACTION:${entry}`));
+  return { blockers, executorBuild };
+}
+
+/* The executor's authority getter returns the address compiled into the authenticated executor
+ * source graph. This is independent evidence for a serialized result: the result's authority
+ * address and its "derived" status cannot authenticate one another. */
+export function deriveExecutorAuthorityAddressFromSourceMaterial(record: AuthorityBindingRecord): {
+  address: string | null;
+  blockers: string[];
+} {
+  const blockers: string[] = [];
+  const material = authenticateSourceMaterial(record, "officialExecutorArtifactBuild");
+  if (!material.ok) return { address: null, blockers: [material.reason] };
+
+  let buildInfo: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(material.material.bytes.toString("utf8")) as unknown;
+    if (!isObject(parsed)) throw new Error("not an object");
+    buildInfo = parsed;
+  } catch {
+    return { address: null, blockers: ["EXECUTOR_AUTHORITY_BUILD_INFO_UNPARSEABLE"] };
+  }
+
+  const input = isObject(buildInfo.input) ? buildInfo.input : null;
+  const sources = input !== null && isObject(input.sources) ? input.sources : null;
+  const addressSource = sources === null ? null : sources["addresses/FHEVMHostAddresses.sol"];
+  const sourceText =
+    isObject(addressSource) && typeof addressSource.content === "string" ? addressSource.content : null;
+  if (sourceText === null) {
+    return { address: null, blockers: ["EXECUTOR_AUTHORITY_SOURCE_ABSENT"] };
+  }
+
+  const matches = [...sourceText.matchAll(/(?:^|\n)address constant hcuLimitAdd\s*=\s*(0x[0-9a-fA-F]{40})\s*;/gu)];
+  if (matches.length !== 1) {
+    return { address: null, blockers: ["EXECUTOR_AUTHORITY_SOURCE_DECLARATION_NOT_UNIQUE"] };
+  }
+  return { address: matches[0][1].toLowerCase(), blockers };
 }
 
 /* The record's reviewed CLAIMS, compared field by field against what the extractors derived. */
@@ -4466,6 +4747,11 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
   if (value.schema !== BINDING_RECORD_SCHEMA) errors.push("binding record schema mismatch");
   if (value.recordVersion !== BINDING_RECORD_VERSION) errors.push("binding record version mismatch");
 
+  /* sourceMaterial is a closed subject map. It is the authenticated byte source for both
+   * authority and executor derivations, so unknown, missing, renamed or cross-wired subjects must
+   * be rejected before either provenance path can consume it. */
+  checkSection(value, "sourceMaterial", errors);
+
   /* ----- lineage ----- */
   const lineage = checkSection(value, "lineage", errors);
   if (lineage) {
@@ -4623,7 +4909,7 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
          * repository `path`, so it is closed against its own field set. */
         const isReproducedBuild = REPRODUCED_BUILD_SUBJECTS.includes(String(entry.subject));
         const entryFields: readonly string[] = isReproducedBuild
-          ? REPRODUCED_BUILD_ENTRY_FIELDS
+          ? (reproducedBuildEntryFieldsForSubject(String(entry.subject)) ?? REPRODUCED_BUILD_ENTRY_FIELDS)
           : SHAPE.provenanceEntryFields;
         for (const field of entryFields) {
           if (!(field in entry)) errors.push(`binding record provenance entry ${index} is missing ${field}`);
@@ -4645,7 +4931,10 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
           /* The reproduction was performed twice from clean checkouts and agreed byte for byte, so
            * every one of these is a PINNED expectation. A record cannot nominate an arbitrary
            * 64-hex build digest and mark it reverified. */
-          const pinned = REPRODUCED_OFFICIAL_BUILD;
+          const pinned =
+            subject === "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD"
+              ? REPRODUCED_OFFICIAL_EXECUTOR_BUILD
+              : REPRODUCED_OFFICIAL_BUILD;
           if (entry.kind !== REPRODUCED_BUILD_PROVENANCE_KIND) {
             errors.push(`binding record provenance ${subject} must declare kind ${REPRODUCED_BUILD_PROVENANCE_KIND}`);
           }
@@ -4666,10 +4955,27 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
             ["dependencyLockSha256", pinned.dependencyLockSha256],
             ["hardhatConfigSha256", pinned.hardhatConfigSha256],
             ["generatedHostAddressesSha256", pinned.generatedHostAddressesSha256],
-            ["aclAddress", pinned.aclAddress],
-            ["fhevmExecutorAddress", pinned.fhevmExecutorAddress],
             ["reproductionCommand", pinned.reproductionCommand],
           ];
+          if (subject === "CURRENT_OFFICIAL_ARTIFACT_BUILD") {
+            expectedFacts.push(
+              ["aclAddress", REPRODUCED_OFFICIAL_BUILD.aclAddress],
+              ["fhevmExecutorAddress", REPRODUCED_OFFICIAL_BUILD.fhevmExecutorAddress],
+              ["artifactJsonSha256", REPRODUCED_OFFICIAL_BUILD.artifactJsonSha256],
+            );
+          } else {
+            expectedFacts.push(
+              [
+                "upstreamSepoliaHostConfigurationSha256",
+                REPRODUCED_OFFICIAL_EXECUTOR_BUILD.upstreamSepoliaHostConfigurationSha256,
+              ],
+              ["runtimeByteLength", REPRODUCED_OFFICIAL_EXECUTOR_BUILD.runtimeByteLength],
+              ["normalizedRuntimeSha256", REPRODUCED_OFFICIAL_EXECUTOR_BUILD.normalizedRuntimeSha256],
+              ["metadataTrailerHex", REPRODUCED_OFFICIAL_EXECUTOR_BUILD.metadataTrailerHex],
+              ["hasNoLinkReferences", REPRODUCED_OFFICIAL_EXECUTOR_BUILD.hasNoLinkReferences],
+              ["artifactJsonSha256", REPRODUCED_OFFICIAL_EXECUTOR_BUILD.artifactJsonSha256],
+            );
+          }
           for (const [field, expectedValue] of expectedFacts) {
             if (entry[field] !== expectedValue) {
               errors.push(`binding record provenance ${subject} ${field} does not match the pinned reproduced build`);
@@ -4679,7 +4985,7 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
             errors.push(`binding record provenance ${subject} reverified must be a boolean`);
           }
           /* A reproduced build is committed at no repository path, so claiming one is an error. */
-          if ("path" in entry && entry.path !== null) {
+          if ("path" in entry) {
             errors.push(`binding record provenance ${subject} may not claim a repository path`);
           }
           continue;
@@ -4823,26 +5129,89 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
     if (executor.address !== SEPOLIA_EXECUTOR_ADDRESS) {
       errors.push("binding record executor.address must be the committed executor address");
     }
-    /* F21 — the executor model is restricted to DIRECT. A proxied executor would need its
-     * implementation resolved, read, code-identified and version-checked, and getHCULimitAddress()
-     * bound to that chain; none of that exists, so the model is refused rather than half-checked. */
     if (
       typeof executor.deploymentModel !== "string" ||
       !EXECUTOR_DEPLOYMENT_MODELS.includes(executor.deploymentModel)
     ) {
-      errors.push(
-        "binding record executor.deploymentModel must be DIRECT; a proxied executor is not supported and is refused rather than partially verified",
-      );
-    }
-    if (typeof executor.expectedRuntimeSha256 !== "string" || !HEX64.test(executor.expectedRuntimeSha256 as string)) {
-      errors.push("binding record executor.expectedRuntimeSha256 must be a 64-hex digest");
+      errors.push("binding record executor.deploymentModel must be a supported reviewed deployment model");
     }
     if (typeof executor.expectedVersion !== "string" || (executor.expectedVersion as string).length === 0) {
       errors.push("binding record executor.expectedVersion must be a non-empty string");
+    } else if (executor.expectedVersion !== REPRODUCED_EXECUTOR_VERSION) {
+      errors.push("binding record executor.expectedVersion does not match the pinned reproduced executor source");
     }
-    /* F22 — the executor is cross-linked to the installed Solidity configuration that names it. */
-    if (executor.provenanceSubject !== "INSTALLED_SOLIDITY_CONFIGURATION") {
-      errors.push("binding record executor must cite the installed Solidity configuration subject");
+    if (
+      typeof executor.expectedImplementationVersion !== "string" ||
+      executor.expectedImplementationVersion !== executor.expectedVersion
+    ) {
+      errors.push("binding record executor.expectedImplementationVersion must exactly match expectedVersion");
+    }
+    if (
+      typeof executor.expectedImplementationNormalizedRuntimeSha256 !== "string" ||
+      !HEX64.test(executor.expectedImplementationNormalizedRuntimeSha256 as string)
+    ) {
+      errors.push("binding record executor.expectedImplementationNormalizedRuntimeSha256 must be a 64-hex digest");
+    }
+    if (executor.provenanceSubject !== "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD") {
+      errors.push("binding record executor must cite the current official executor reproduced build");
+    }
+    if (executor.sourceProvenanceSubject !== "CURRENT_OFFICIAL_EXECUTOR_SOURCE") {
+      errors.push("binding record executor must cite the current official executor source");
+    }
+    if (executor.deploymentModel === "ERC1967_PROXY") {
+      if (typeof executor.expectedProxyRuntimeSha256 !== "string" || !HEX64.test(executor.expectedProxyRuntimeSha256)) {
+        errors.push("a proxied executor requires executor.expectedProxyRuntimeSha256");
+      }
+      if (executor.implementationResolutionMechanism !== "ERC1967_STORAGE_SLOT") {
+        errors.push("a proxied executor must resolve its implementation from the ERC-1967 storage slot");
+      }
+      if (executor.implementationSlot !== ERC1967_IMPLEMENTATION_SLOT) {
+        errors.push("binding record executor.implementationSlot must be the exact ERC-1967 slot");
+      }
+      const policy = executor.implementationAddressPolicy;
+      if (!isObject(policy)) {
+        errors.push("a proxied executor requires a closed implementationAddressPolicy");
+      } else {
+        for (const key of Object.keys(policy)) {
+          if (!IMPLEMENTATION_ADDRESS_POLICY_FIELDS.includes(key)) {
+            errors.push(`binding record executor implementationAddressPolicy has an unpermitted field ${key}`);
+          }
+        }
+        for (const field of IMPLEMENTATION_ADDRESS_POLICY_FIELDS) {
+          if (!(field in policy))
+            errors.push(`binding record executor implementationAddressPolicy is missing ${field}`);
+        }
+        if (policy.kind !== "EXACT_PINNED_ADDRESS") {
+          errors.push("an executor implementation policy must be EXACT_PINNED_ADDRESS");
+        }
+        if (!ADDRESS.test(String(policy.expectedImplementationAddress))) {
+          errors.push("an exact executor implementation policy requires a pinned implementation address");
+        }
+        if (!Array.isArray(policy.permittedConditions) || policy.permittedConditions.length !== 0) {
+          errors.push("an exact executor implementation policy permits no upgrade conditions");
+        }
+        if (typeof policy.reviewedBy !== "string" || policy.reviewedBy.length === 0) {
+          errors.push("an executor implementation policy requires an independent reviewer");
+        }
+        if (typeof policy.reviewRecordSha256 !== "string" || !HEX64.test(policy.reviewRecordSha256)) {
+          errors.push("an executor implementation policy requires a canonical review-record digest");
+        }
+        const covered = Object.fromEntries(Object.entries(policy).filter(([key]) => key !== "policyDigest"));
+        if (typeof policy.policyDigest !== "string" || policy.policyDigest !== sha256(canonicalJson(covered))) {
+          errors.push("executor implementationAddressPolicy digest does not recompute from the policy");
+        }
+      }
+    } else {
+      if (executor.expectedProxyRuntimeSha256 !== null) {
+        errors.push("a direct executor must record expectedProxyRuntimeSha256 null");
+      }
+      if (executor.implementationResolutionMechanism !== "NOT_APPLICABLE_DIRECT_DEPLOYMENT") {
+        errors.push("a direct executor may not declare an implementation resolution mechanism");
+      }
+      if (executor.implementationSlot !== null) errors.push("a direct executor must record implementationSlot null");
+      if (executor.implementationAddressPolicy !== null) {
+        errors.push("a direct executor must record implementationAddressPolicy null");
+      }
     }
   }
 
@@ -5018,6 +5387,8 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
     errors.push(error);
   }
   const authorityTuple = selected.get("CURRENT_OFFICIAL_AUTHORITY_SOURCE") ?? null;
+  const executorSourceTuple = selected.get("CURRENT_OFFICIAL_EXECUTOR_SOURCE") ?? null;
+  const executorBuildTuple = selected.get("CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD") ?? null;
   const priceTuple = selected.get("CURRENT_OFFICIAL_OPERATION_PRICE_SCHEDULE") ?? null;
   const configTuple = selected.get("INSTALLED_SOLIDITY_CONFIGURATION") ?? null;
   const crossLink = (id: string, actual: unknown, expected: string | null): void => {
@@ -5070,6 +5441,28 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
       executor.configurationSourceReference,
       sourceFileCanonicalReference(configTuple),
     );
+    if (executor.sourceProvenanceSubject === "CURRENT_OFFICIAL_EXECUTOR_SOURCE" && executorSourceTuple === null) {
+      errors.push("binding record executor source provenance has no selected tuple");
+    }
+    if (executor.provenanceSubject === "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD" && executorBuildTuple === null) {
+      errors.push("binding record executor reproduced-build provenance has no selected tuple");
+    }
+    const executorDerivation = deriveExecutorFromSourceMaterial(value as unknown as AuthorityBindingRecord);
+    for (const blocker of executorDerivation.blockers) errors.push(`binding record ${blocker}`);
+    if (executorDerivation.executorBuild !== null) {
+      if (
+        executor.expectedImplementationNormalizedRuntimeSha256 !==
+        executorDerivation.executorBuild.expectedNormalizedRuntimeSha256
+      ) {
+        errors.push("binding record executor implementation hash disagrees with its authenticated reproduced build");
+      }
+      if (executorDerivation.executorBuild.sourceContentSha256 !== provenanceContentSha256(executorBuildTuple)) {
+        errors.push("binding record executor build bytes do not match the selected reproduced-build tuple");
+      }
+      if (executorDerivation.executorBuild.inputSourceSha256 !== provenanceContentSha256(executorSourceTuple)) {
+        errors.push("binding record executor build did not compile the selected executor source");
+      }
+    }
   }
   if (schedule) {
     crossLink("PRICE_SCHEDULE_SOURCE", schedule.source, sourceFileCanonicalReference(priceTuple));
@@ -6484,6 +6877,8 @@ export async function runLiveAuthorityVerification(
       : "UNRESOLVED";
   let implementationResolutionResult = "UNRESOLVED";
   let implementationAddressPolicyResult = "UNRESOLVED";
+  let executorImplementationResolutionResult = "UNRESOLVED";
+  let executorImplementationAddressPolicyResult = "UNRESOLVED";
 
   /* F39 — the plan is generated from the VALIDATED record and installed on the transport before
    * any dependent call is issued. Roles resolve as the derivation chain establishes them, so a
@@ -6495,6 +6890,7 @@ export async function runLiveAuthorityVerification(
     AUTHORITY: null,
     AUTHORITY_IMPLEMENTATION: null,
     EXECUTOR: SEPOLIA_EXECUTOR_ADDRESS,
+    EXECUTOR_IMPLEMENTATION: null,
     NONE: null,
   };
   /* INVARIANT H — the plan must install and validate BEFORE the first network request. If it
@@ -6503,6 +6899,7 @@ export async function runLiveAuthorityVerification(
   if (binding !== null) {
     try {
       assertLiveCallPlanIsReadOnly(livePlan);
+      assertLiveCallPlanMatchesDeploymentModels(livePlan, binding);
       for (const call of livePlan) {
         if (call.method === "eth_call" && (call.data === null || !/^0x[0-9a-f]{8}/u.test(call.data))) {
           throw new Error(`planned call ${call.callId} has no resolvable calldata`);
@@ -6534,7 +6931,21 @@ export async function runLiveAuthorityVerification(
   let pinnedBlockHash = "UNRESOLVED";
   let pinnedBlockFinality: "FINALIZED" | "UNRESOLVED" = "UNRESOLVED";
   let executorCodeHash = "UNRESOLVED";
+  let executorProxyCodeHash = "UNRESOLVED";
+  let executorImplementationAddress = "UNRESOLVED";
+  let executorExpectedImplementationAddress = "UNRESOLVED";
+  let executorImplementationCodeHash = "UNRESOLVED";
+  let executorExpectedImplementationCodeHash = "UNRESOLVED";
+  let executorNormalizedImplementationHash = "UNRESOLVED";
+  let executorExpectedNormalizedImplementationHash = "UNRESOLVED";
+  let executorReproducedBuildInfoSha256 = "UNRESOLVED";
+  let executorReproducedBuildResult: "MATCHES_PINNED_REPRODUCED_BUILD" | "MISMATCH" | "UNRESOLVED" = "UNRESOLVED";
+  let executorProxyCodeIdentityResult: "VERIFIED" | "MISMATCH" | "UNRESOLVED" = "UNRESOLVED";
+  let executorImplementationCodeIdentityResult: "VERIFIED" | "MISMATCH" | "UNRESOLVED" = "UNRESOLVED";
+  let executorAuthorityDerivationResult: "VERIFIED" | "MISMATCH" | "UNRESOLVED" = "UNRESOLVED";
   let executorVersion = "UNRESOLVED";
+  let executorExpectedVersion =
+    typeof bindingExecutor.expectedVersion === "string" ? bindingExecutor.expectedVersion : REPRODUCED_EXECUTOR_VERSION;
   let executorCodeIdentityResult: "VERIFIED" | "MISMATCH" | "UNRESOLVED" = "UNRESOLVED";
   let executorVersionResult: "MATCHES_BINDING_RECORD" | "MISMATCH" | "UNRESOLVED" = "UNRESOLVED";
   let authorityAddress = "UNRESOLVED";
@@ -6692,7 +7103,8 @@ export async function runLiveAuthorityVerification(
     pinnedBlockFinality = "FINALIZED";
     guarded.bindToPinnedBlock(pinnedHex);
 
-    /* Step 3 — executor code IDENTITY, not merely code existence. */
+    /* Step 3 — authenticate the executor shell. For a DIRECT executor this is also its
+     * implementation runtime; for ERC-1967 it is only the separately pinned proxy shell. */
     const executorCode = hexCodeToBuffer(
       await guarded.send({ method: "eth_getCode", params: [SEPOLIA_EXECUTOR_ADDRESS, pinnedHex] }),
     );
@@ -6701,23 +7113,119 @@ export async function runLiveAuthorityVerification(
       throw new Error("configured executor carries no code at the pinned block");
     }
     executorCodeHash = sha256(executorCode);
-    const expectedExecutorHash = bindingExecutor.expectedRuntimeSha256;
-    if (typeof expectedExecutorHash !== "string") {
-      executorCodeIdentityResult = "UNRESOLVED";
-      blockers.push("EXECUTOR_CODE_IDENTITY_UNRESOLVED");
-    } else if (expectedExecutorHash !== executorCodeHash) {
-      executorCodeIdentityResult = "MISMATCH";
-      failures.push("EXECUTOR_CODE_IDENTITY_MISMATCH");
+    let executorImplementationCode: Buffer | null = null;
+    if (executorDeploymentModel === "ERC1967_PROXY") {
+      executorProxyCodeHash = executorCodeHash;
+      const expectedProxyHash = bindingExecutor.expectedProxyRuntimeSha256;
+      if (typeof expectedProxyHash !== "string") {
+        blockers.push("EXECUTOR_PROXY_CODE_IDENTITY_UNRESOLVED");
+      } else if (expectedProxyHash !== executorProxyCodeHash) {
+        executorProxyCodeIdentityResult = "MISMATCH";
+        failures.push("EXECUTOR_PROXY_CODE_IDENTITY_MISMATCH");
+      } else {
+        executorProxyCodeIdentityResult = "VERIFIED";
+      }
+      if (executorProxyCodeIdentityResult !== "VERIFIED") {
+        throw new Error("executor proxy identity is not verified; the derivation chain stops here");
+      }
+      const implementationWord = await guarded.send({
+        method: "eth_getStorageAt",
+        params: [SEPOLIA_EXECUTOR_ADDRESS, ERC1967_IMPLEMENTATION_SLOT, pinnedHex],
+      });
+      const implementation = decodeAddressWord(implementationWord);
+      if (!implementation) {
+        blockers.push("EXECUTOR_ERC1967_IMPLEMENTATION_SLOT_EMPTY_OR_MALFORMED");
+        throw new Error("executor ERC-1967 implementation slot did not resolve to an address");
+      }
+      const policy = bindingExecutor.implementationAddressPolicy;
+      if (!isObject(policy) || policy.kind !== "EXACT_PINNED_ADDRESS") {
+        blockers.push("EXECUTOR_IMPLEMENTATION_ADDRESS_POLICY_UNRESOLVED");
+        throw new Error("executor implementation policy is not an exact reviewed pin");
+      }
+      const pinnedAddress = String(policy.expectedImplementationAddress).toLowerCase();
+      if (implementation !== pinnedAddress) {
+        executorImplementationAddressPolicyResult = "MISMATCH";
+        failures.push(`EXECUTOR_IMPLEMENTATION_ADDRESS_MISMATCH:${implementation}!=${pinnedAddress}`);
+        throw new Error("executor implementation address violates its reviewed policy");
+      }
+      executorImplementationAddressPolicyResult = "EXACT_MATCH";
+      executorExpectedImplementationAddress = pinnedAddress;
+      executorImplementationAddress = implementation;
+      executorImplementationResolutionResult = "VERIFIED_ERC1967_STORAGE_SLOT";
+      roleAddresses.EXECUTOR_IMPLEMENTATION = implementation;
+      executorImplementationCode = hexCodeToBuffer(
+        await guarded.send({ method: "eth_getCode", params: [implementation, pinnedHex] }),
+      );
     } else {
-      executorCodeIdentityResult = "VERIFIED";
+      executorExpectedImplementationAddress = SEPOLIA_EXECUTOR_ADDRESS.toLowerCase();
+      executorImplementationAddress = SEPOLIA_EXECUTOR_ADDRESS.toLowerCase();
+      executorImplementationResolutionResult = "NOT_APPLICABLE_DIRECT_DEPLOYMENT";
+      executorImplementationAddressPolicyResult = "NOT_APPLICABLE_DIRECT_DEPLOYMENT";
+      roleAddresses.EXECUTOR_IMPLEMENTATION = SEPOLIA_EXECUTOR_ADDRESS;
+      executorImplementationCode = executorCode;
     }
-    if (executorCodeIdentityResult !== "VERIFIED" && DERIVATION_CHAIN_POLICY.stopOnExecutorCodeIdentityMismatch) {
-      /* Read-only calls are still a derivation chain: deriving the authority from an unverified
-       * executor would attribute authority to an unverified contract. */
-      throw new Error("executor code identity is not verified; the derivation chain stops here");
+    if (!executorImplementationCode) {
+      failures.push("EXECUTOR_IMPLEMENTATION_HAS_NO_CODE");
+      throw new Error("executor implementation carries no code at the pinned block");
+    }
+    executorImplementationCodeHash = sha256(executorImplementationCode);
+
+    /* The implementation artifact is independently reproduced and authenticated from executor
+     * source/build material. No proxy-record hash can substitute for this comparison. */
+    const executorDerivation =
+      binding === null
+        ? null
+        : deriveExecutorFromSourceMaterial(binding, { implementationAddress: executorImplementationAddress });
+    for (const blocker of executorDerivation?.blockers ?? []) blockers.push(blocker);
+    executorExpectedImplementationCodeHash =
+      executorDerivation?.executorBuild?.expectedDeployedRuntimeSha256 ?? "UNRESOLVED";
+    const executorManifest = executorDerivation?.executorBuild?.normalizationManifest as
+      | NormalizationManifest
+      | undefined;
+    if (!executorManifest) {
+      blockers.push("EXECUTOR_NORMALIZATION_MANIFEST_UNRESOLVED");
+      throw new Error("executor has no authenticated normalization manifest");
+    }
+    executorExpectedNormalizedImplementationHash =
+      executorDerivation?.executorBuild?.expectedNormalizedRuntimeSha256 ?? "UNRESOLVED";
+    executorReproducedBuildInfoSha256 = executorDerivation?.executorBuild?.sourceContentSha256 ?? "UNRESOLVED";
+    executorReproducedBuildResult =
+      executorReproducedBuildInfoSha256 === REPRODUCED_OFFICIAL_EXECUTOR_BUILD.buildInfoSha256
+        ? "MATCHES_PINNED_REPRODUCED_BUILD"
+        : executorReproducedBuildInfoSha256 === "UNRESOLVED"
+          ? "UNRESOLVED"
+          : "MISMATCH";
+    const executorNormalization = normalizeRuntimeBytecodeFromManifest(executorImplementationCode, executorManifest, {
+      implementationAddress: executorImplementationAddress,
+    });
+    executorNormalizedImplementationHash = executorNormalization.normalizedSha256;
+    const expectedExecutorArtifactHash = bindingExecutor.expectedImplementationNormalizedRuntimeSha256;
+    if (
+      !executorNormalization.ok ||
+      executorExpectedNormalizedImplementationHash === "UNRESOLVED" ||
+      executorReproducedBuildResult !== "MATCHES_PINNED_REPRODUCED_BUILD" ||
+      executorExpectedImplementationCodeHash === "UNRESOLVED"
+    ) {
+      executorImplementationCodeIdentityResult = "UNRESOLVED";
+      blockers.push("EXECUTOR_IMPLEMENTATION_CODE_IDENTITY_UNRESOLVED");
+    } else if (
+      executorNormalizedImplementationHash !== executorExpectedNormalizedImplementationHash ||
+      expectedExecutorArtifactHash !== executorExpectedNormalizedImplementationHash ||
+      executorImplementationCodeHash !== executorExpectedImplementationCodeHash
+    ) {
+      executorImplementationCodeIdentityResult = "MISMATCH";
+      failures.push(
+        `EXECUTOR_NORMALIZED_CODE_IDENTITY_MISMATCH:${executorNormalization.failures.join("|") || "digest"}`,
+      );
+    } else {
+      executorImplementationCodeIdentityResult = "VERIFIED";
+    }
+    executorCodeIdentityResult = executorImplementationCodeIdentityResult;
+    if (executorImplementationCodeIdentityResult !== "VERIFIED") {
+      throw new Error("executor implementation identity is not verified; the derivation chain stops here");
     }
 
-    /* Step 4 — executor version coherence against the binding record. */
+    /* Step 4 — executor version coherence only after implementation identity. */
     /* F40 — the calldata comes from the DECLARED interface manifest, recomputed from its canonical
      * signature. There is no parallel hard-coded selector path. */
     executorVersion =
@@ -6740,7 +7248,7 @@ export async function runLiveAuthorityVerification(
       throw new Error("executor version is not verified; the derivation chain stops here");
     }
 
-    /* Step 5 — derive the authority from the verified executor only. */
+    /* Step 5 — derive the authority only from the fully verified executor chain. */
     const derived = decodeAddressWord(
       await guarded.send({
         method: "eth_call",
@@ -6751,6 +7259,7 @@ export async function runLiveAuthorityVerification(
       blockers.push("AUTHORITY_ADDRESS_NOT_DERIVED_FROM_EXECUTOR");
       throw new Error("authority address could not be derived from the verified executor");
     }
+    executorAuthorityDerivationResult = "VERIFIED";
     /* CORRECTION 4 — no equality check against the stale plugin constant.
      *
      * The address was DERIVED from the verified executor. If the executor genuinely returns the
@@ -7406,8 +7915,24 @@ export async function runLiveAuthorityVerification(
     executorCodeHash,
     executorCodeIdentityResult,
     executorDeploymentModel,
+    executorExpectedImplementationAddress,
+    executorExpectedImplementationCodeHash,
+    executorAuthorityDerivationResult,
+    executorExpectedNormalizedImplementationHash,
+    executorExpectedVersion,
+    executorImplementationAddress,
+    executorImplementationAddressPolicyResult,
+    executorImplementationCodeHash,
+    executorImplementationCodeIdentityResult,
+    executorImplementationResolutionResult,
+    executorNormalizedImplementationHash,
+    executorProxyCodeHash,
+    executorProxyCodeIdentityResult,
+    executorReproducedBuildInfoSha256,
+    executorReproducedBuildResult,
     executorVersion,
     executorVersionResult,
+    erc1967SlotReadCount: actualLog.filter((call) => call.method === "eth_getStorageAt").length,
     expectedDeployedNormalizedHash: expectedDeployedNormalizedHash ?? "UNRESOLVED",
     facetArtifactBinding,
     finalVerdict,
@@ -7481,7 +8006,7 @@ export async function runLiveAuthorityVerification(
 
   /* Fail closed: the verifier must not emit a result its own validator rejects, and it must never
    * emit PASS while any validation error stands. */
-  const errors = validateAuthorityResult(result);
+  const errors = validateAuthorityResult(result, binding ?? undefined);
   if (finalVerdict === "PASS" && errors.length > 0) {
     throw new Error(`live verification computed PASS but its result failed validation: ${errors.join("; ")}`);
   }
@@ -7570,7 +8095,10 @@ export function validateResultAgainstSchema(result: Record<string, unknown>): st
 /* Full validation: schema closure plus every PASS coherence condition. A non-PASS result is held
  * only to the schema and the sanitation rules, so BLOCKED stays representable while UNRESOLVED
  * checks stand. */
-export function validateAuthorityResult(result: Record<string, unknown>): string[] {
+export function validateAuthorityResult(
+  result: Record<string, unknown>,
+  reviewedBinding?: AuthorityBindingRecord,
+): string[] {
   const schema = deriveAuthorityProtocol().resultSchema;
   const errors: string[] = [...validateResultAgainstSchema(result)];
 
@@ -7621,6 +8149,77 @@ export function validateAuthorityResult(result: Record<string, unknown>): string
     if (!condition) errors.push(message);
   };
 
+  /* A serialized PASS is only meaningful together with the reviewed binding.  The result's
+   * status fields are claims about derivation; they are not a substitute for the record and its
+   * authenticated source material. */
+  const reviewedBindingErrors =
+    reviewedBinding === undefined
+      ? ["PASS requires the reviewed authority-binding record"]
+      : validateAuthorityBindingRecord(reviewedBinding);
+  for (const error of reviewedBindingErrors) {
+    errors.push(`PASS requires an independently valid reviewed binding: ${error}`);
+  }
+
+  const reviewedExecutor = reviewedBinding?.executor;
+  const reviewedAuthority = reviewedBinding?.authority;
+  const reviewedExecutorPolicy = isObject(reviewedExecutor?.implementationAddressPolicy)
+    ? reviewedExecutor.implementationAddressPolicy
+    : undefined;
+  const reviewedAuthorityPolicy = isObject(reviewedAuthority?.implementationAddressPolicy)
+    ? reviewedAuthority.implementationAddressPolicy
+    : undefined;
+  let reviewedExecutorBuild: ExtractedArtifactBuild | null = null;
+  let reviewedAuthorityBuild: ExtractedArtifactBuild | null = null;
+  let reviewedExecutorBuildReady = false;
+  let reviewedAuthorityBuildReady = false;
+  let reviewedExecutorAuthorityAddress: string | null = null;
+
+  if (reviewedBinding !== undefined && reviewedBindingErrors.length === 0) {
+    const reviewedExecutorImplementationAddress =
+      reviewedExecutor?.deploymentModel === "DIRECT"
+        ? String(reviewedExecutor.address)
+        : typeof reviewedExecutorPolicy?.expectedImplementationAddress === "string"
+          ? reviewedExecutorPolicy.expectedImplementationAddress
+          : null;
+    const executorDerivation = deriveExecutorFromSourceMaterial(reviewedBinding, {
+      implementationAddress: reviewedExecutorImplementationAddress,
+    });
+    reviewedExecutorBuild = executorDerivation.executorBuild;
+    reviewedExecutorBuildReady =
+      executorDerivation.blockers.length === 0 &&
+      reviewedExecutorBuild !== null &&
+      reviewedExecutorBuild.failures.length === 0;
+    if (reviewedExecutorBuildReady) {
+      const authorityAddressDerivation = deriveExecutorAuthorityAddressFromSourceMaterial(reviewedBinding);
+      if (authorityAddressDerivation.blockers.length === 0) {
+        reviewedExecutorAuthorityAddress = authorityAddressDerivation.address;
+      }
+    }
+
+    const reviewedAuthorityImplementationAddress =
+      reviewedAuthority?.deploymentModel === "ERC1967_PROXY" &&
+      reviewedAuthorityPolicy?.kind === "EXACT_PINNED_ADDRESS" &&
+      typeof reviewedAuthorityPolicy.expectedImplementationAddress === "string"
+        ? reviewedAuthorityPolicy.expectedImplementationAddress
+        : typeof result.authorityImplementationAddress === "string" &&
+            ADDRESS.test(result.authorityImplementationAddress)
+          ? result.authorityImplementationAddress
+          : null;
+    const authorityDerivation = deriveAuthorityFromSourceMaterial(reviewedBinding, {
+      implementationAddress: reviewedAuthorityImplementationAddress,
+    });
+    reviewedAuthorityBuild = authorityDerivation.artifactBuild;
+    reviewedAuthorityBuildReady =
+      authorityDerivation.blockers.length === 0 &&
+      reviewedAuthorityBuild !== null &&
+      reviewedAuthorityBuild.failures.length === 0;
+  }
+
+  require(reviewedExecutorBuildReady, "PASS requires executor identity derived from the authenticated reviewed executor source/build material");
+  require(reviewedAuthorityBuildReady, "PASS requires authority identity derived from the authenticated reviewed authority source/build material");
+  require(reviewedExecutorAuthorityAddress !==
+    null, "PASS requires the authority address derived from authenticated executor build provenance");
+
   require(result.codeIdentityResult === "VERIFIED", "PASS requires verified executor/authority code identity");
 
   /* F12 — identity must come from the resolved current official artifact, never the local fixture,
@@ -7654,12 +8253,150 @@ export function validateAuthorityResult(result: Record<string, unknown>): string
   /* F16 — the whole deployment chain is verified, not merely resolved. */
   require(result.executorCodeIdentityResult ===
     "VERIFIED", "PASS requires verified executor code identity against the binding record");
+  require(result.executorImplementationCodeIdentityResult ===
+    "VERIFIED", "PASS requires executor implementation identity from the authenticated reproduced build");
+  require(result.executorReproducedBuildResult ===
+    "MATCHES_PINNED_REPRODUCED_BUILD", "PASS requires the executor build to match its pinned reproduced build");
+  require(/^[0-9a-f]{64}$/u.test(
+    String(result.executorReproducedBuildInfoSha256),
+  ), "PASS requires a resolved executor reproduced build-info digest");
+  require(result.executorReproducedBuildInfoSha256 ===
+    REPRODUCED_OFFICIAL_EXECUTOR_BUILD.buildInfoSha256, "PASS requires the pinned executor reproduced build-info digest");
+  require(result.executorReproducedBuildResult ===
+    "MATCHES_PINNED_REPRODUCED_BUILD", "PASS requires the executor reproduced-build result to match the reviewed provenance");
+  if (reviewedExecutorBuildReady && reviewedExecutorBuild !== null) {
+    require(result.executorReproducedBuildInfoSha256 ===
+      reviewedExecutorBuild.sourceContentSha256, "PASS requires the executor build-info digest to equal authenticated source material");
+  }
+  require(typeof result.executorImplementationAddress === "string" &&
+    ADDRESS.test(
+      String(result.executorImplementationAddress),
+    ), "PASS requires a resolved executor implementation address");
+  require(/^[0-9a-f]{64}$/u.test(
+    String(result.executorImplementationCodeHash),
+  ), "PASS requires a resolved executor implementation code hash");
+  require(/^[0-9a-f]{64}$/u.test(
+    String(result.executorExpectedImplementationCodeHash),
+  ), "PASS requires a recomputed expected executor implementation code hash");
+  if (reviewedExecutorBuildReady && reviewedExecutorBuild !== null) {
+    require(result.executorExpectedImplementationCodeHash ===
+      reviewedExecutorBuild.expectedDeployedRuntimeSha256, "PASS requires the executor expected implementation hash to equal the independently derived artifact hash");
+    require(result.executorImplementationCodeHash ===
+      reviewedExecutorBuild.expectedDeployedRuntimeSha256, "PASS requires the executor implementation hash to equal the independently derived artifact hash");
+  }
+  require(result.executorExpectedNormalizedImplementationHash ===
+    REPRODUCED_OFFICIAL_EXECUTOR_BUILD.normalizedRuntimeSha256, "PASS requires the pinned executor artifact normalized hash");
+  if (reviewedExecutorBuildReady && reviewedExecutorBuild !== null) {
+    require(result.executorExpectedNormalizedImplementationHash ===
+      reviewedExecutorBuild.expectedNormalizedRuntimeSha256, "PASS requires the executor expected normalized hash to equal the authenticated artifact hash");
+    require(result.executorNormalizedImplementationHash ===
+      reviewedExecutorBuild.expectedNormalizedRuntimeSha256, "PASS requires the normalized executor implementation hash to equal the authenticated artifact hash");
+  }
+  require(result.executorExpectedNormalizedImplementationHash ===
+    REPRODUCED_OFFICIAL_EXECUTOR_BUILD.normalizedRuntimeSha256, "PASS requires the expected executor normalized hash to be the pinned artifact hash");
+
+  const reviewedExpectedImplementationAddress =
+    reviewedExecutor?.deploymentModel === "DIRECT"
+      ? typeof reviewedExecutor.address === "string"
+        ? reviewedExecutor.address.toLowerCase()
+        : SEPOLIA_EXECUTOR_ADDRESS.toLowerCase()
+      : typeof reviewedExecutorPolicy?.expectedImplementationAddress === "string"
+        ? reviewedExecutorPolicy.expectedImplementationAddress.toLowerCase()
+        : null;
+  require(result.executorAddress ===
+    (typeof reviewedExecutor?.address === "string"
+      ? reviewedExecutor.address
+      : SEPOLIA_EXECUTOR_ADDRESS), "PASS requires the configured executor address to equal the reviewed executor address");
+  require(result.executorDeploymentModel ===
+    reviewedExecutor?.deploymentModel, "PASS requires the executor deployment model to equal the reviewed binding");
+  require(typeof result.executorExpectedImplementationAddress === "string" &&
+    ADDRESS.test(
+      result.executorExpectedImplementationAddress,
+    ), "PASS requires reviewed executor implementation-address evidence");
+  require(reviewedExpectedImplementationAddress !==
+    null, "PASS requires reviewed executor implementation-address policy evidence");
+  const resultExpectedImplementationAddress =
+    typeof result.executorExpectedImplementationAddress === "string"
+      ? result.executorExpectedImplementationAddress.toLowerCase()
+      : null;
+  require(resultExpectedImplementationAddress ===
+    reviewedExpectedImplementationAddress, "PASS requires executor implementation-address evidence to equal the reviewed policy");
+  require(String(result.executorImplementationAddress).toLowerCase() ===
+    reviewedExpectedImplementationAddress, "PASS requires the resolved executor implementation address to equal the reviewed policy");
+  const reviewedExpectedVersion =
+    typeof reviewedExecutor?.expectedVersion === "string"
+      ? reviewedExecutor.expectedVersion
+      : REPRODUCED_EXECUTOR_VERSION;
+  require(result.executorExpectedVersion ===
+    reviewedExpectedVersion, "PASS requires the expected executor version to equal the reviewed reproduced-build version");
+  if (result.executorVersionResult === "MATCHES_BINDING_RECORD") {
+    require(result.executorVersion ===
+      result.executorExpectedVersion, "PASS requires executorVersion to equal the reviewed expected version when marked MATCHES_BINDING_RECORD");
+  }
+  if (result.executorDeploymentModel === "ERC1967_PROXY") {
+    require(reviewedBinding !== undefined, "PASS requires the reviewed executor binding for a proxied executor");
+    require(/^[0-9a-f]{64}$/u.test(
+      String(result.executorProxyCodeHash),
+    ), "PASS requires a resolved executor proxy-shell code hash");
+    require(result.executorProxyCodeHash ===
+      result.executorCodeHash, "PASS requires executor proxy code hash to equal the verified executor proxy identity hash");
+    require(typeof reviewedExecutor?.expectedProxyRuntimeSha256 === "string" &&
+      result.executorProxyCodeHash ===
+        reviewedExecutor.expectedProxyRuntimeSha256, "PASS requires executor proxy code hash to equal the reviewed proxy identity");
+    require(result.executorProxyCodeIdentityResult ===
+      "VERIFIED", "PASS requires verified executor proxy-shell identity");
+    require(result.executorImplementationResolutionResult ===
+      "VERIFIED_ERC1967_STORAGE_SLOT", "PASS requires role-specific executor ERC-1967 implementation resolution");
+    require(result.executorImplementationAddressPolicyResult ===
+      "EXACT_MATCH", "PASS requires the executor implementation address to match its exact pinned policy");
+  } else {
+    require(result.executorDeploymentModel === "DIRECT", "PASS requires a supported executor deployment model");
+    require(String(result.executorImplementationAddress).toLowerCase() ===
+      SEPOLIA_EXECUTOR_ADDRESS.toLowerCase(), "PASS requires a direct executor implementation address equal to the configured executor address");
+    require(result.executorProxyCodeHash === "UNRESOLVED" &&
+      result.executorProxyCodeIdentityResult ===
+        "UNRESOLVED", "PASS requires proxy-only executor evidence to be NOT_APPLICABLE on the direct path");
+    require(result.executorImplementationResolutionResult ===
+      "NOT_APPLICABLE_DIRECT_DEPLOYMENT", "PASS requires a direct executor to avoid ERC-1967 resolution");
+    require(result.executorImplementationAddressPolicyResult ===
+      "NOT_APPLICABLE_DIRECT_DEPLOYMENT", "PASS requires a direct executor to avoid an implementation-address policy");
+    require(result.executorCodeHash ===
+      result.executorImplementationCodeHash, "PASS requires direct executor code hash to equal its authenticated implementation code hash");
+  }
   require(result.executorVersionResult ===
     "MATCHES_BINDING_RECORD", "PASS requires the executor version to match the binding record");
+  require(result.executorExpectedVersion ===
+    (typeof reviewedExecutor?.expectedVersion === "string"
+      ? reviewedExecutor.expectedVersion
+      : REPRODUCED_EXECUTOR_VERSION), "PASS requires the expected executor version to equal the reviewed version");
+  require(result.executorVersion ===
+    (typeof reviewedExecutor?.expectedVersion === "string"
+      ? reviewedExecutor.expectedVersion
+      : REPRODUCED_EXECUTOR_VERSION), "PASS requires the executor version to equal the reviewed version");
+  const executorIdentityChainVerified =
+    result.executorCodeIdentityResult === "VERIFIED" &&
+    result.executorImplementationCodeIdentityResult === "VERIFIED" &&
+    result.executorReproducedBuildResult === "MATCHES_PINNED_REPRODUCED_BUILD" &&
+    result.executorReproducedBuildInfoSha256 === REPRODUCED_OFFICIAL_EXECUTOR_BUILD.buildInfoSha256 &&
+    result.executorImplementationCodeHash === result.executorExpectedImplementationCodeHash &&
+    result.executorNormalizedImplementationHash === REPRODUCED_OFFICIAL_EXECUTOR_BUILD.normalizedRuntimeSha256 &&
+    result.executorVersionResult === "MATCHES_BINDING_RECORD" &&
+    result.executorVersion === result.executorExpectedVersion;
+  require(result.executorAuthorityDerivationResult !== "VERIFIED" ||
+    executorIdentityChainVerified, "executor authority derivation may be VERIFIED only after every executor identity step is verified");
+  require(result.executorAuthorityDerivationResult ===
+    "VERIFIED", "PASS requires authority derivation only after the verified executor implementation chain");
   require(result.authorityCodeIdentityResult ===
     "VERIFIED", "PASS requires verified authority code identity against the binding record");
   require(result.authorityVersionResult ===
     "MATCHES_BINDING_RECORD", "PASS requires the authority version to match the binding record");
+  require(result.authorityDeploymentModel ===
+    reviewedAuthority?.deploymentModel, "PASS requires the authority deployment model to equal the reviewed binding");
+  require(result.authorityVersion ===
+    reviewedAuthority?.expectedImplementationVersion, "PASS requires the authority version to equal the reviewed version");
+  require(typeof result.authorityAddress === "string" &&
+    result.authorityAddress.toLowerCase() ===
+      reviewedExecutorAuthorityAddress, "PASS requires the authority address to equal the authenticated executor-derived authority address");
   require(DEPLOYMENT_MODELS.includes(
     String(result.executorDeploymentModel),
   ), "PASS requires a reviewed executor deployment model");
@@ -7749,6 +8486,24 @@ export function validateAuthorityResult(result: Record<string, unknown>): string
   require(/^0x[0-9a-fA-F]{40}$/u.test(
     String(result.authorityImplementationAddress),
   ), "PASS requires a resolved authority implementation address");
+  if (reviewedAuthorityBuildReady && reviewedAuthorityBuild !== null) {
+    require(result.expectedDeployedNormalizedHash ===
+      reviewedAuthorityBuild.expectedNormalizedRuntimeSha256, "PASS requires the expected authority normalized hash to equal the authenticated artifact derivation");
+    require(result.normalizedImplementationHash ===
+      reviewedAuthorityBuild.expectedNormalizedRuntimeSha256, "PASS requires the authority normalized hash to equal the authenticated artifact derivation");
+  }
+  if (reviewedAuthority?.deploymentModel === "ERC1967_PROXY") {
+    require(typeof reviewedAuthority?.expectedProxyRuntimeSha256 === "string" &&
+      result.authorityCodeHash ===
+        reviewedAuthority.expectedProxyRuntimeSha256, "PASS requires the authority proxy hash to equal the reviewed proxy identity");
+  } else if (
+    reviewedAuthority?.deploymentModel === "DIRECT" &&
+    reviewedAuthorityBuildReady &&
+    reviewedAuthorityBuild !== null
+  ) {
+    require(result.authorityCodeHash ===
+      reviewedAuthorityBuild.expectedDeployedRuntimeSha256, "PASS requires the direct authority hash to equal the independently derived artifact hash");
+  }
   /* CORRECTION 4 — no equality check against the stale plugin literal here either. The address was
    * derived from the verified executor and confirmed by code identity, version and reciprocal
    * linkage; what an obsolete constant happens to equal says nothing about it. The stale value is
@@ -7823,6 +8578,27 @@ export function validateAuthorityResult(result: Record<string, unknown>): string
     ? result.implementationAddressPolicyResult !== "NOT_APPLICABLE_DIRECT_DEPLOYMENT"
     : result.implementationAddressPolicyResult ===
         "NOT_APPLICABLE_DIRECT_DEPLOYMENT", "PASS requires the implementation-address policy result to match the reviewed deployment model");
+  if (reviewedAuthority?.deploymentModel === "ERC1967_PROXY") {
+    if (reviewedAuthorityPolicy?.kind === "EXACT_PINNED_ADDRESS") {
+      require(result.implementationAddressPolicyResult ===
+        "EXACT_MATCH", "PASS requires the result policy to equal the reviewed exact-address policy");
+      require(typeof reviewedAuthorityPolicy.expectedImplementationAddress === "string" &&
+        String(result.authorityImplementationAddress).toLowerCase() ===
+          reviewedAuthorityPolicy.expectedImplementationAddress.toLowerCase(), "PASS requires the authority implementation address to equal the reviewed exact pin");
+    } else if (reviewedAuthorityPolicy?.kind === "REVIEWED_CODE_IDENTICAL_UPGRADE") {
+      require(result.implementationAddressPolicyResult ===
+        "PERMITTED_CODE_IDENTICAL_CHANGE", "PASS requires the result policy to equal the reviewed code-identical-upgrade policy");
+    } else {
+      require(false, "PASS requires a declared reviewed authority implementation-address policy");
+    }
+  } else if (reviewedAuthority?.deploymentModel === "DIRECT") {
+    require(result.implementationAddressPolicyResult ===
+      "NOT_APPLICABLE_DIRECT_DEPLOYMENT", "PASS requires a direct authority to have no implementation-address policy");
+    require(String(result.authorityImplementationAddress).toLowerCase() ===
+      String(
+        result.authorityAddress,
+      ).toLowerCase(), "PASS requires a direct authority implementation address to equal its derived authority address");
+  }
 
   /* CL4 — the official build must BE the one Commit A pinned from the independent reproduction.
    * Only the real external build-info bytes hash to it, so this is the condition that keeps an
@@ -7883,15 +8659,19 @@ export function validateAuthorityResult(result: Record<string, unknown>): string
   require(methods.every((method) =>
     LIVE_RPC_ALLOWED_METHODS.includes(method),
   ), "PASS requires every RPC method used to be on the read-only allow-list");
-  /* ERC-1967 slot resolution is required exactly when the reviewed record declares a proxy. A
-   * DIRECT deployment has no slot to read, and demanding one would contradict its reviewed model. */
-  if (result.authorityDeploymentModel === "ERC1967_PROXY") {
-    require(methods.includes("eth_getStorageAt"), "PASS requires ERC-1967 resolution through eth_getStorageAt");
-  } else {
-    require(!methods.includes(
-      "eth_getStorageAt",
-    ), "a direct authority deployment must not read an ERC-1967 implementation slot");
-  }
+  /* Slot reads are role-aware. The plan, rather than a generic method-presence heuristic, proves
+   * which role was resolved; DIRECT roles never generate a storage read. */
+  const expectedSlotReads =
+    (result.executorDeploymentModel === "ERC1967_PROXY" ? 1 : 0) +
+    (result.authorityDeploymentModel === "ERC1967_PROXY" ? 1 : 0);
+  const actualSlotReads = result.erc1967SlotReadCount;
+  require(expectedSlotReads === 0
+    ? !methods.includes("eth_getStorageAt")
+    : methods.includes(
+        "eth_getStorageAt",
+      ), "PASS requires exactly one ERC-1967 slot read for each proxied role and none for direct roles; the read-only transport method set must include the planned slot-read method");
+  require(actualSlotReads ===
+    expectedSlotReads, "PASS requires exactly one ERC-1967 slot read for each proxied role and none for direct roles");
   /* F30 — a relevant caller exempt from the enforced ceiling contradicts the recorded authority:
    * the ceiling would not govern SG-4's measured transactions at all. */
   require(result.callerExemptionResult !==

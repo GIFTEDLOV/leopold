@@ -157,6 +157,7 @@ State: **`EXPECTED_FROM_PRIOR_REVIEW_PENDING_REVERIFICATION`** — recorded, and
 | Subject                                   | Repository                               | Tag       | Commit                                     | Path                                                         |
 | ----------------------------------------- | ---------------------------------------- | --------- | ------------------------------------------ | ------------------------------------------------------------ |
 | Current official authority source         | `https://github.com/zama-ai/fhevm`       | `v0.13.2` | `07fb05fb75f0aa6cea934088640ddb4539d0b1b9` | `host-contracts/contracts/HCULimit.sol`                      |
+| Current official executor source          | `https://github.com/zama-ai/fhevm`       | `v0.13.2` | `07fb05fb75f0aa6cea934088640ddb4539d0b1b9` | `host-contracts/contracts/FHEVMExecutor.sol`                 |
 | Current official operation-price schedule | `https://github.com/zama-ai/fhevm`       | `v0.13.2` | `07fb05fb75f0aa6cea934088640ddb4539d0b1b9` | `library-solidity/codegen/src/operatorsPrices.ts`            |
 | Installed calculator                      | `https://github.com/zama-ai/fhevm-mocks` | `v0.4.2`  | `fa852da4aa4b04231e0fa748e7b4480ae756ce91` | `packages/mock-utils/src/fhevm/coprocessor/hcu.ts`           |
 | Installed operation cost table            | `https://github.com/zama-ai/fhevm-mocks` | `v0.4.2`  | `fa852da4aa4b04231e0fa748e7b4480ae756ce91` | `packages/mock-utils/src/fhevm/coprocessor/HCUByOperator.ts` |
@@ -165,6 +166,7 @@ State: **`EXPECTED_FROM_PRIOR_REVIEW_PENDING_REVERIFICATION`** — recorded, and
 Content hashes:
 
 - authority source `16d71ee5f899f1bfd5872bdb83e08d90f510fd529cd8a93d5001dc29f25634b8`;
+- executor source `457f29242f4028442a5332e0b009aeef69cb30f7e9361683680d46ef33a2add9`;
 - operation-price schedule `48363444ec4af98d2139572be1c3fa545c9d9cfa93d72a353237f8137cc4326a`;
 - installed calculator `9baddc2fdd7c4d6423928b5b9ac568aed9d80b03913df9a1ca166cc51d1896ba`;
 - installed cost table `dbe4e9cc500544a8750a37f5526e0e9907427b78ac17d3c49f079d9d21314aa1`;
@@ -172,6 +174,12 @@ Content hashes:
 
 The two installed hashes are the same values the verifier independently recomputes at preflight, so the recorded
 provenance and the enforced pins agree.
+
+The two generated artifacts are separate `REPRODUCED_BUILD` subjects, not repository files. `HCULimit` is pinned to
+build-info id `c73f6a31ecc6791fd9a8488a9facd93e` / SHA-256
+`b0d9caeb6c3d0747b0889a6d231877d475a4f1ae57c0f7352a6a3eb1ad844396`; `FHEVMExecutor` is pinned separately to id
+`4d775fb2ba96328ce842168d97046c84` / SHA-256 `50ed161472e207da6462aa180856d0047aa52396abdba05e9bf566f5ccfd63dd`. Neither
+subject has a generated-artifact Git path.
 
 The known upstream roots are `zama-ai/fhevm` and `zama-ai/fhevm-mocks`. Unrelated candidate repositories are **not**
 substituted for them.
@@ -263,18 +271,23 @@ Requiring only that `executorCodeHash` and `authorityCodeHash` were syntacticall
 executor or proxy could still derive an address and reach a code-identified implementation. The binding record now
 defines the complete chain, and the verifier checks every link at the pinned block:
 
-- executor **code identity** against the record's expected runtime hash, not merely code existence;
-- executor version coherence against the record;
-- authority address derived from that verified executor;
+- executor proxy-shell identity when the reviewed deployment model is `ERC1967_PROXY`;
+- exact executor ERC-1967 implementation-slot resolution and exact pinned implementation-address policy;
+- executor implementation identity against the independently authenticated `FHEVMExecutor` reproduced build, not a
+  record-only runtime hash;
+- executor version coherence only after implementation identity;
+- authority address derived only from that verified executor chain;
 - authority proxy or direct **code identity** against the record;
 - implementation resolution **only** under the record's declared deployment model;
 - authority implementation code identity against the official artifact;
 - authority version coherence against the record;
 - reciprocal linkage.
 
-ERC-1967 is **never assumed**. It is used only when the independently reviewed record proves that deployment model for
-that contract. A `DIRECT` deployment is handled as a direct deployment — the authority is its own implementation and no
-slot is read. Any other model, or an unresolved one, fails closed.
+ERC-1967 is **never assumed from bytecode shape**. It is used only when the independently reviewed record declares that
+deployment model for that role. A `DIRECT` executor or authority is its own implementation and no slot is read. For an
+`ERC1967_PROXY` executor, proxy identity → exact slot → exact-address policy → implementation artifact identity must
+complete before either proxy-routed getter is called. Any other model, an unresolved model, or an identity failure fails
+closed.
 
 ## Operation-schedule authority
 
@@ -307,6 +320,13 @@ contains `12 zero bytes || authorityImplementationAddress`. Normalization is imp
 The reproduced runtime also contains the Sepolia executor address `0x92C920834Ec8941d2C77D188936E1f7A6f49c127` at
 exactly 30 ordinary `PUSH20` (`0x73`) locations. Those are compile-time constants, not compiler immutables. They remain
 exact code-identity bytes and are never normalized by the authoritative v0.13.2 path.
+
+`FHEVMExecutor` is authenticated independently. Its reproduced 21,535-byte runtime declares the same
+`UUPSUpgradeable.__self` AST declaration id `605` at offsets `14424`, `14465`, and `14991`, each a 32-byte zero
+placeholder immediately preceded by `PUSH32`. A deployed executor implementation is normalized only by replacing those
+three words after each is verified as `12 zero bytes || executorImplementationAddress`; its normalized SHA-256 is
+`23ab0dc924c946764c63383ae7c0e17f6b2e9c57d2ac9e2822f30b4c63f0158a`. No executor ACL, HCULimit, InputVerifier, ordinary
+`PUSH20`, link, metadata, or compiler-undeclared byte is normalized.
 
 Method for the current authoritative build:
 
@@ -345,17 +365,16 @@ value, byte-exact equality is asserted over the **full** runtime rather than onl
 Ordered, all bound to one pinned block number and block hash:
 
 1. `eth_chainId` equals 11155111;
-2. pin one block number and its hash; bind every later call to it;
+2. pin one finalized block number and hash; bind every later read to it;
 3. `eth_getCode` at the committed executor address, non-empty;
-4. derive the authority proxy from the verified executor via `FHEVMExecutor.getHCULimitAddress()`;
-5. resolve the implementation with **`eth_getStorageAt`** against the exact ERC-1967 slot
-   `0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`;
-6. `eth_getCode` for the implementation and apply address-normalized comparison;
-7. verify reciprocal linkage: `HCULimit.getFHEVMExecutorAddress()` returns the configured executor;
-8. verify both `getVersion()` strings;
-9. confirm the embedded executor immediates equal the configured executor;
-10. enumerate the verified implementation's surface, then classify the block/batch control;
-11. compare the verified implementation's operation surface against the installed calculator, failing closed.
+4. for reviewed `ERC1967_PROXY` executor: authenticate the proxy runtime, read only the exact implementation slot
+   `0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`, enforce the exact-address policy, fetch
+   implementation code and compare it to the authenticated reproduced `FHEVMExecutor` artifact after replacing only its
+   compiler-declared `__self` words;
+5. only then call executor `getVersion()` and `getHCULimitAddress()`;
+6. authenticate the derived authority proxy/direct runtime and, if reviewed as a proxy, resolve its exact ERC-1967
+   implementation slot and compare implementation code to the authenticated `HCULimit` artifact;
+7. verify reciprocal linkage, authority version, limits, applicability and the verified implementation surface.
 
 ### ERC-1967 resolution mechanism
 
@@ -495,19 +514,19 @@ unresolvable. A lineage-only record is now rejected by the validator for exactly
 The record carries **both** the implementation lineage **and** every late-bound authority input, so the resolved facts
 arrive as independently reviewed data rather than as code. Its closed sections are:
 
-| Section               | Carries                                                                                                                                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `lineage`             | implementation commit A, tree A, both protocol digests, permitted path, binding purpose                                                                                                                |
-| `authorityResolution` | `status`, `reviewedIndependently`, review statement                                                                                                                                                    |
-| `provenance`          | reverification status and six discriminated entries: five `SOURCE_FILE` entries with `path`/`contentSha256`, plus one `REPRODUCED_BUILD` entry with `buildInfoSha256` and closed reproduction evidence |
-| `artifact`            | id, release, compiler version, metadata model, normalization manifest + digest, normalized runtime hash                                                                                                |
-| `executor`            | address, deployment model, expected runtime hash, expected version, implementation address                                                                                                             |
-| `authority`           | address derivation, deployment model, expected proxy hash, resolution mechanism, slot, expected implementation version and normalized hash                                                             |
-| `operationSchedule`   | canonical **pricing** manifest, its digest, source, provenance subject                                                                                                                                 |
-| `limits`              | semantics enum, enforcement operator, ceiling inclusivity, enforcement paths, expected total/depth, getter availability                                                                                |
-| `blockOrBatch`        | state, value, and the presence/absence proof                                                                                                                                                           |
-| `onChainInterface`    | exact verified selectors, limit getters, per-subject caller applicability                                                                                                                              |
-| `facets`              | artifact id and origin for each of the five facets                                                                                                                                                     |
+| Section               | Carries                                                                                                                                                                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lineage`             | implementation commit A, tree A, both protocol digests, permitted path, binding purpose                                                                                                                                                       |
+| `authorityResolution` | `status`, `reviewedIndependently`, review statement                                                                                                                                                                                           |
+| `provenance`          | reverification status and eight discriminated entries: six `SOURCE_FILE` entries with `path`/`contentSha256`, plus separate `HCULimit` and `FHEVMExecutor` `REPRODUCED_BUILD` entries with `buildInfoSha256` and closed reproduction evidence |
+| `artifact`            | id, release, compiler version, metadata model, normalization manifest + digest, normalized runtime hash                                                                                                                                       |
+| `executor`            | address, deployment model, proxy hash when applicable, exact ERC-1967 resolution/address policy when applicable, executor source/build subjects, normalized implementation hash, and expected version                                         |
+| `authority`           | address derivation, deployment model, expected proxy hash, resolution mechanism, slot, expected implementation version and normalized hash                                                                                                    |
+| `operationSchedule`   | canonical **pricing** manifest, its digest, source, provenance subject                                                                                                                                                                        |
+| `limits`              | semantics enum, enforcement operator, ceiling inclusivity, enforcement paths, expected total/depth, getter availability                                                                                                                       |
+| `blockOrBatch`        | state, value, and the presence/absence proof                                                                                                                                                                                                  |
+| `onChainInterface`    | exact verified selectors, limit getters, per-subject caller applicability                                                                                                                                                                     |
+| `facets`              | artifact id and origin for each of the five facets                                                                                                                                                                                            |
 
 Any other field is rejected, which is what stops a self-referential value being smuggled back in. Every selector is
 **recomputed from its signature** and compared, so an invented selector fails.
@@ -607,14 +626,13 @@ The two ceilings have **one** source: they are protocol-pinned at 20,000,000 and
 exactly those values, so the record, the on-chain reading, the result field and the PASS validator can never refer to
 different numbers.
 
-### The executor deployment model is restricted, not half-supported
+### Executor deployment models are authenticated role by role
 
-A proxied executor was declarable but only half verified: its proxy runtime was hashed while its implementation was
-never resolved, read, code-identified or version-checked — so `getHCULimitAddress()` derived from an unauthenticated
-implementation. Rather than leave a partially supported enum, `ERC1967_PROXY` is **rejected for the executor**; only
-`DIRECT` is accepted. The authority proxy path remains fully implemented and verified end to end. Reopening
-executor-proxy support requires a resolution mechanism, implementation code identity against a reviewed artifact,
-version and linkage verification, and `getHCULimitAddress()` bound to that verified chain.
+`DIRECT` and `ERC1967_PROXY` are closed reviewed executor models. A direct executor is compared directly against the
+independently authenticated `FHEVMExecutor` artifact. A proxied executor requires an expected proxy-shell hash, the
+exact ERC-1967 slot, an `EXACT_PINNED_ADDRESS` implementation policy, and a separately authenticated executor
+implementation identity before its proxy-routed `getVersion()` or `getHCULimitAddress()` call is permitted. No
+code-identical-upgrade permission exists for the executor in this lineage.
 
 #### Exact post-review sequence
 
@@ -630,30 +648,27 @@ version and linkage verification, and `getHCULimitAddress()` bound to that verif
 
 Every earlier pass hardened a blocker. That is only half a proof: a gate that can never pass is indistinguishable from a
 gate that is merely broken. The verifier is therefore exercised end to end against a fully coherent authority-binding
-record and a fake read-only transport, and it reaches an actual `PASS` — `finalVerdict: "PASS"`, status
-`LIVE_READ_ONLY_AUTHORITY_VERIFICATION_COMPLETE`, zero result-validation errors and zero schema errors.
+record and a fake read-only transport. A PASS remains possible only when the supplied source material is the exact
+pinned reproduced build; a structurally valid but different test build is intentionally blocked before proxy-routed
+executor getters.
 
-That run issues exactly **13** JSON-RPC calls, in this order:
+The number of JSON-RPC calls is deployment-model and getter dependent. For a proxied executor, the required prefix is:
 
-| #   | Method                 | Purpose                                                                           |
-| --- | ---------------------- | --------------------------------------------------------------------------------- |
-| 1   | `eth_chainId`          | confirm chain 11155111                                                            |
-| 2   | `eth_getBlockByNumber` | pin one `finalized` block number and hash                                         |
-| 3   | `eth_getCode`          | executor runtime at the pinned block                                              |
-| 4   | `eth_call`             | executor `getVersion()`                                                           |
-| 5   | `eth_call`             | executor `getHCULimitAddress()` — the authority address is derived, never assumed |
-| 6   | `eth_getCode`          | authority proxy runtime                                                           |
-| 7   | `eth_getStorageAt`     | ERC-1967 implementation slot                                                      |
-| 8   | `eth_getCode`          | authority implementation runtime                                                  |
-| 9   | `eth_call`             | authority `getVersion()`                                                          |
-| 10  | `eth_call`             | authority `getFHEVMExecutorAddress()` — reciprocal linkage                        |
-| 11  | `eth_call`             | `getTransactionMaxHCU()`                                                          |
-| 12  | `eth_call`             | `getTransactionMaxDepthHCU()`                                                     |
-| 13  | `eth_call`             | caller-applicability getter for the one subject that exposes one                  |
+| #    | Method                 | Purpose                                                                     |
+| ---- | ---------------------- | --------------------------------------------------------------------------- |
+| 1    | `eth_chainId`          | confirm chain 11155111                                                      |
+| 2    | `eth_getBlockByNumber` | pin one `finalized` block number and hash                                   |
+| 3    | `eth_getCode`          | executor runtime at the pinned block                                        |
+| 4    | `eth_getStorageAt`     | executor's exact ERC-1967 implementation slot                               |
+| 5    | `eth_getCode`          | executor implementation runtime                                             |
+| 6    | `eth_call`             | executor `getVersion()`, only after implementation identity                 |
+| 7    | `eth_call`             | executor `getHCULimitAddress()` — authority is derived, never assumed       |
+| next | role-dependent reads   | authority runtime and, if proxy, authority slot then implementation runtime |
+| next | `eth_call`             | authority version, reciprocal linkage, limits and applicability             |
 
 The call log is compared against `generateLiveCallPlan(record)` for that same record: the verifier may not make a call
-its own published plan does not declare, and the plan is re-checked against the read-only allow-list. A `DIRECT`
-authority record generates — and executes — no step 7.
+its own published plan does not declare, and the plan is re-checked structurally against the read-only allow-list. A
+direct role generates no slot read; two proxied roles generate two distinct role-specific slot reads.
 
 The PASS is not a fixture. Each of the following, applied one at a time to the same coherent record, moves the verdict
 off `PASS`: an absent binding record, a dirty worktree, a dirty index, the wrong branch, a merge binding commit,
@@ -1279,12 +1294,14 @@ operation without an authoritative cost.
 - [ ] Normalization manifest authenticated by recomputed digest and used for authoritative identity.
 - [ ] Pricing manifest carries costs, operand modes, arity and result types; digest recomputed.
 - [ ] Compatibility defined over the SG-4 closure; unused official operations do not block.
-- [ ] Executor deployment model restricted to DIRECT; proxied executor refused.
+- [ ] Executor deployment model is the closed DIRECT or ERC1967_PROXY set; a proxy requires shell, slot, policy and
+      implementation identity before executor getters.
 - [ ] Provenance subjects exact and unique; every tuple pinned; supersession only by reviewed amendment.
 - [ ] Caller applicability specified and resolved for every SG-4 subject; no bare null.
 - [ ] Mandatory per-transaction limits never NOT_APPLICABLE; artifact proof is structured evidence.
 - [ ] The two ceilings have one source: protocol-pinned and required to match in the record.
-- [ ] Address-normalized comparison exact, fail-closed, and limited to the 28 declared offsets.
+- [ ] Address-normalized comparison exact, fail-closed, and limited to the three compiler-declared executor `__self`
+      words (plus the independently authenticated authority manifest).
 - [ ] Metadata trailer structurally validated and free of a source hash.
 - [ ] Authority address derived from the verified executor; stale plugin constant rejected.
 - [ ] Reciprocal linkage verified at the pinned block.
@@ -1293,7 +1310,8 @@ operation without an authoritative cost.
 - [ ] Both safety boundaries exclusive; equality is NO-GO.
 - [ ] No wallet, signing, or transaction path anywhere in the verifier.
 - [ ] The verifier reaches an actual PASS end to end against a coherent record and a fake read-only transport.
-- [ ] That PASS issues exactly the 13 calls its own generated plan declares, and no others.
+- [ ] That PASS issues exactly the deployment-model/getter-dependent calls its own generated plan declares, and no
+      others.
 - [ ] Every real blocker, applied alone, moves the verdict off PASS.
 - [ ] `localFixtureSelfTestResult` is reported and is not a PASS condition.
 - [ ] Compatibility is defined over exact used variants, never operation names.

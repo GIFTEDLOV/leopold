@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { gunzipSync } from "node:zlib";
 
 import {
   CURRENT_OFFICIAL_EXPECTED_ADDITIONAL_OPERATIONS,
@@ -73,7 +74,9 @@ import {
   encodeAbiArguments,
   canonicalSourceReference,
   deriveAuthorityFromSourceMaterial,
+  deriveExecutorFromSourceMaterial,
   extractArtifactBuild,
+  extractExecutorArtifactBuild,
   extractPriceSchedule,
   parseAuthoritySource,
   verifyMeasurementToolchainRoot,
@@ -107,7 +110,7 @@ import {
   runOfflinePreflight,
   sha256,
   validateAuthorityBindingRecord,
-  validateAuthorityResult,
+  validateAuthorityResult as validateAuthorityResultRaw,
   validateResultAgainstSchema,
   type CostTable,
 } from "../scripts/sg4-hcu-authority";
@@ -158,7 +161,7 @@ function control(overrides: Partial<ControlDeclaration> = {}): ControlDeclaratio
 const PINNED_HEX = "0x7a1200";
 const PINNED_DECIMAL = "8000000";
 const PINNED_HASH = `0x${"ab".repeat(32)}`;
-const AUTHORITY_PROXY = "0x1111111111111111111111111111111111111111";
+const AUTHORITY_PROXY = "0xa10998783c8cf88d886bc30307e631d6686f0a22";
 const AUTHORITY_IMPLEMENTATION = "0x2222222222222222222222222222222222222222";
 const SEPOLIA_EXECUTOR = deriveAuthorityProtocol().network.configuredExecutorAddress;
 
@@ -201,12 +204,133 @@ function sepoliaImplementationRuntime(): Buffer {
 const UUPS_SELF_OFFSETS = [17180, 17221, 17739] as const;
 const REPRODUCED_TRAILER = Buffer.from("a164736f6c6343000818000a", "hex");
 const REPRODUCED_RUNTIME_LENGTH = 20_231;
+const REPRODUCED_EXECUTOR_RUNTIME_LENGTH = 21_535;
 /* The exact 30 ordinary PUSH20 executor constants in the reproduced v0.13.2 runtime. None is a
  * compiler immutable reference. */
 const EXECUTOR_CONSTANT_OFFSETS = [
   973, 2382, 2866, 4182, 4480, 4816, 5098, 5519, 5940, 6728, 7079, 7598, 7951, 8578, 8861, 9488, 10129, 10553, 11041,
   11465, 11823, 12723, 13039, 13879, 14291, 14716, 15102, 15283, 15376, 15632,
 ] as const;
+
+const EXECUTOR_IMPLEMENTATION = "0x0cfb37566e0ceebaf9ee244225aee14cecd4d170";
+const EXECUTOR_PROXY_RUNTIME_CODE = "0x6000600055";
+const EXECUTOR_PROXY_RUNTIME_HASH = sha256(Buffer.from(EXECUTOR_PROXY_RUNTIME_CODE.slice(2), "hex"));
+const EXECUTOR_BUILD_INFO_FIXTURE_PATH = resolve(
+  ROOT,
+  "test/fixtures/fhevm-v0.13.2-FHEVMExecutor-4d775fb2ba96328ce842168d97046c84.build-info.json.gz",
+);
+const EXECUTOR_BUILD_INFO_SHA256 = "50ed161472e207da6462aa180856d0047aa52396abdba05e9bf566f5ccfd63dd";
+const EXECUTOR_BUILD_INFO_DECOMPRESSED_SIZE = 7_746_075;
+
+type JsonObject = Record<string, unknown>;
+
+function jsonObject(value: unknown, label: string): JsonObject {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} is not an object`);
+  }
+  return value as JsonObject;
+}
+
+function loadAuthenticatedExecutorBuildInfoFixture(): { bytes: Buffer; json: JsonObject } {
+  const bytes = gunzipSync(readFileSync(EXECUTOR_BUILD_INFO_FIXTURE_PATH));
+  if (bytes.length !== EXECUTOR_BUILD_INFO_DECOMPRESSED_SIZE) {
+    throw new Error(
+      `authenticated executor build-info size mismatch: expected ${EXECUTOR_BUILD_INFO_DECOMPRESSED_SIZE}, got ${bytes.length}`,
+    );
+  }
+  const digest = sha256(bytes);
+  if (digest !== EXECUTOR_BUILD_INFO_SHA256) {
+    throw new Error(
+      `authenticated executor build-info digest mismatch: expected ${EXECUTOR_BUILD_INFO_SHA256}, got ${digest}`,
+    );
+  }
+  let json: unknown;
+  try {
+    json = JSON.parse(bytes.toString("utf8")) as unknown;
+  } catch (error) {
+    throw new Error(`authenticated executor build-info is not valid JSON: ${String(error)}`);
+  }
+  return { bytes, json: jsonObject(json, "authenticated executor build-info") };
+}
+
+const AUTHENTICATED_EXECUTOR_BUILD_INFO = loadAuthenticatedExecutorBuildInfoFixture();
+
+function authenticatedExecutorSourceText(): string {
+  const input = jsonObject(AUTHENTICATED_EXECUTOR_BUILD_INFO.json.input, "executor build input");
+  const sources = jsonObject(input.sources, "executor build input.sources");
+  const source = jsonObject(sources["contracts/FHEVMExecutor.sol"], "executor source entry");
+  if (typeof source.content !== "string") throw new Error("executor source content is not a string");
+  return source.content;
+}
+
+function authenticatedExecutorArtifactRuntime(): Buffer {
+  const output = jsonObject(AUTHENTICATED_EXECUTOR_BUILD_INFO.json.output, "executor build output");
+  const contracts = jsonObject(output.contracts, "executor build output.contracts");
+  const sourceContracts = jsonObject(contracts["contracts/FHEVMExecutor.sol"], "executor selected source output");
+  const executor = jsonObject(sourceContracts.FHEVMExecutor, "executor selected contract output");
+  const evm = jsonObject(executor.evm, "executor selected contract evm output");
+  const deployedBytecode = jsonObject(evm.deployedBytecode, "executor deployed bytecode");
+  if (typeof deployedBytecode.object !== "string" || !/^[0-9a-f]*$/u.test(deployedBytecode.object)) {
+    throw new Error("executor deployed bytecode object is not hexadecimal");
+  }
+  return Buffer.from(deployedBytecode.object, "hex");
+}
+
+function authenticatedExecutorImmutableOffsets(): readonly number[] {
+  const output = jsonObject(AUTHENTICATED_EXECUTOR_BUILD_INFO.json.output, "executor build output");
+  const contracts = jsonObject(output.contracts, "executor build output.contracts");
+  const sourceContracts = jsonObject(contracts["contracts/FHEVMExecutor.sol"], "executor selected source output");
+  const executor = jsonObject(sourceContracts.FHEVMExecutor, "executor selected contract output");
+  const evm = jsonObject(executor.evm, "executor selected contract evm output");
+  const deployedBytecode = jsonObject(evm.deployedBytecode, "executor deployed bytecode");
+  const references = jsonObject(deployedBytecode.immutableReferences, "executor immutable references");
+  const entries = references["605"];
+  if (!Array.isArray(entries)) throw new Error("executor immutable AST 605 references are missing");
+  const offsets = entries.map((entry, index) => {
+    const reference = jsonObject(entry, `executor immutable reference ${index}`);
+    if (reference.length !== 32 || typeof reference.start !== "number") {
+      throw new Error(`executor immutable reference ${index} is not a 32-byte offset`);
+    }
+    return reference.start;
+  });
+  if (JSON.stringify(offsets) !== JSON.stringify([14424, 14465, 14991])) {
+    throw new Error(`executor immutable references are not the authenticated set: ${JSON.stringify(offsets)}`);
+  }
+  const runtime = authenticatedExecutorArtifactRuntime();
+  for (const offset of offsets) {
+    if (runtime[offset - 1] !== 0x7f || !runtime.subarray(offset, offset + 32).every((byte) => byte === 0)) {
+      throw new Error(`executor immutable placeholder at ${offset} is not PUSH32 followed by zero bytes`);
+    }
+  }
+  return offsets;
+}
+
+const AUTHENTICATED_EXECUTOR_SOURCE_TEXT = authenticatedExecutorSourceText();
+const AUTHENTICATED_EXECUTOR_SOURCE_BYTES = Buffer.from(AUTHENTICATED_EXECUTOR_SOURCE_TEXT, "utf8");
+const AUTHENTICATED_EXECUTOR_SOURCE_SHA256 = sha256(AUTHENTICATED_EXECUTOR_SOURCE_BYTES);
+const AUTHENTICATED_EXECUTOR_ARTIFACT_RUNTIME = authenticatedExecutorArtifactRuntime();
+const AUTHENTICATED_EXECUTOR_IMMUTABLE_OFFSETS = authenticatedExecutorImmutableOffsets();
+const AUTHENTICATED_EXECUTOR_PUSH20_OFFSET = (() => {
+  for (let index = 0; index + 20 < AUTHENTICATED_EXECUTOR_ARTIFACT_RUNTIME.length; index++) {
+    if (
+      AUTHENTICATED_EXECUTOR_ARTIFACT_RUNTIME[index] === 0x73 &&
+      !AUTHENTICATED_EXECUTOR_IMMUTABLE_OFFSETS.includes(index + 1)
+    ) {
+      return index + 1;
+    }
+  }
+  throw new Error("authenticated executor runtime has no ordinary PUSH20 occurrence");
+})();
+
+function deployedAuthenticatedExecutorRuntime(implementationAddress: string = SEPOLIA_EXECUTOR): Buffer {
+  const runtime = Buffer.from(AUTHENTICATED_EXECUTOR_ARTIFACT_RUNTIME);
+  const address = implementationAddress.toLowerCase().replace(/^0x/u, "");
+  if (!/^[0-9a-f]{40}$/u.test(address))
+    throw new Error(`invalid executor implementation address ${implementationAddress}`);
+  const immutableWord = Buffer.from("00".repeat(12) + address, "hex");
+  for (const offset of AUTHENTICATED_EXECUTOR_IMMUTABLE_OFFSETS) immutableWord.copy(runtime, offset);
+  return runtime;
+}
 
 function reproducedArtifactRuntime(): Buffer {
   const buffer = Buffer.alloc(REPRODUCED_RUNTIME_LENGTH, 0x5b);
@@ -234,6 +358,10 @@ function deployedImplementationRuntime(implementationAddress: string = AUTHORITY
   return buffer;
 }
 
+function deployedExecutorImplementationRuntime(implementationAddress: string = SEPOLIA_EXECUTOR): Buffer {
+  return deployedAuthenticatedExecutorRuntime(implementationAddress);
+}
+
 function officialImplementationRuntime(): Buffer {
   return deployedImplementationRuntime();
 }
@@ -247,6 +375,9 @@ type FakeOverrides = {
   chainId?: string;
   block?: { number: string; hash: string } | null;
   executorCode?: string;
+  executorImplementationAddress?: string;
+  executorImplementationCode?: string;
+  executorImplementationSlot?: string;
   authorityAddress?: string;
   implementationSlot?: string;
   implementationCode?: string;
@@ -263,7 +394,12 @@ function uintWord(value: bigint | string): string {
 
 function createFakeTransport(overrides: FakeOverrides = {}) {
   const calls: { method: string; params: readonly unknown[] }[] = [];
-  const implementationRuntime = overrides.implementationCode ?? `0x${officialImplementationRuntime().toString("hex")}`;
+  const executorImplementationAddress = overrides.executorImplementationAddress ?? EXECUTOR_IMPLEMENTATION;
+  const executorImplementationRuntime =
+    overrides.executorImplementationCode ??
+    `0x${deployedAuthenticatedExecutorRuntime(executorImplementationAddress).toString("hex")}`;
+  const authorityImplementationRuntime =
+    overrides.implementationCode ?? `0x${officialImplementationRuntime().toString("hex")}`;
   const authority = overrides.authorityAddress ?? AUTHORITY_PROXY;
   const transport = {
     async send(call: { method: string; params: readonly unknown[] }): Promise<unknown> {
@@ -276,17 +412,23 @@ function createFakeTransport(overrides: FakeOverrides = {}) {
         case "eth_getCode": {
           const target = String(call.params[0]).toLowerCase();
           if (target === SEPOLIA_EXECUTOR.toLowerCase()) return overrides.executorCode ?? EXECUTOR_RUNTIME_CODE;
+          if (target === executorImplementationAddress.toLowerCase()) return executorImplementationRuntime;
           if (target === authority.toLowerCase()) return overrides.proxyCode ?? AUTHORITY_PROXY_CODE;
-          if (target === AUTHORITY_IMPLEMENTATION.toLowerCase()) return implementationRuntime;
+          if (target === AUTHORITY_IMPLEMENTATION.toLowerCase()) return authorityImplementationRuntime;
           return "0x";
         }
-        case "eth_getStorageAt":
+        case "eth_getStorageAt": {
+          const target = String(call.params[0]).toLowerCase();
+          if (target === SEPOLIA_EXECUTOR.toLowerCase()) {
+            return overrides.executorImplementationSlot ?? word(executorImplementationAddress);
+          }
           return overrides.implementationSlot ?? word(AUTHORITY_IMPLEMENTATION);
+        }
         case "eth_call": {
           const data = String((call.params[0] as { data: string }).data);
           const to = String((call.params[0] as { to: string }).to).toLowerCase();
           if (data.startsWith("0x0d8e6e2c"))
-            return abiString(to === authority.toLowerCase() ? "HCULimit v0.1.0" : "FHEVMExecutor v0.9.0");
+            return abiString(to === authority.toLowerCase() ? "HCULimit v0.1.0" : "FHEVMExecutor v0.4.0");
           if (data.startsWith("0xe0786972")) return word(authority);
           if (data.startsWith("0x268d6d31")) return overrides.reciprocal ?? word(SEPOLIA_EXECUTOR);
           if (data.startsWith(SELECTOR_TOTAL)) return uintWord(overrides.totalHcu ?? "20000000");
@@ -332,9 +474,10 @@ const SELECTOR_EXEMPT = keccakId(SIGNATURE_EXEMPT).slice(0, 10);
 /* The official deployed artifact is NOT the local 0.10.0 fixture. The fake deployment therefore
  * carries a runtime that differs from the fixture outside the normalized offsets, so its normalized
  * digest differs too — which is exactly the situation the local fixture may not stand in for. */
-const EXECUTOR_RUNTIME_CODE = "0x60006000";
+const EXECUTOR_RUNTIME_CODE = `0x${deployedExecutorImplementationRuntime().toString("hex")}`;
 const AUTHORITY_PROXY_CODE = "0x363d3d37";
 const EXECUTOR_RUNTIME_HASH = sha256(Buffer.from(EXECUTOR_RUNTIME_CODE.slice(2), "hex"));
+const EXECUTOR_IMPLEMENTATION_RUNTIME_HASH = sha256(deployedExecutorImplementationRuntime(EXECUTOR_IMPLEMENTATION));
 const PROXY_RUNTIME_HASH = sha256(Buffer.from(AUTHORITY_PROXY_CODE.slice(2), "hex"));
 
 /* Exact prior-reviewed provenance tuples, taken from the protocol constants rather than invented. */
@@ -521,6 +664,11 @@ function buildInfoJson(overrides: Record<string, unknown> = {}): string {
 const ARTIFACT_BUILD_BYTES = Buffer.from(buildInfoJson(), "utf8");
 const ARTIFACT_BUILD_SHA256 = sha256(ARTIFACT_BUILD_BYTES);
 
+const EXECUTOR_SOURCE_BYTES = AUTHENTICATED_EXECUTOR_SOURCE_BYTES;
+const EXECUTOR_SOURCE_SHA256 = AUTHENTICATED_EXECUTOR_SOURCE_SHA256;
+const EXECUTOR_ARTIFACT_BUILD_BYTES = AUTHENTICATED_EXECUTOR_BUILD_INFO.bytes;
+const EXECUTOR_ARTIFACT_BUILD_SHA256 = EXECUTOR_BUILD_INFO_SHA256;
+
 function sourceMaterialFixture(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const blob = (subject: string, bytes: Buffer) => ({
     bytesBase64: bytes.toString("base64"),
@@ -531,6 +679,8 @@ function sourceMaterialFixture(overrides: Record<string, unknown> = {}): Record<
   return {
     authoritySource: blob("authoritySource", AUTHORITY_SOURCE_BYTES),
     officialArtifactBuild: blob("officialArtifactBuild", ARTIFACT_BUILD_BYTES),
+    executorSource: blob("executorSource", EXECUTOR_SOURCE_BYTES),
+    officialExecutorArtifactBuild: blob("officialExecutorArtifactBuild", EXECUTOR_ARTIFACT_BUILD_BYTES),
     priceSchedule: blob("priceSchedule", PRICE_SCHEDULE_BYTES),
     ...overrides,
   };
@@ -572,6 +722,21 @@ function derivedFromMaterialWithDigests(
 const DERIVED = derivedFromMaterial();
 /* The expected deployed normalized digest, RECOMPUTED from the authenticated build. */
 const DERIVED_NORMALIZED_HASH = String(DERIVED.artifactBuild?.expectedNormalizedRuntimeSha256);
+
+function derivedExecutorFromMaterial(material: Record<string, unknown> = sourceMaterialFixture()) {
+  const shell = {
+    sourceMaterial: material,
+    provenance: {
+      entries: [
+        { subject: "CURRENT_OFFICIAL_EXECUTOR_SOURCE", contentSha256: EXECUTOR_SOURCE_SHA256 },
+        { subject: "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD", buildInfoSha256: EXECUTOR_ARTIFACT_BUILD_SHA256 },
+      ],
+    },
+  };
+  return deriveExecutorFromSourceMaterial(shell as never, { implementationAddress: SEPOLIA_EXECUTOR });
+}
+const EXECUTOR_DERIVED = derivedExecutorFromMaterial();
+const EXECUTOR_DERIVED_NORMALIZED_HASH = String(EXECUTOR_DERIVED.executorBuild?.expectedNormalizedRuntimeSha256);
 
 /* The exact provenance tuples every cross-link is checked against. */
 const PROVENANCE_REQUIRED = deriveAuthorityProtocol().provenance.required;
@@ -617,6 +782,10 @@ const PRICE_TUPLE = {
   ...requiredTuple("CURRENT_OFFICIAL_OPERATION_PRICE_SCHEDULE"),
   contentSha256: PRICE_SCHEDULE_SHA256,
 };
+const EXECUTOR_TUPLE = {
+  ...requiredTuple("CURRENT_OFFICIAL_EXECUTOR_SOURCE"),
+  contentSha256: EXECUTOR_SOURCE_SHA256,
+};
 const CONFIG_TUPLE = requiredTuple("INSTALLED_SOLIDITY_CONFIGURATION");
 
 /* The reviewed amendments that select those digests. */
@@ -655,11 +824,9 @@ function provenanceEntries(reverified = true): Record<string, unknown>[] {
     if (entry.subject === "CURRENT_OFFICIAL_ARTIFACT_BUILD") {
       return {
         aclAddress: pinned.aclAddress,
-        artifactJsonSha256: sha256(`test-artifact-json:${ARTIFACT_BUILD_SHA256}`),
+        artifactJsonSha256: pinned.artifactJsonSha256,
         buildInfoId: pinned.buildInfoId,
-        /* The digest of the build-info this record actually supplies. The real reproduced bytes
-         * are external (CL3), so a test supplies its own document and the gate reports the
-         * MISMATCH against the pinned expectation (CL4). */
+        /* The digest of the exact compressed fixture's decompressed build-info bytes. */
         buildInfoSha256: ARTIFACT_BUILD_SHA256,
         buildRoot: pinned.buildRoot,
         commit: pinned.commit,
@@ -679,6 +846,34 @@ function provenanceEntries(reverified = true): Record<string, unknown>[] {
         tag: pinned.tag,
       };
     }
+    if (entry.subject === "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD") {
+      const executorPinned = deriveAuthorityProtocol().reproducedOfficialExecutorBuild;
+      return {
+        artifactJsonSha256: executorPinned.artifactJsonSha256,
+        buildInfoId: executorPinned.buildInfoId,
+        buildInfoSha256: EXECUTOR_ARTIFACT_BUILD_SHA256,
+        buildRoot: executorPinned.buildRoot,
+        commit: executorPinned.commit,
+        dependencyLockSha256: executorPinned.dependencyLockSha256,
+        generatedHostAddressesSha256: executorPinned.generatedHostAddressesSha256,
+        hardhatConfigSha256: executorPinned.hardhatConfigSha256,
+        hasNoLinkReferences: executorPinned.hasNoLinkReferences,
+        kind: "REPRODUCED_BUILD",
+        metadataTrailerHex: executorPinned.metadataTrailerHex,
+        normalizedRuntimeSha256: executorPinned.normalizedRuntimeSha256,
+        repository: executorPinned.repository,
+        reproductionCommand: executorPinned.reproductionCommand,
+        reverified,
+        selectedContractName: executorPinned.selectedContractName,
+        selectedSourcePath: executorPinned.selectedSourcePath,
+        solcLongVersion: executorPinned.solcLongVersion,
+        solcVersion: executorPinned.solcVersion,
+        subject: entry.subject,
+        tag: executorPinned.tag,
+        runtimeByteLength: executorPinned.runtimeByteLength,
+        upstreamSepoliaHostConfigurationSha256: executorPinned.upstreamSepoliaHostConfigurationSha256,
+      };
+    }
     return {
       subject: entry.subject,
       repository: entry.repository,
@@ -692,9 +887,11 @@ function provenanceEntries(reverified = true): Record<string, unknown>[] {
             ? EXPECTED_COST_TABLE_HASH
             : entry.subject === "CURRENT_OFFICIAL_AUTHORITY_SOURCE"
               ? AUTHORITY_SOURCE_SHA256
-              : entry.subject === "CURRENT_OFFICIAL_OPERATION_PRICE_SCHEDULE"
-                ? PRICE_SCHEDULE_SHA256
-                : (entry.contentSha256 ?? sha256(`reverified:${entry.subject}`)),
+              : entry.subject === "CURRENT_OFFICIAL_EXECUTOR_SOURCE"
+                ? EXECUTOR_SOURCE_SHA256
+                : entry.subject === "CURRENT_OFFICIAL_OPERATION_PRICE_SCHEDULE"
+                  ? PRICE_SCHEDULE_SHA256
+                  : (entry.contentSha256 ?? sha256(`reverified:${entry.subject}`)),
       reverified,
     };
   });
@@ -1169,8 +1366,8 @@ function bindingRecordFixture(overrides: Record<string, unknown> = {}): Record<s
   const enforcementManifest = enforcementProofManifestFixture();
   const enumerationManifest = enumerationManifestFixture();
   const base: Record<string, unknown> = {
-    schema: "zama-szn4.sg4-hcu-authority-binding.v2",
-    recordVersion: 2,
+    schema: "zama-szn4.sg4-hcu-authority-binding.v3",
+    recordVersion: 3,
     lineage: {
       implementationCommit: COMMIT_A,
       implementationTree: TREE_A,
@@ -1207,9 +1404,15 @@ function bindingRecordFixture(overrides: Record<string, unknown> = {}): Record<s
       address: SEPOLIA_EXECUTOR,
       configurationSourceReference: CONFIG_SOURCE_REFERENCE,
       deploymentModel: "DIRECT",
-      expectedRuntimeSha256: EXECUTOR_RUNTIME_HASH,
-      expectedVersion: "FHEVMExecutor v0.9.0",
-      provenanceSubject: "INSTALLED_SOLIDITY_CONFIGURATION",
+      expectedProxyRuntimeSha256: null,
+      implementationAddressPolicy: null,
+      implementationResolutionMechanism: "NOT_APPLICABLE_DIRECT_DEPLOYMENT",
+      implementationSlot: null,
+      expectedImplementationNormalizedRuntimeSha256: EXECUTOR_DERIVED_NORMALIZED_HASH,
+      expectedImplementationVersion: "FHEVMExecutor v0.4.0",
+      expectedVersion: "FHEVMExecutor v0.4.0",
+      provenanceSubject: "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD",
+      sourceProvenanceSubject: "CURRENT_OFFICIAL_EXECUTOR_SOURCE",
     },
     authority: {
       addressDerivation: "FROM_VERIFIED_EXECUTOR_GETTER",
@@ -1272,8 +1475,8 @@ function bindingRecordFixture(overrides: Record<string, unknown> = {}): Record<s
 /* A record carrying only the lineage — the rejected preparation-only shape. */
 function preparationOnlyRecordFixture(): Record<string, unknown> {
   return {
-    schema: "zama-szn4.sg4-hcu-authority-binding.v2",
-    recordVersion: 2,
+    schema: "zama-szn4.sg4-hcu-authority-binding.v3",
+    recordVersion: 3,
     lineage: bindingRecordFixture().lineage as Record<string, unknown>,
   };
 }
@@ -1326,8 +1529,19 @@ async function rejection(run: () => Promise<unknown>): Promise<string> {
   }
 }
 
-/* A fully coherent PASS result. Every false-PASS test mutates exactly one field of it, so each
- * assertion isolates a single missing or mismatched condition. */
+/* PASS validation in production always receives the validated binding from the lineage check.
+ * Keep the same evidence boundary in unit tests so a positive result cannot accidentally be
+ * accepted through the optional-argument seam. Individual tests may still supply a deliberate
+ * alternate binding explicitly. */
+function validateAuthorityResult(
+  result: Record<string, unknown>,
+  reviewedBinding: Record<string, unknown> = bindingRecordFixture(),
+): string[] {
+  return validateAuthorityResultRaw(result, reviewedBinding as never);
+}
+
+/* A fully coherent PASS result. Coordinated-forgery tests below mutate several fields together;
+ * every PASS-relevant identity value is checked against the reviewed binding and its derivation. */
 function passResult(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const protocol = deriveAuthorityProtocol();
   const boundState = (value: string | null, state: string) => ({
@@ -1384,10 +1598,26 @@ function passResult(overrides: Record<string, unknown> = {}): Record<string, unk
     depthHcuOnChainReading: { ...matched, onChainValue: "5000000" },
     executorCodeIdentityResult: "VERIFIED",
     executorDeploymentModel: "DIRECT",
+    executorAuthorityDerivationResult: "VERIFIED",
+    executorExpectedImplementationAddress: SEPOLIA_EXECUTOR.toLowerCase(),
+    executorExpectedImplementationCodeHash: EXECUTOR_RUNTIME_HASH,
+    executorExpectedNormalizedImplementationHash: "23ab0dc924c946764c63383ae7c0e17f6b2e9c57d2ac9e2822f30b4c63f0158a",
+    executorExpectedVersion: "FHEVMExecutor v0.4.0",
+    executorImplementationAddress: SEPOLIA_EXECUTOR,
+    executorImplementationAddressPolicyResult: "NOT_APPLICABLE_DIRECT_DEPLOYMENT",
+    executorImplementationCodeHash: EXECUTOR_RUNTIME_HASH,
+    executorImplementationCodeIdentityResult: "VERIFIED",
+    executorImplementationResolutionResult: "NOT_APPLICABLE_DIRECT_DEPLOYMENT",
+    executorNormalizedImplementationHash: "23ab0dc924c946764c63383ae7c0e17f6b2e9c57d2ac9e2822f30b4c63f0158a",
+    executorProxyCodeHash: "UNRESOLVED",
+    executorProxyCodeIdentityResult: "UNRESOLVED",
+    executorReproducedBuildInfoSha256: "50ed161472e207da6462aa180856d0047aa52396abdba05e9bf566f5ccfd63dd",
+    executorReproducedBuildResult: "MATCHES_PINNED_REPRODUCED_BUILD",
     executorVersionResult: "MATCHES_BINDING_RECORD",
+    erc1967SlotReadCount: 1,
     pinnedBlockFinality: "FINALIZED",
     totalHcuOnChainReading: matched,
-    authorityCodeHash: "a".repeat(64),
+    authorityCodeHash: PROXY_RUNTIME_HASH,
     authorityImplementationAddress: AUTHORITY_IMPLEMENTATION,
     authorityProtocolDigest: EXPECTED_AUTHORITY_PROTOCOL_SHA256,
     measurementToolchainRoot: {
@@ -1424,8 +1654,8 @@ function passResult(overrides: Record<string, unknown> = {}): Record<string, unk
     depthHcuLimit: "5000000",
     depthSafetyThreshold: "3750000",
     executorAddress: SEPOLIA_EXECUTOR,
-    executorCodeHash: "c".repeat(64),
-    executorVersion: "FHEVMExecutor v0.9.0",
+    executorCodeHash: EXECUTOR_RUNTIME_HASH,
+    executorVersion: "FHEVMExecutor v0.4.0",
     expectedDeployedNormalizedHash: officialHash,
     facetArtifactBinding: Object.fromEntries(
       ["blockOrBatch", "codeIdentity", "limitSemantics", "limitValues", "operationSchedule"].map((facet) => [
@@ -2275,13 +2505,17 @@ describe("SG-4 HCU authority: result validation", function () {
       [{ pinnedBlockNumber: "UNRESOLVED" }, /resolved pinned block number/u],
       [{ pinnedBlockHash: "UNRESOLVED" }, /resolved pinned block hash/u],
       [{ executorCodeHash: "UNRESOLVED" }, /resolved executor code hash/u],
+      [{ executorImplementationCodeIdentityResult: "MISMATCH" }, /executor implementation identity/u],
+      [{ executorReproducedBuildResult: "MISMATCH" }, /executor build to match its pinned reproduced build/u],
+      [{ executorNormalizedImplementationHash: "f".repeat(64) }, /normalized executor implementation hash/u],
+      [{ executorAuthorityDerivationResult: "UNRESOLVED" }, /authority derivation only after the verified executor/u],
       [{ authorityCodeHash: "UNRESOLVED" }, /resolved authority code hash/u],
       [{ authorityAddress: "UNRESOLVED" }, /authority address derived from the verified executor/u],
       [{ authorityImplementationAddress: "UNRESOLVED" }, /resolved authority implementation address/u],
       [{ unsupportedOperations: ["FheSum"] }, /no unsupported operation/u],
       [
         { rpcMethodsUsed: ["eth_call", "eth_chainId", "eth_getBlockByNumber", "eth_getCode"] },
-        /ERC-1967 resolution through eth_getStorageAt/u,
+        /one ERC-1967 slot read for each proxied role/u,
       ],
     ];
     for (const [override, pattern] of cases) {
@@ -2524,7 +2758,7 @@ describe("SG-4 HCU authority: live read-only verifier", function () {
     expect(result.executorCodeIdentityResult).to.equal("VERIFIED");
     expect(result.authorityCodeIdentityResult).to.equal("VERIFIED");
     expect(result.reciprocalLinkageResult).to.equal("VERIFIED");
-    expect(result.executorVersion).to.equal("FHEVMExecutor v0.9.0");
+    expect(result.executorVersion).to.equal("FHEVMExecutor v0.4.0");
     expect(result.authorityVersion).to.equal("HCULimit v0.1.0");
     expect(result.totalHcuOnChainReading).to.deep.include({ result: "MATCHES_BINDING_RECORD_ON_CHAIN" });
     expect(result.depthHcuOnChainReading).to.deep.include({ result: "MATCHES_BINDING_RECORD_ON_CHAIN" });
@@ -2592,10 +2826,10 @@ describe("SG-4 HCU authority: live read-only verifier", function () {
     expect(() =>
       assertLiveCallPlanIsReadOnly(
         generateLiveCallPlan(bindingRecordFixture() as never).map((call) =>
-          call.callId === "ERC1967_IMPLEMENTATION_SLOT" ? { ...call, method: "eth_call" } : call,
+          call.callId === "AUTHORITY_ERC1967_IMPLEMENTATION_SLOT" ? { ...call, method: "eth_call" } : call,
         ),
       ),
-    ).to.throw(/must use eth_getStorageAt/u);
+    ).to.throw(/must be the exact pinned ERC-1967 eth_getStorageAt request/u);
   });
 
   it("75. blocks when the ERC-1967 slot is empty", async function () {
@@ -2741,7 +2975,7 @@ describe("SG-4 HCU authority: declarations, provenance, and stale-constant scope
     expect(provenance.independentlyReverified).to.equal(false);
     expect(provenance.deployedLinkageEstablished).to.equal(false);
     /* Nothing was discarded: every subject carries its exact tuple. */
-    expect(provenance.required).to.have.lengthOf(6);
+    expect(provenance.required).to.have.lengthOf(8);
     /* The compiled build is its own subject: different bytes from the source, therefore its own
      * tuple and its own content hash. */
     expect(provenance.required.map((entry) => entry.subject)).to.include("CURRENT_OFFICIAL_ARTIFACT_BUILD");
@@ -2749,10 +2983,15 @@ describe("SG-4 HCU authority: declarations, provenance, and stale-constant scope
       expect(entry.repository, entry.subject).to.be.a("string");
       expect(entry.commit, entry.subject).to.match(/^[0-9a-f]{40}$/u);
       /* A REPRODUCED_BUILD has no generated-artifact path; it carries build evidence instead. */
-      if (entry.subject === "CURRENT_OFFICIAL_ARTIFACT_BUILD") {
+      if (
+        entry.subject === "CURRENT_OFFICIAL_ARTIFACT_BUILD" ||
+        entry.subject === "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD"
+      ) {
         expect(entry).to.not.have.property("path");
         expect(entry.buildInfoSha256, entry.subject).to.equal(
-          "b0d9caeb6c3d0747b0889a6d231877d475a4f1ae57c0f7352a6a3eb1ad844396",
+          entry.subject === "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD"
+            ? "50ed161472e207da6462aa180856d0047aa52396abdba05e9bf566f5ccfd63dd"
+            : "b0d9caeb6c3d0747b0889a6d231877d475a4f1ae57c0f7352a6a3eb1ad844396",
         );
       } else expect(entry.path, entry.subject).to.be.a("string");
       expect(entry.reverified, entry.subject).to.equal(false);
@@ -3389,6 +3628,47 @@ describe("SG-4 HCU authority: late-bound authority-binding record", function () 
     expect(model.rejectedPreparationOnlyRecord).to.match(/no permitted action able to supply them/u);
   });
 
+  it("110b. exact-key validates sourceMaterial subjects and prevents cross-wiring", function () {
+    const material = sourceMaterialFixture();
+    const cases: [string, Record<string, unknown>, RegExp][] = [
+      [
+        "unknown subject",
+        { ...material, unknownSubject: material.authoritySource },
+        /sourceMaterial has an unpermitted field unknownSubject/u,
+      ],
+      [
+        "missing executor subject",
+        Object.fromEntries(Object.entries(material).filter(([subject]) => subject !== "executorSource")),
+        /sourceMaterial is missing executorSource/u,
+      ],
+      [
+        "missing authority subject",
+        Object.fromEntries(Object.entries(material).filter(([subject]) => subject !== "authoritySource")),
+        /sourceMaterial is missing authoritySource/u,
+      ],
+      [
+        "renamed subject",
+        { ...material, officialExecutorSource: material.executorSource, executorSource: undefined },
+        /sourceMaterial has an unpermitted field officialExecutorSource|sourceMaterial executorSource/u,
+      ],
+      [
+        "executor authority cross-wire",
+        { ...material, executorSource: material.authoritySource },
+        /SOURCE_MATERIAL_SUBJECT_MISMATCH:executorSource|source material executorSource/u,
+      ],
+      [
+        "authority executor cross-wire",
+        { ...material, authoritySource: material.executorSource },
+        /SOURCE_MATERIAL_SUBJECT_MISMATCH:authoritySource|source material authoritySource/u,
+      ],
+    ];
+    for (const [label, sourceMaterial, expected] of cases) {
+      expect(validateAuthorityBindingRecord(bindingRecordFixture({ sourceMaterial })).join(" | "), label).to.match(
+        expected,
+      );
+    }
+  });
+
   it("111. resolves every offline input from a complete record without any source change", async function () {
     expect(validateAuthorityBindingRecord(bindingRecordFixture())).to.deep.equal([]);
     const { transport } = createFakeTransport();
@@ -3662,9 +3942,9 @@ describe("SG-4 HCU authority: deployment chain identity", function () {
       transport,
       lineageProbe: verifiedLineageProbe(),
     });
-    expect(result.executorCodeIdentityResult).to.equal("MISMATCH");
-    expect(result.finalVerdict).to.equal("FAIL");
-    expect(String(result.status)).to.include("EXECUTOR_CODE_IDENTITY_MISMATCH");
+    expect(result.executorCodeIdentityResult).to.equal("UNRESOLVED");
+    expect(result.finalVerdict).to.equal("BLOCKED");
+    expect(String(result.status)).to.include("EXECUTOR_IMPLEMENTATION_CODE_IDENTITY_UNRESOLVED");
   });
 
   it("125. fails on authority proxy code drift", async function () {
@@ -3682,6 +3962,7 @@ describe("SG-4 HCU authority: deployment chain identity", function () {
     const drifted = bindingRecordFixture({
       executor: {
         ...(bindingRecordFixture().executor as Record<string, unknown>),
+        expectedImplementationVersion: "FHEVMExecutor v9.9.9",
         expectedVersion: "FHEVMExecutor v9.9.9",
       },
     });
@@ -3690,8 +3971,9 @@ describe("SG-4 HCU authority: deployment chain identity", function () {
       transport,
       lineageProbe: verifiedLineageProbe({ record: drifted }),
     });
-    expect(result.executorVersionResult).to.equal("MISMATCH");
-    expect(String(result.status)).to.include("EXECUTOR_VERSION_MISMATCH");
+    expect(result.authorityBindingRecordResult).to.equal("INVALID");
+    expect(result.executorVersionResult).to.equal("UNRESOLVED");
+    expect(String(result.status)).to.include("expectedVersion does not match the pinned reproduced executor source");
 
     const authorityDrift = bindingRecordFixture({
       authority: {
@@ -4285,54 +4567,139 @@ describe("SG-4 HCU authority: authoritative pricing manifest", function () {
 });
 
 /* ---------------------------------------------------------------------------------------------
- * F21 — the executor deployment model is restricted rather than half-supported.
+ * F21 — the executor model is closed and proxy identity is staged before its getters.
  * ------------------------------------------------------------------------------------------- */
 
 describe("SG-4 HCU authority: executor deployment model", function () {
-  it("146. accepts a DIRECT executor and rejects a proxied one", function () {
+  it("146. accepts both reviewed executor models and closes their field combinations", function () {
     expect(validateAuthorityBindingRecord(bindingRecordFixture())).to.deep.equal([]);
+    const exactPolicy = implementationAddressPolicyFixture({ expectedImplementationAddress: SEPOLIA_EXECUTOR });
     const proxied = bindingRecordFixture({
-      executor: { ...(bindingRecordFixture().executor as Record<string, unknown>), deploymentModel: "ERC1967_PROXY" },
+      executor: {
+        ...(bindingRecordFixture().executor as Record<string, unknown>),
+        deploymentModel: "ERC1967_PROXY",
+        expectedProxyRuntimeSha256: EXECUTOR_PROXY_RUNTIME_HASH,
+        implementationAddressPolicy: exactPolicy,
+        implementationResolutionMechanism: "ERC1967_STORAGE_SLOT",
+        implementationSlot: ERC1967_IMPLEMENTATION_SLOT,
+      },
     });
-    expect(validateAuthorityBindingRecord(proxied).join(" | ")).to.match(
-      /executor\.deploymentModel must be DIRECT; a proxied executor is not supported/u,
-    );
-    const support = deriveAuthorityProtocol().liveMode.preparationLineage;
-    expect(support).to.be.an("object");
+    expect(validateAuthorityBindingRecord(proxied)).to.deep.equal([]);
+    const malformed = bindingRecordFixture({
+      executor: { ...(proxied.executor as Record<string, unknown>), implementationSlot: "0x01" },
+    });
+    expect(validateAuthorityBindingRecord(malformed).join(" | ")).to.match(/exact ERC-1967 slot/u);
   });
 
-  it("147. records why the proxied executor enum is refused rather than half-checked", function () {
+  it("147. records closed proxy support with no executor code-identical-upgrade permission", function () {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const protocolModule = require("../scripts/sg4-hcu-authority-protocol") as {
       EXECUTOR_DEPLOYMENT_MODELS: readonly string[];
-      EXECUTOR_PROXY_SUPPORT: { supported: boolean; reason: string; reopenRequires: readonly string[] };
+      EXECUTOR_PROXY_SUPPORT: { supported: boolean; supportedModel: string; codeIdenticalUpgradePermitted: boolean };
     };
-    expect(protocolModule.EXECUTOR_DEPLOYMENT_MODELS).to.deep.equal(["DIRECT"]);
-    expect(protocolModule.EXECUTOR_PROXY_SUPPORT.supported).to.equal(false);
-    expect(protocolModule.EXECUTOR_PROXY_SUPPORT.reason).to.match(/None of that is implemented/u);
-    expect(protocolModule.EXECUTOR_PROXY_SUPPORT.reopenRequires.length).to.be.greaterThan(3);
+    expect(protocolModule.EXECUTOR_DEPLOYMENT_MODELS).to.deep.equal(["DIRECT", "ERC1967_PROXY"]);
+    expect(protocolModule.EXECUTOR_PROXY_SUPPORT.supported).to.equal(true);
+    expect(protocolModule.EXECUTOR_PROXY_SUPPORT.supportedModel).to.equal("ERC1967_PROXY");
+    expect(protocolModule.EXECUTOR_PROXY_SUPPORT.codeIdenticalUpgradePermitted).to.equal(false);
   });
 
-  it("148. still verifies the authority proxy end to end", async function () {
-    /* The AUTHORITY proxy path remains fully implemented: proxy code identity, slot resolution,
-     * implementation code identity and version are all checked. */
-    const { transport } = createFakeTransport();
-    const verified = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT, {
-      transport,
-      lineageProbe: verifiedLineageProbe(),
+  it("148. plans proxy executor resolution before every executor-derived getter", function () {
+    const record = bindingRecordFixture({
+      executor: {
+        ...(bindingRecordFixture().executor as Record<string, unknown>),
+        deploymentModel: "ERC1967_PROXY",
+        expectedProxyRuntimeSha256: EXECUTOR_PROXY_RUNTIME_HASH,
+        implementationAddressPolicy: implementationAddressPolicyFixture({
+          expectedImplementationAddress: SEPOLIA_EXECUTOR,
+        }),
+        implementationResolutionMechanism: "ERC1967_STORAGE_SLOT",
+        implementationSlot: ERC1967_IMPLEMENTATION_SLOT,
+      },
     });
-    expect(verified.authorityDeploymentModel).to.equal("ERC1967_PROXY");
-    expect(verified.authorityCodeIdentityResult).to.equal("VERIFIED");
-    expect(verified.codeIdentityResult).to.equal("VERIFIED");
-    expect(verified.authorityVersionResult).to.equal("MATCHES_BINDING_RECORD");
+    const plan = generateLiveCallPlan(record as never);
+    expect(plan.map((call) => call.callId).slice(0, 7)).to.deep.equal([
+      "CHAIN_ID",
+      "PINNED_BLOCK",
+      "EXECUTOR_CODE",
+      "EXECUTOR_ERC1967_IMPLEMENTATION_SLOT",
+      "EXECUTOR_IMPLEMENTATION_CODE",
+      "EXECUTOR_VERSION",
+      "EXECUTOR_AUTHORITY_GETTER",
+    ]);
+    assertLiveCallPlanIsReadOnly(plan);
+  });
 
-    /* Wrong implementation slot value blocks. */
-    const wrongSlot = createFakeTransport({ implementationSlot: `0x${"0".repeat(64)}` });
-    const slotResult = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT, {
-      transport: wrongSlot.transport,
-      lineageProbe: verifiedLineageProbe(),
+  it("148b. stops before executor version and authority derivation when proxy address policy fails", async function () {
+    const record = bindingRecordFixture({
+      executor: {
+        ...(bindingRecordFixture().executor as Record<string, unknown>),
+        deploymentModel: "ERC1967_PROXY",
+        expectedProxyRuntimeSha256: EXECUTOR_PROXY_RUNTIME_HASH,
+        implementationAddressPolicy: implementationAddressPolicyFixture({
+          expectedImplementationAddress: SEPOLIA_EXECUTOR,
+        }),
+        implementationResolutionMechanism: "ERC1967_STORAGE_SLOT",
+        implementationSlot: ERC1967_IMPLEMENTATION_SLOT,
+      },
     });
-    expect(String(slotResult.status)).to.include("ERC1967_IMPLEMENTATION_SLOT_EMPTY_OR_MALFORMED");
+    const { transport, calls } = createFakeTransport({
+      executorCode: EXECUTOR_PROXY_RUNTIME_CODE,
+      executorImplementationAddress: "0x9999999999999999999999999999999999999999",
+      executorImplementationSlot: word("0x9999999999999999999999999999999999999999"),
+    });
+    const result = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT, {
+      transport,
+      lineageProbe: verifiedLineageProbe({ record }),
+    });
+    expect(result.executorImplementationAddressPolicyResult).to.equal("MISMATCH");
+    expect(String(result.status)).to.include("EXECUTOR_IMPLEMENTATION_ADDRESS_MISMATCH");
+    expect(calls.map((call) => call.method)).to.deep.equal([
+      "eth_chainId",
+      "eth_getBlockByNumber",
+      "eth_getCode",
+      "eth_getStorageAt",
+    ]);
+  });
+
+  it("148c. authenticates a proxied executor before trusting its getters", async function () {
+    const record = bindingRecordFixture({
+      executor: {
+        ...(bindingRecordFixture().executor as Record<string, unknown>),
+        deploymentModel: "ERC1967_PROXY",
+        expectedProxyRuntimeSha256: EXECUTOR_PROXY_RUNTIME_HASH,
+        implementationAddressPolicy: implementationAddressPolicyFixture({
+          expectedImplementationAddress: EXECUTOR_IMPLEMENTATION,
+        }),
+        implementationResolutionMechanism: "ERC1967_STORAGE_SLOT",
+        implementationSlot: ERC1967_IMPLEMENTATION_SLOT,
+      },
+    });
+    const { transport, calls } = createFakeTransport({
+      executorCode: EXECUTOR_PROXY_RUNTIME_CODE,
+      executorImplementationAddress: EXECUTOR_IMPLEMENTATION,
+    });
+    const result = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT, {
+      transport,
+      lineageProbe: verifiedLineageProbe({ record }),
+    });
+    expect(result.executorProxyCodeIdentityResult).to.equal("VERIFIED");
+    expect(result.executorImplementationResolutionResult).to.equal("VERIFIED_ERC1967_STORAGE_SLOT");
+    expect(result.executorImplementationAddressPolicyResult).to.equal("EXACT_MATCH");
+    expect(result.executorImplementationCodeIdentityResult).to.equal("VERIFIED");
+    expect(result.executorReproducedBuildResult).to.equal("MATCHES_PINNED_REPRODUCED_BUILD");
+    expect(result.executorVersionResult).to.equal("MATCHES_BINDING_RECORD");
+    expect(result.executorAuthorityDerivationResult).to.equal("VERIFIED");
+    expect(calls.map((call) => call.method).slice(0, 7)).to.deep.equal([
+      "eth_chainId",
+      "eth_getBlockByNumber",
+      "eth_getCode",
+      "eth_getStorageAt",
+      "eth_getCode",
+      "eth_call",
+      "eth_call",
+    ]);
+    expect(result.finalVerdict).to.equal("BLOCKED");
+    expect(String(result.status)).to.include("OFFICIAL_BUILD_IS_NOT_THE_PINNED_REPRODUCTION");
   });
 });
 
@@ -4476,12 +4843,28 @@ describe("SG-4 HCU authority: pinned provenance and digests", function () {
     for (const [section, field, pattern] of [
       ["artifact", "provenanceSubject", /artifact must cite the current official authority source subject/u],
       ["operationSchedule", "provenanceSubject", /operationSchedule must cite the current official price schedule/u],
-      ["executor", "provenanceSubject", /executor must cite the installed Solidity configuration subject/u],
+      ["executor", "provenanceSubject", /executor must cite the current official executor reproduced build/u],
     ] as [string, string, RegExp][]) {
       const broken = bindingRecordFixture({
         [section]: { ...(bindingRecordFixture()[section] as Record<string, unknown>), [field]: "SOMETHING_ELSE" },
       });
       expect(validateAuthorityBindingRecord(broken).join(" | "), section).to.match(pattern);
+    }
+  });
+
+  it("152b. validates both reproduced artifact JSON provenance digests", function () {
+    const base = bindingRecordFixture();
+    const provenance = base.provenance as Record<string, unknown>;
+    const entries = provenance.entries as Record<string, unknown>[];
+    const mutate = (subject: string) =>
+      entries.map((entry) =>
+        entry.subject === subject ? { ...entry, artifactJsonSha256: "0".repeat(64) } : { ...entry },
+      );
+    for (const subject of ["CURRENT_OFFICIAL_ARTIFACT_BUILD", "CURRENT_OFFICIAL_EXECUTOR_ARTIFACT_BUILD"]) {
+      const broken = bindingRecordFixture({
+        provenance: { ...provenance, entries: mutate(subject) },
+      });
+      expect(validateAuthorityBindingRecord(broken).join(" | "), subject).to.match(/artifactJsonSha256/u);
     }
   });
 
@@ -4972,7 +5355,7 @@ describe("SG-4 HCU authority: end-to-end live PASS", function () {
     }
 
     const transportCases: [string, FakeOverrides, string, RegExp][] = [
-      ["executor code drift", { executorCode: "0xdeadbeef" }, "FAIL", /EXECUTOR_CODE_IDENTITY/u],
+      ["executor code drift", { executorCode: "0xdeadbeef" }, "BLOCKED", /EXECUTOR_(?:IMPLEMENTATION_)?CODE_IDENTITY/u],
       ["on-chain total drift", { totalHcu: "19999999" }, "FAIL", /ON_CHAIN|LIMIT/u],
       ["on-chain depth drift", { depthHcu: "4999999" }, "FAIL", /ON_CHAIN|LIMIT/u],
       ["broken reciprocal", { reciprocal: word(AUTHORITY_PROXY) }, "FAIL", /RECIPROCAL/u],
@@ -5023,6 +5406,160 @@ describe("SG-4 HCU authority: end-to-end live PASS", function () {
     for (const [field, value] of flips) {
       const mutated = { ...coherent, [field]: value };
       expect(validateAuthorityResult(mutated).length, field).to.be.greaterThan(0);
+    }
+
+    /* Every newly introduced executor identity field is independently PASS-relevant. A syntactically
+     * valid replacement must not survive merely because the other executor statuses still say
+     * VERIFIED. */
+    const executorFlips: [string, unknown][] = [
+      ["executorImplementationAddress", "0x3333333333333333333333333333333333333333"],
+      ["executorExpectedImplementationAddress", "0x3333333333333333333333333333333333333333"],
+      ["executorProxyCodeHash", "d".repeat(64)],
+      ["executorCodeHash", "d".repeat(64)],
+      ["executorImplementationCodeHash", "d".repeat(64)],
+      ["executorExpectedImplementationCodeHash", "d".repeat(64)],
+      ["executorNormalizedImplementationHash", "e".repeat(64)],
+      ["executorExpectedNormalizedImplementationHash", "f".repeat(64)],
+      ["executorImplementationCodeIdentityResult", "MISMATCH"],
+      ["executorImplementationResolutionResult", "VERIFIED_ERC1967_STORAGE_SLOT"],
+      ["executorImplementationAddressPolicyResult", "EXACT_MATCH"],
+      ["executorReproducedBuildInfoSha256", "0".repeat(64)],
+      ["executorReproducedBuildResult", "MISMATCH"],
+      ["executorVersion", "FHEVMExecutor v0.5.0"],
+      ["executorVersionResult", "MISMATCH"],
+      ["executorAuthorityDerivationResult", "UNRESOLVED"],
+      ["executorDeploymentModel", "ERC1967_PROXY"],
+      ["executorExpectedVersion", "FHEVMExecutor v0.5.0"],
+      ["executorCodeIdentityResult", "MISMATCH"],
+    ];
+    for (const [field, value] of executorFlips) {
+      expect(validateAuthorityResult({ ...coherent, [field]: value }).length, field).to.be.greaterThan(0);
+    }
+
+    const proxyBinding = bindingRecordFixture({
+      executor: {
+        ...(bindingRecordFixture().executor as Record<string, unknown>),
+        deploymentModel: "ERC1967_PROXY",
+        expectedProxyRuntimeSha256: EXECUTOR_PROXY_RUNTIME_HASH,
+        implementationAddressPolicy: implementationAddressPolicyFixture({
+          expectedImplementationAddress: EXECUTOR_IMPLEMENTATION,
+        }),
+        implementationResolutionMechanism: "ERC1967_STORAGE_SLOT",
+        implementationSlot: ERC1967_IMPLEMENTATION_SLOT,
+      },
+    });
+    const proxyCoherent = passResult({
+      executorCodeHash: EXECUTOR_PROXY_RUNTIME_HASH,
+      executorDeploymentModel: "ERC1967_PROXY",
+      executorExpectedImplementationAddress: EXECUTOR_IMPLEMENTATION,
+      executorExpectedImplementationCodeHash: EXECUTOR_IMPLEMENTATION_RUNTIME_HASH,
+      executorImplementationAddress: EXECUTOR_IMPLEMENTATION,
+      executorImplementationCodeHash: EXECUTOR_IMPLEMENTATION_RUNTIME_HASH,
+      executorImplementationAddressPolicyResult: "EXACT_MATCH",
+      executorImplementationResolutionResult: "VERIFIED_ERC1967_STORAGE_SLOT",
+      executorProxyCodeHash: EXECUTOR_PROXY_RUNTIME_HASH,
+      executorProxyCodeIdentityResult: "VERIFIED",
+      erc1967SlotReadCount: 2,
+      rpcMethodsUsed: ["eth_call", "eth_chainId", "eth_getBlockByNumber", "eth_getCode", "eth_getStorageAt"],
+    });
+    for (const [field, value] of [
+      ["executorImplementationAddress", "0x3333333333333333333333333333333333333333"],
+      ["executorExpectedImplementationAddress", "0x3333333333333333333333333333333333333333"],
+      ["executorProxyCodeHash", "d".repeat(64)],
+      ["executorCodeHash", "d".repeat(64)],
+    ] as [string, unknown][]) {
+      expect(
+        validateAuthorityResult({ ...proxyCoherent, [field]: value }, proxyBinding as never).length,
+        field,
+      ).to.be.greaterThan(0);
+    }
+
+    /* Coordinated auditor mutations must fail against the reviewed evidence. Matching one forged
+     * result field with another forged result field is never an authentication step. */
+    const attackA = {
+      ...coherent,
+      executorCodeHash: "d".repeat(64),
+      executorImplementationCodeHash: "d".repeat(64),
+      executorExpectedImplementationCodeHash: "d".repeat(64),
+    };
+    const attackAErrors = validateAuthorityResult(attackA);
+    expect(attackAErrors.join(" | ")).to.include("independently derived artifact hash");
+
+    const attackB = {
+      ...coherent,
+      authorityAddress: "0x4444444444444444444444444444444444444444",
+      authorityImplementationAddress: "0x3333333333333333333333333333333333333333",
+      authorityVersion: "HCULimit v9.9.9",
+      authorityCodeHash: "f".repeat(64),
+      implementationAddressPolicyResult: "PERMITTED_CODE_IDENTICAL_CHANGE",
+    };
+    const attackBErrors = validateAuthorityResult(attackB, bindingRecordFixture() as never);
+    expect(attackBErrors.join(" | ")).to.include("reviewed exact-address policy");
+    expect(attackBErrors.join(" | ")).to.include("reviewed proxy identity");
+    expect(attackBErrors.join(" | ")).to.include("reviewed version");
+
+    const coordinatedExecutorMutations: Record<string, unknown>[] = [
+      {
+        executorCodeHash: "d".repeat(64),
+        executorProxyCodeHash: "d".repeat(64),
+      },
+      {
+        executorImplementationAddress: "0x3333333333333333333333333333333333333333",
+        executorExpectedImplementationAddress: "0x3333333333333333333333333333333333333333",
+        executorImplementationResolutionResult: "VERIFIED_ERC1967_STORAGE_SLOT",
+        executorImplementationAddressPolicyResult: "EXACT_MATCH",
+      },
+      {
+        executorVersion: "FHEVMExecutor v9.9.9",
+        executorVersionResult: "MATCHES_BINDING_RECORD",
+        executorExpectedVersion: "FHEVMExecutor v9.9.9",
+      },
+      {
+        executorNormalizedImplementationHash: "e".repeat(64),
+        executorExpectedNormalizedImplementationHash: "e".repeat(64),
+      },
+      {
+        executorDeploymentModel: "ERC1967_PROXY",
+        executorImplementationAddress: "0x3333333333333333333333333333333333333333",
+        executorExpectedImplementationAddress: "0x3333333333333333333333333333333333333333",
+        executorImplementationResolutionResult: "VERIFIED_ERC1967_STORAGE_SLOT",
+        executorImplementationAddressPolicyResult: "EXACT_MATCH",
+      },
+    ];
+    for (const mutation of coordinatedExecutorMutations) {
+      expect(validateAuthorityResult({ ...coherent, ...mutation }).length, JSON.stringify(mutation)).to.be.greaterThan(
+        0,
+      );
+    }
+
+    const coordinatedAuthorityMutations: Record<string, unknown>[] = [
+      {
+        authorityAddress: "0x4444444444444444444444444444444444444444",
+        authorityImplementationAddress: "0x3333333333333333333333333333333333333333",
+      },
+      {
+        authorityCodeHash: "f".repeat(64),
+        authorityVersion: "HCULimit v9.9.9",
+        authorityVersionResult: "MATCHES_BINDING_RECORD",
+      },
+      {
+        authorityAddress: "0x4444444444444444444444444444444444444444",
+        authorityImplementationAddress: "0x3333333333333333333333333333333333333333",
+        authorityCodeHash: PROXY_RUNTIME_HASH,
+        implementationAddressPolicyResult: "PERMITTED_CODE_IDENTICAL_CHANGE",
+      },
+      {
+        authorityDeploymentModel: "DIRECT",
+        authorityImplementationAddress: coherent.authorityAddress,
+        implementationResolutionResult: "NOT_APPLICABLE_DIRECT_DEPLOYMENT",
+        implementationAddressPolicyResult: "NOT_APPLICABLE_DIRECT_DEPLOYMENT",
+      },
+    ];
+    for (const mutation of coordinatedAuthorityMutations) {
+      expect(
+        validateAuthorityResult({ ...coherent, ...mutation }, bindingRecordFixture() as never).length,
+        JSON.stringify(mutation),
+      ).to.be.greaterThan(0);
     }
   });
 });
@@ -5510,14 +6047,48 @@ describe("SG-4 HCU authority: getter specs and proof manifests", function () {
  * ------------------------------------------------------------------------------------------- */
 
 describe("SG-4 HCU authority: deployment and plan coherence", function () {
-  it("198. supports only the executor deployment model it can verify", function () {
-    expect(EXECUTOR_DEPLOYMENT_MODELS).to.deep.equal(["DIRECT"]);
+  it("198. supports only the executor deployment models it can verify", function () {
+    expect(EXECUTOR_DEPLOYMENT_MODELS).to.deep.equal(["DIRECT", "ERC1967_PROXY"]);
     const schema = deriveAuthorityProtocol().resultSchema.properties.executorDeploymentModel as { enum: string[] };
-    expect(schema.enum).to.not.include("ERC1967_PROXY");
     for (const model of EXECUTOR_DEPLOYMENT_MODELS) expect(schema.enum).to.include(model);
-    expect(validateAuthorityResult(passResult({ executorDeploymentModel: "ERC1967_PROXY" })).length).to.be.greaterThan(
-      0,
-    );
+    const proxyBinding = bindingRecordFixture({
+      executor: {
+        ...(bindingRecordFixture().executor as Record<string, unknown>),
+        deploymentModel: "ERC1967_PROXY",
+        expectedProxyRuntimeSha256: EXECUTOR_PROXY_RUNTIME_HASH,
+        implementationAddressPolicy: implementationAddressPolicyFixture({
+          expectedImplementationAddress: EXECUTOR_IMPLEMENTATION,
+        }),
+        implementationResolutionMechanism: "ERC1967_STORAGE_SLOT",
+        implementationSlot: ERC1967_IMPLEMENTATION_SLOT,
+      },
+    });
+    expect(
+      validateAuthorityResult(
+        passResult({
+          executorCodeHash: EXECUTOR_PROXY_RUNTIME_HASH,
+          executorDeploymentModel: "ERC1967_PROXY",
+          executorExpectedImplementationAddress: EXECUTOR_IMPLEMENTATION,
+          executorExpectedImplementationCodeHash: EXECUTOR_IMPLEMENTATION_RUNTIME_HASH,
+          executorImplementationAddress: EXECUTOR_IMPLEMENTATION,
+          executorImplementationCodeHash: EXECUTOR_IMPLEMENTATION_RUNTIME_HASH,
+          executorProxyCodeHash: EXECUTOR_PROXY_RUNTIME_HASH,
+          executorProxyCodeIdentityResult: "VERIFIED",
+          executorImplementationResolutionResult: "VERIFIED_ERC1967_STORAGE_SLOT",
+          executorImplementationAddressPolicyResult: "EXACT_MATCH",
+          erc1967SlotReadCount: 2,
+          rpcMethodsUsed: [
+            "eth_call",
+            "eth_chainId",
+            "eth_getBlockByNumber",
+            "eth_getCode",
+            "eth_getStorageAt",
+            "eth_getStorageAt",
+          ],
+        }),
+        proxyBinding as never,
+      ),
+    ).to.deep.equal([]);
   });
 
   it("199. omits the ERC-1967 read for a directly deployed authority", async function () {
@@ -5545,12 +6116,12 @@ describe("SG-4 HCU authority: deployment and plan coherence", function () {
       transport: broken.transport,
       lineageProbe: verifiedLineageProbe(),
     });
-    expect(result.executorCodeIdentityResult).to.equal("MISMATCH");
+    expect(result.executorCodeIdentityResult).to.equal("UNRESOLVED");
     /* Nothing was derived from the unverified executor. */
     expect(result.authorityAddress).to.equal("UNRESOLVED");
     expect(result.authorityCodeIdentityResult).to.not.equal("VERIFIED");
     expect(broken.calls.some((call) => call.method === "eth_getStorageAt")).to.equal(false);
-    expect(result.finalVerdict).to.equal("FAIL");
+    expect(result.finalVerdict).to.equal("BLOCKED");
   });
 
   it("201. never advertises an RPC method outside the read-only allowlist", async function () {
@@ -6372,7 +6943,7 @@ describe("SG-4 HCU authority: runtime plan enforcement", function () {
       "EXECUTOR_VERSION:eth_call:EXECUTOR",
       "EXECUTOR_AUTHORITY_GETTER:eth_call:EXECUTOR",
       "AUTHORITY_CODE:eth_getCode:AUTHORITY",
-      "ERC1967_IMPLEMENTATION_SLOT:eth_getStorageAt:AUTHORITY",
+      "AUTHORITY_ERC1967_IMPLEMENTATION_SLOT:eth_getStorageAt:AUTHORITY",
       "AUTHORITY_IMPLEMENTATION_CODE:eth_getCode:AUTHORITY_IMPLEMENTATION",
       "AUTHORITY_RECIPROCAL_EXECUTOR_GETTER:eth_call:AUTHORITY",
       "AUTHORITY_VERSION:eth_call:AUTHORITY",
@@ -6389,7 +6960,8 @@ describe("SG-4 HCU authority: runtime plan enforcement", function () {
     const plan = generateLiveCallPlan(reference as never);
     assertLiveCallPlanIsReadOnly(plan);
     for (const call of plan) expect(LIVE_RPC_ALLOWED_METHODS).to.include(call.method);
-    expect(plan.some((call) => call.callId === "ERC1967_IMPLEMENTATION_SLOT")).to.equal(true);
+    expect(plan.some((call) => call.callId === "EXECUTOR_ERC1967_IMPLEMENTATION_SLOT")).to.equal(true);
+    expect(plan.some((call) => call.callId === "AUTHORITY_ERC1967_IMPLEMENTATION_SLOT")).to.equal(true);
     /* No limit getter is planned, because the reference declares no availability. */
     expect(plan.some((call) => call.callId.endsWith("_HCU_GETTER"))).to.equal(false);
   });
@@ -7168,15 +7740,218 @@ describe("SG-4 HCU authority: CORRECTION 1 — artifact-build provenance subject
     /* The two subjects carry different digests, so one cannot authenticate the other's bytes. */
     expect(AUTHORITY_SOURCE_SHA256).to.not.equal(ARTIFACT_BUILD_SHA256);
 
-    /* And the production source no longer names the source subject for this manifest. */
-    const source = readFileSync(resolve(ROOT, "scripts/sg4-hcu-authority.ts"), "utf8");
-    const extractor = source.slice(source.indexOf("const compilerReferenceManifest = {"));
-    expect(extractor.slice(0, 500)).to.include("CURRENT_OFFICIAL_ARTIFACT_BUILD");
-    expect(extractor.slice(0, 500)).to.not.include("CURRENT_OFFICIAL_AUTHORITY_SOURCE");
+    /* The relationship is proved semantically by the extracted manifest and validator above, not
+     * by searching for a particular implementation-source layout. */
+    expect(build.compilerReferenceManifest.provenanceSubject).to.equal("CURRENT_OFFICIAL_ARTIFACT_BUILD");
+    expect(build.compilerReferenceManifest.sourceContentSha256).to.equal(ARTIFACT_BUILD_SHA256);
   });
 });
 
 describe("SG-4 HCU authority: CORRECTION 2 — exact artifact placeholder normalization", function () {
+  it("251a. authenticates the compressed executor fixture before parsing", function () {
+    expect(EXECUTOR_ARTIFACT_BUILD_BYTES.length).to.equal(EXECUTOR_BUILD_INFO_DECOMPRESSED_SIZE);
+    expect(EXECUTOR_ARTIFACT_BUILD_SHA256).to.equal(EXECUTOR_BUILD_INFO_SHA256);
+    expect(sha256(EXECUTOR_ARTIFACT_BUILD_BYTES)).to.equal(EXECUTOR_BUILD_INFO_SHA256);
+  });
+
+  it("251b. authenticates the executor build independently and normalizes only its three declared immutables", function () {
+    const build = extractExecutorArtifactBuild(
+      {
+        subject: "officialExecutorArtifactBuild",
+        bytes: EXECUTOR_ARTIFACT_BUILD_BYTES,
+        contentSha256: EXECUTOR_ARTIFACT_BUILD_SHA256,
+      },
+      { implementationAddress: SEPOLIA_EXECUTOR },
+      EXECUTOR_SOURCE_SHA256,
+    );
+    expect(build.failures).to.deep.equal([]);
+    expect(build.runtimeByteLength).to.equal(REPRODUCED_EXECUTOR_RUNTIME_LENGTH);
+    expect(build.expectedNormalizedRuntimeSha256).to.equal(EXECUTOR_DERIVED_NORMALIZED_HASH);
+    const entries = build.compilerReferenceManifest.entries as { offset: number; byteLength: number }[];
+    expect(entries.map((entry) => entry.offset)).to.deep.equal([...AUTHENTICATED_EXECUTOR_IMMUTABLE_OFFSETS]);
+    expect(entries.every((entry) => entry.byteLength === 32)).to.equal(true);
+
+    const unchanged = deployedExecutorImplementationRuntime();
+    const normal = normalizeRuntimeBytecodeFromManifest(unchanged, build.normalizationManifest as never, {
+      implementationAddress: SEPOLIA_EXECUTOR,
+    });
+    expect(normal.ok, normal.failures.join(" | ")).to.equal(true);
+    const push20Mutation = Buffer.from(unchanged);
+    expect(push20Mutation[AUTHENTICATED_EXECUTOR_PUSH20_OFFSET - 1]).to.equal(0x73);
+    push20Mutation[AUTHENTICATED_EXECUTOR_PUSH20_OFFSET] ^= 0x01;
+    const mutated = normalizeRuntimeBytecodeFromManifest(push20Mutation, build.normalizationManifest as never, {
+      implementationAddress: SEPOLIA_EXECUTOR,
+    });
+    expect(mutated.ok, mutated.failures.join(" | ")).to.equal(true);
+    expect(mutated.normalizedSha256).to.not.equal(normal.normalizedSha256);
+  });
+
+  it("251c. closes executor bytecode/link references and compiler numeric parsing", function () {
+    const extract = (mutate: (info: Record<string, unknown>) => void) => {
+      const info = JSON.parse(EXECUTOR_ARTIFACT_BUILD_BYTES.toString("utf8")) as Record<string, unknown>;
+      mutate(info);
+      const bytes = Buffer.from(JSON.stringify(info), "utf8");
+      return extractExecutorArtifactBuild(
+        { subject: "officialExecutorArtifactBuild", bytes, contentSha256: sha256(bytes) },
+        { implementationAddress: SEPOLIA_EXECUTOR },
+        EXECUTOR_SOURCE_SHA256,
+      );
+    };
+    const executorOf = (info: Record<string, unknown>) =>
+      (
+        ((info.output as Record<string, unknown>).contracts as Record<string, unknown>)[
+          "contracts/FHEVMExecutor.sol"
+        ] as Record<string, unknown>
+      ).FHEVMExecutor as Record<string, unknown>;
+    const evmOf = (info: Record<string, unknown>) => executorOf(info).evm as Record<string, unknown>;
+    const deployedOf = (info: Record<string, unknown>) => evmOf(info).deployedBytecode as Record<string, unknown>;
+    const creationOf = (info: Record<string, unknown>) => evmOf(info).bytecode as Record<string, unknown>;
+    const immutableOf = (info: Record<string, unknown>) =>
+      deployedOf(info).immutableReferences as Record<string, unknown>;
+    const originalEntries = () =>
+      immutableOf(JSON.parse(EXECUTOR_ARTIFACT_BUILD_BYTES.toString("utf8")) as Record<string, unknown>)[
+        "605"
+      ] as unknown[];
+
+    const cases: [string, (info: Record<string, unknown>) => void, RegExp][] = [
+      ["missing creation bytecode", (info) => delete evmOf(info).bytecode, /BUILD_INFO_CREATION_BYTECODE_ABSENT/u],
+      [
+        "missing creation link references",
+        (info) => delete creationOf(info).linkReferences,
+        /BUILD_INFO_CREATION_LINK_REFERENCES_ABSENT/u,
+      ],
+      [
+        "malformed creation link references",
+        (info) => {
+          creationOf(info).linkReferences = [];
+        },
+        /BUILD_INFO_CREATION_LINK_REFERENCES_MALFORMED/u,
+      ],
+      [
+        "unexpected creation link reference",
+        (info) => {
+          creationOf(info).linkReferences = { "contracts/L.sol": { L: [{ start: 0, length: 20 }] } };
+        },
+        /BUILD_INFO_UNEXPECTED_CREATION_LINK_REFERENCES/u,
+      ],
+      [
+        "missing deployed link references",
+        (info) => delete deployedOf(info).linkReferences,
+        /BUILD_INFO_DEPLOYED_LINK_REFERENCES_ABSENT/u,
+      ],
+      [
+        "malformed deployed link references",
+        (info) => {
+          deployedOf(info).linkReferences = null;
+        },
+        /BUILD_INFO_DEPLOYED_LINK_REFERENCES_MALFORMED/u,
+      ],
+      [
+        "unexpected deployed link reference",
+        (info) => {
+          deployedOf(info).linkReferences = { "contracts/L.sol": { L: [{ start: 0, length: 20 }] } };
+        },
+        /BUILD_INFO_UNEXPECTED_DEPLOYED_LINK_REFERENCES/u,
+      ],
+      [
+        "AST key 605x",
+        (info) => (deployedOf(info).immutableReferences = { "605x": originalEntries() }),
+        /IMMUTABLE_ID_MALFORMED/u,
+      ],
+      [
+        "AST key +605",
+        (info) => (deployedOf(info).immutableReferences = { "+605": originalEntries() }),
+        /IMMUTABLE_ID_MALFORMED/u,
+      ],
+      [
+        "AST key 0605",
+        (info) => (deployedOf(info).immutableReferences = { "0605": originalEntries() }),
+        /IMMUTABLE_ID_MALFORMED/u,
+      ],
+      [
+        "AST key with whitespace",
+        (info) => (deployedOf(info).immutableReferences = { " 605": originalEntries() }),
+        /IMMUTABLE_ID_MALFORMED/u,
+      ],
+      [
+        "negative AST key",
+        (info) => (deployedOf(info).immutableReferences = { "-605": originalEntries() }),
+        /IMMUTABLE_ID_MALFORMED/u,
+      ],
+      [
+        "string start",
+        (info) => {
+          const entries = originalEntries();
+          (entries[0] as Record<string, unknown>).start = "14424";
+          deployedOf(info).immutableReferences = { "605": entries };
+        },
+        /IMMUTABLE_REFERENCE_START_MALFORMED/u,
+      ],
+      [
+        "string length",
+        (info) => {
+          const entries = originalEntries();
+          (entries[0] as Record<string, unknown>).length = "32";
+          deployedOf(info).immutableReferences = { "605": entries };
+        },
+        /IMMUTABLE_REFERENCE_LENGTH_MALFORMED/u,
+      ],
+      [
+        "negative start",
+        (info) => {
+          const entries = originalEntries();
+          (entries[0] as Record<string, unknown>).start = -1;
+          deployedOf(info).immutableReferences = { "605": entries };
+        },
+        /IMMUTABLE_REFERENCE_START_MALFORMED/u,
+      ],
+      [
+        "negative length",
+        (info) => {
+          const entries = originalEntries();
+          (entries[0] as Record<string, unknown>).length = -1;
+          deployedOf(info).immutableReferences = { "605": entries };
+        },
+        /IMMUTABLE_REFERENCE_LENGTH_MALFORMED/u,
+      ],
+      [
+        "float start",
+        (info) => {
+          const entries = originalEntries();
+          (entries[0] as Record<string, unknown>).start = 14424.5;
+          deployedOf(info).immutableReferences = { "605": entries };
+        },
+        /IMMUTABLE_REFERENCE_START_MALFORMED/u,
+      ],
+      [
+        "unsafe start",
+        (info) => {
+          const entries = originalEntries();
+          (entries[0] as Record<string, unknown>).start = Number.MAX_SAFE_INTEGER + 1;
+          deployedOf(info).immutableReferences = { "605": entries };
+        },
+        /IMMUTABLE_REFERENCE_START_MALFORMED/u,
+      ],
+      [
+        "missing immutable",
+        (info) => {
+          deployedOf(info).immutableReferences = {};
+        },
+        /IMMUTABLE_REFERENCE_SET_MISMATCH|BUILD_INFO_IMMUTABLE_REFERENCES_EMPTY/u,
+      ],
+      [
+        "extra immutable",
+        (info) => {
+          deployedOf(info).immutableReferences = { "605": originalEntries(), "606": [] };
+        },
+        /IMMUTABLE_REFERENCE_SET_MISMATCH/u,
+      ],
+    ];
+    for (const [label, mutate, expected] of cases) {
+      expect(extract(mutate).failures.join(" | "), label).to.match(expected);
+    }
+  });
+
   it("252. writes the exact placeholder bytes, not a global replacement byte", function () {
     const build = DERIVED.artifactBuild as NonNullable<typeof DERIVED.artifactBuild>;
     const manifest = build.normalizationManifest as Record<string, unknown>;
@@ -7591,11 +8366,12 @@ describe("SG-4 HCU authority: CORRECTION 4 — no provenance by stale address eq
     expect(guard.offenders.length).to.be.greaterThan(0);
     /* And a result derived from it is refused. */
     expect(validateAuthorityResult(passResult({ staleAddressGuardResult: "REJECTED" })).length).to.be.greaterThan(0);
-    /* And the converse holds: the ADDRESS alone is not the offence. A result reporting that address
-     * with a clean source-origin guard is accepted, because it was derived rather than copied. */
+    /* A result reporting that address is now rejected even with a clean source-origin guard: the
+     * serialized authority address must equal the address independently derived from the
+     * authenticated executor build, not merely avoid the source-origin guard. */
     expect(
-      validateAuthorityResult(passResult({ authorityAddress: STALE_PLUGIN_HCU_LIMIT.sepoliaValue })),
-    ).to.deep.equal([]);
+      validateAuthorityResult(passResult({ authorityAddress: STALE_PLUGIN_HCU_LIMIT.sepoliaValue })).join(" | "),
+    ).to.include("authenticated executor-derived authority address");
     const validatorSource = readFileSync(resolve(ROOT, "scripts/sg4-hcu-authority.ts"), "utf8");
     const validator = validatorSource.slice(validatorSource.indexOf("export function validateAuthorityResult"));
     expect(validator).to.not.include("STALE_PLUGIN_HCU_LIMIT.sepoliaValue.toLowerCase()");

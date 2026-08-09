@@ -1558,7 +1558,10 @@ describe("SG-4 scope", function () {
   /* Reviewed SG-4 HCU-authority preparation scope. Contracts are deliberately absent: the
    * amendment changes no Solidity. */
   it("changes only the reviewed SG-4 authority preparation paths", function () {
-    const status = spawnSync("git", ["status", "--short"], { cwd: root, encoding: "utf8" });
+    const status = spawnSync("git", ["status", "--short", "--untracked-files=all"], {
+      cwd: root,
+      encoding: "utf8",
+    });
     const paths = status.stdout
       .trimEnd()
       .split("\n")
@@ -1575,6 +1578,7 @@ describe("SG-4 scope", function () {
       "scripts/sg4-hcu-authority.ts",
       "test/SG4BenchmarkProtocol.ts",
       "test/SG4HcuAuthority.ts",
+      "test/fixtures/fhevm-v0.13.2-FHEVMExecutor-4d775fb2ba96328ce842168d97046c84.build-info.json.gz",
     ];
     expect(paths.filter((path) => !permitted.includes(path))).to.deep.equal([]);
   });
