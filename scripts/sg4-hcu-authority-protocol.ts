@@ -1625,6 +1625,7 @@ export const SG4_APPLICABILITY_SUBJECTS: readonly string[] = [
 
 export const SUPPORTED_ABI_ARGUMENT_TYPES: readonly string[] = ["address", "bool", "uint256"];
 export const SUPPORTED_ABI_RETURN_TYPES: readonly string[] = ["address", "bool", "uint256"];
+export const LIMIT_GETTER_RETURN_TYPES: readonly string[] = ["uint256", "uint48"];
 
 /* A canonical zero-argument Solidity function signature. */
 export const CANONICAL_SIGNATURE_GRAMMAR = "^[a-zA-Z_$][a-zA-Z0-9_$]*\\(([a-z0-9]+(,[a-z0-9]+)*)?\\)$";
@@ -1654,6 +1655,14 @@ export const LIMIT_CONTROL_IDS: readonly string[] = [
 
 export const ENFORCEMENT_PROOF_MANIFEST_SCHEMA = "zama-szn4.sg4-enforcement-proof-manifest.v1";
 
+export const ENFORCEMENT_VALUE_SOURCE_KINDS: readonly string[] = ["CONSTANT", "STORAGE_FIELD"];
+
+export const ENFORCEMENT_PROOF_STORAGE_READ_FIELDS: readonly string[] = [
+  "expression",
+  "functionName",
+  "sourceRangeSha256",
+];
+
 export const ENFORCEMENT_PROOF_MANIFEST_FIELDS: readonly string[] = [
   "entries",
   "provenanceSubject",
@@ -1669,9 +1678,51 @@ export const ENFORCEMENT_PROOF_ENTRY_FIELDS: readonly string[] = [
   "controlId",
   "declarationSourceRangeSha256",
   "enforcementFunction",
+  "enforcementReads",
+  "enforcementSourceRangeSha256",
+  "getterReadExpression",
+  "getterReturnType",
+  "getterSignature",
+  "getterSourceRangeSha256",
+  "revertErrorName",
+  "sourceKind",
+  "sourcePath",
+  "storageFieldDeclarationSourceRangeSha256",
+  "storageFieldName",
+  "storageFieldType",
+  "storageStructName",
+  "storageValue",
+];
+
+export const ENFORCEMENT_PROOF_CONSTANT_ENTRY_FIELDS: readonly string[] = [
+  "comparisonOperator",
+  "constantName",
+  "constantValue",
+  "controlId",
+  "declarationSourceRangeSha256",
+  "enforcementFunction",
   "enforcementSourceRangeSha256",
   "revertErrorName",
+  "sourceKind",
   "sourcePath",
+];
+
+export const ENFORCEMENT_PROOF_STORAGE_ENTRY_FIELDS: readonly string[] = [
+  "comparisonOperator",
+  "controlId",
+  "enforcementReads",
+  "getterReadExpression",
+  "getterReturnType",
+  "getterSignature",
+  "getterSourceRangeSha256",
+  "revertErrorName",
+  "sourceKind",
+  "sourcePath",
+  "storageFieldDeclarationSourceRangeSha256",
+  "storageFieldName",
+  "storageFieldType",
+  "storageStructName",
+  "storageValue",
 ];
 
 export const ENUMERATION_MANIFEST_SCHEMA = "zama-szn4.sg4-authority-enumeration-manifest.v1";
@@ -2041,6 +2092,10 @@ export const AUTHORITY_BINDING_RECORD_SHAPE = {
   compilerReferenceEntryFields: COMPILER_REFERENCE_ENTRY_FIELDS,
   pricingVariantFields: PRICING_VARIANT_FIELDS,
   enforcementEvidenceFields: ENFORCEMENT_EVIDENCE_FIELDS,
+  enforcementProofConstantEntryFields: ENFORCEMENT_PROOF_CONSTANT_ENTRY_FIELDS,
+  enforcementProofStorageEntryFields: ENFORCEMENT_PROOF_STORAGE_ENTRY_FIELDS,
+  enforcementProofStorageReadFields: ENFORCEMENT_PROOF_STORAGE_READ_FIELDS,
+  enforcementValueSourceKinds: ENFORCEMENT_VALUE_SOURCE_KINDS,
   limitGetterFields: ["blockOrBatchCap", "transactionDepth", "transactionTotal"],
   getterAvailabilityFields: ["blockOrBatchCap", "transactionDepth", "transactionTotal"],
   mandatoryLimitFields: ["transactionDepth", "transactionTotal"],
@@ -3899,8 +3954,13 @@ export function validateAuthorityProtocol(protocol: AuthorityProtocol): void {
   invariant(isSortedUnique(LIMIT_GETTER_SPEC_FIELDS), "limit getter spec fields must be sorted and unique");
   invariant(isSortedUnique(LIMIT_CONTROL_IDS), "limit control ids must be sorted and unique");
   invariant(
-    isSortedUnique(ENFORCEMENT_PROOF_MANIFEST_FIELDS) && isSortedUnique(ENFORCEMENT_PROOF_ENTRY_FIELDS),
-    "enforcement proof manifest fields must be sorted and unique",
+    isSortedUnique(ENFORCEMENT_PROOF_MANIFEST_FIELDS) &&
+      isSortedUnique(ENFORCEMENT_PROOF_ENTRY_FIELDS) &&
+      isSortedUnique(ENFORCEMENT_PROOF_CONSTANT_ENTRY_FIELDS) &&
+      isSortedUnique(ENFORCEMENT_PROOF_STORAGE_ENTRY_FIELDS) &&
+      isSortedUnique(ENFORCEMENT_PROOF_STORAGE_READ_FIELDS) &&
+      isSortedUnique(ENFORCEMENT_VALUE_SOURCE_KINDS),
+    "enforcement proof fields and source kinds must be sorted and unique",
   );
   invariant(isSortedUnique(ENUMERATION_MANIFEST_FIELDS), "enumeration manifest fields must be sorted and unique");
   invariant(

@@ -47,9 +47,13 @@ import {
   CANONICAL_SIGNATURE_GRAMMAR,
   CONTRACT_ROLES,
   DERIVATION_CHAIN_POLICY,
+  ENFORCEMENT_PROOF_CONSTANT_ENTRY_FIELDS,
   ENFORCEMENT_PROOF_ENTRY_FIELDS,
   ENFORCEMENT_PROOF_MANIFEST_FIELDS,
   ENFORCEMENT_PROOF_MANIFEST_SCHEMA,
+  ENFORCEMENT_PROOF_STORAGE_ENTRY_FIELDS,
+  ENFORCEMENT_PROOF_STORAGE_READ_FIELDS,
+  ENFORCEMENT_VALUE_SOURCE_KINDS,
   ENUMERATION_MANIFEST_FIELDS,
   ENUMERATION_MANIFEST_SCHEMA,
   IMMUTABLE_REFERENCE_ENTRY_FIELDS,
@@ -109,6 +113,7 @@ import {
   INTERFACE_MANIFEST_SCHEMA,
   LIMIT_CONTROL_INTERFACE_CALLS,
   LIMIT_GETTER_PERMITTED_ROLES,
+  LIMIT_GETTER_RETURN_TYPES,
   MANDATORY_INTERFACE_CALL_IDS,
   LOCAL_AUTHORITY_FIXTURE_ROOT,
   MEASUREMENT_EXECUTION_RELEVANT_FILES,
@@ -179,7 +184,7 @@ export const ROOT = join(__dirname, "..");
 /* Committed digests of the two deterministic protocols. Any edit to either generator changes its
  * digest and fails preflight until the change is reviewed and the constant is updated. */
 export const EXPECTED_SG4_PROTOCOL_SHA256 = "88d6f8c1522a0668d769f34ddafaf3e71134cbc9434a1b9676f78d5bdeb0968e";
-export const EXPECTED_AUTHORITY_PROTOCOL_SHA256 = "3bf7a49507c057aa1595ff09186e6310d84936de37249e8960fd8fca12f90e99";
+export const EXPECTED_AUTHORITY_PROTOCOL_SHA256 = "742026e3f9517edc446af073e36ae2dbb089cb8b966f4bc18f01aba81ad0ac31";
 
 /* Resolved through the repository root node_modules. This path exists only because
  * @fhevm/host-contracts is a direct dependency: with the transitive-only arrangement the authority
@@ -2588,6 +2593,7 @@ export type LiveCall = {
     | "HEX_CODE"
     | "STORAGE_WORD"
     | "ABI_STRING"
+    | "UINT48_WORD"
     | "UINT256_WORD"
     | "ABI_BOOL";
 };
@@ -2669,6 +2675,14 @@ export function offlinePlanReferenceRecord(): Record<string, unknown> {
       limitGetterSpecs: [],
     },
   };
+}
+
+function fieldToControlId(field: string): string {
+  return field === "transactionTotal"
+    ? "TRANSACTION_TOTAL_HCU"
+    : field === "transactionDepth"
+      ? "TRANSACTION_DEPTH_HCU"
+      : "BLOCK_OR_BATCH_HCU";
 }
 
 export function generateLiveCallPlan(record: AuthorityBindingRecord): LiveCall[] {
@@ -2826,7 +2840,19 @@ export function generateLiveCallPlan(record: AuthorityBindingRecord): LiveCall[]
   ];
   for (const [field, callId] of limitFields) {
     if (availability[field] !== "AVAILABLE_AND_READ_ON_CHAIN") continue;
-    plan.push(ethCall(step++, callId, "AUTHORITY", declared(callId), `${field} HCU limit getter`, "UINT256_WORD"));
+    const getterSpec = Array.isArray(iface.limitGetterSpecs)
+      ? (iface.limitGetterSpecs as Record<string, unknown>[]).find((spec) => spec.controlId === fieldToControlId(field))
+      : undefined;
+    plan.push(
+      ethCall(
+        step++,
+        callId,
+        "AUTHORITY",
+        declared(callId),
+        `${field} HCU limit getter`,
+        getterSpec?.returnType === "uint48" ? "UINT48_WORD" : "UINT256_WORD",
+      ),
+    );
   }
   const applicability = Array.isArray(iface.callerApplicability)
     ? (iface.callerApplicability as Record<string, unknown>[])
@@ -3368,7 +3394,14 @@ export function applicabilityProofParentErrors(
   }
   const entries = Array.isArray(manifest.entries) ? (manifest.entries as Record<string, unknown>[]) : [];
   const parent = String(proof.parentEnforcementFunction);
-  const known = new Set(entries.filter(isObject).map((entry) => String(entry.enforcementFunction)));
+  const known = new Set(
+    entries.filter(isObject).flatMap((entry) => {
+      const functions = Array.isArray(entry.enforcementReads)
+        ? entry.enforcementReads.filter(isObject).map((read) => String(read.functionName))
+        : [];
+      return typeof entry.enforcementFunction === "string" ? [entry.enforcementFunction, ...functions] : functions;
+    }),
+  );
   const paths = new Set(entries.filter(isObject).map((entry) => String(entry.sourcePath)));
   if (!known.has(parent)) {
     errors.push(`binding record ${label} names an enforcement function the proof manifest does not contain`);
@@ -3863,6 +3896,24 @@ export function extractPriceSchedule(material: AuthenticatedMaterial): Extracted
 
 export type SourceRange = { startByte: number; endByte: number; sha256: string };
 
+export type StorageFieldRead = {
+  expression: string;
+  functionName: string;
+  sourceRangeSha256: string;
+};
+
+export type StorageFieldEvidence = {
+  declarationSourceRangeSha256: string;
+  enforcementReads: StorageFieldRead[];
+  fieldName: string;
+  fieldType: string;
+  getterReadExpression: string;
+  getterReturnType: string;
+  getterSignature: string;
+  getterSourceRangeSha256: string;
+  storageStructName: string;
+};
+
 export type ParsedAuthoritySource = {
   parserId: string;
   parserVersion: number;
@@ -3877,6 +3928,7 @@ export type ParsedAuthoritySource = {
   declarationRanges: Record<string, SourceRange>;
   enforcementRanges: Record<string, SourceRange>;
   constantValues: Record<string, string>;
+  storageFieldEvidence: Record<string, StorageFieldEvidence>;
   /* The comparison each enforcement body actually performs against its ceiling. `>` means the
    * configured value is itself accepted (an inclusive ceiling); `>=` means it is not. */
   enforcementOperators: Record<string, string>;
@@ -3917,7 +3969,7 @@ const MAPPING_LINE = /^\s*mapping\s*\([^)]*\)\s+(?:public\s+|internal\s+|private
  * these forms — a custom type, an unusual modifier order, an inline initialiser the parser does not
  * model — is deliberately NOT matched, and becomes residue. */
 const STRUCT_FIELD_LINE =
-  /^\s{4,}(?:uint8|uint16|uint32|uint48|uint64|uint128|uint256|int256|bool|address|bytes32)\s+(?:public\s+|internal\s+|private\s+)?(?:immutable\s+|transient\s+)?([a-zA-Z_][A-Za-z0-9_]*)\s*;/u;
+  /^\s{4,}(uint8|uint16|uint32|uint48|uint64|uint128|uint256|int256|bool|address|bytes32)\s+(?:public\s+|internal\s+|private\s+)?(?:immutable\s+|transient\s+)?([a-zA-Z_][A-Za-z0-9_]*)\s*;/u;
 const STORAGE_PRIMITIVE = /\b(tload|tstore|sload|sstore)\b/gu;
 
 /* A function is an ENFORCEMENT function when its body compares a running HCU total against an
@@ -4116,6 +4168,11 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
   const declarationRanges: Record<string, SourceRange> = {};
   const enforcementRanges: Record<string, SourceRange> = {};
   const constantValues: Record<string, string> = {};
+  const storageFieldDeclarations: Record<
+    string,
+    { fieldType: string; storageStructName: string; declarationRange: SourceRange }
+  > = {};
+  const functionBodies: { body: string; functionName: string; sourceRange: SourceRange }[] = [];
   const enforcementOperators: Record<string, string> = {};
   const residue: string[] = [];
   const pricingRelevantResidue: string[] = [];
@@ -4144,6 +4201,7 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
   const accountFor = (from: number, to: number): void => {
     for (let cursor = from; cursor <= to; cursor++) accounted.add(cursor);
   };
+  const escapedRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
   for (const [index, line] of lines.entries()) {
     for (const match of line.matchAll(STORAGE_PRIMITIVE)) storagePrimitives.add(match[1]);
@@ -4204,7 +4262,8 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
       }
       continue;
     }
-    if (/^\s*struct\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/u.test(line)) {
+    const structDeclaration = /^\s*struct\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{/u.exec(line);
+    if (structDeclaration) {
       const endIndex = findBraceBlockEnd(lines, index);
       if (endIndex === null) {
         residue.push(`UNTERMINATED_STORAGE_STRUCT:line${index + 1}`);
@@ -4214,8 +4273,14 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
       for (let cursor = index + 1; cursor < endIndex; cursor++) {
         const structField = STRUCT_FIELD_LINE.exec(lines[cursor]);
         const structMapping = MAPPING_LINE.exec(lines[cursor]);
-        if (structField) storageStructFields.push(structField[1]);
-        else if (structMapping) mappings.push(structMapping[1]);
+        if (structField) {
+          storageStructFields.push(structField[2]);
+          storageFieldDeclarations[structField[2]] = {
+            declarationRange: rangeFor(cursor, cursor),
+            fieldType: structField[1],
+            storageStructName: structDeclaration[1],
+          };
+        } else if (structMapping) mappings.push(structMapping[1]);
         else if (!IGNORABLE_LINE.test(lines[cursor])) {
           residue.push(`UNSUPPORTED_STORAGE_STRUCT_LINE:line${cursor + 1}`);
         }
@@ -4233,6 +4298,7 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
         continue;
       }
       const body = lines.slice(index, endIndex + 1).join("\n");
+      functionBodies.push({ body, functionName: fn[1], sourceRange: rangeFor(index, endIndex) });
       if (HCU_OPERATION_FUNCTION.test(fn[1])) {
         pricingOperationNames.push(fn[1]);
         if (!KNOWN_HCU_OPERATION_FUNCTIONS.has(fn[1])) {
@@ -4290,7 +4356,14 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
     }
     const field = STRUCT_FIELD_LINE.exec(line);
     if (field) {
-      storageStructFields.push(field[1]);
+      storageStructFields.push(field[2]);
+      if (storageFieldDeclarations[field[2]] === undefined) {
+        storageFieldDeclarations[field[2]] = {
+          declarationRange: rangeFor(index, index),
+          fieldType: field[1],
+          storageStructName: "CONTRACT_STORAGE",
+        };
+      }
       accounted.add(index);
       continue;
     }
@@ -4330,6 +4403,61 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
   }
   const parseCompleteness =
     residue.length === 0 && pricingRelevantResidue.length === 0 ? "PARSED_COMPLETE_NO_RESIDUE" : "PARTIAL";
+  const storageFieldEvidence: Record<string, StorageFieldEvidence> = {};
+  for (const [fieldName, declaration] of Object.entries(storageFieldDeclarations)) {
+    const fieldPattern = escapedRegex(fieldName);
+    const enforcementReads = functionBodies
+      .filter((candidate) => enforcementFunctions.includes(candidate.functionName))
+      .flatMap((candidate) => {
+        const reads = [
+          ...candidate.body.matchAll(
+            new RegExp(
+              `(?:\\$\\s*\\.\\s*${fieldPattern}|_getHCULimitStorage\\s*\\(\\s*\\)\\s*\\.\\s*${fieldPattern})`,
+              "gu",
+            ),
+          ),
+        ];
+        return reads.map((read) => ({
+          expression: read[0].replace(/\\s+/gu, ""),
+          functionName: candidate.functionName,
+          sourceRangeSha256: candidate.sourceRange.sha256,
+        }));
+      })
+      .sort((left, right) =>
+        `${left.functionName}:${left.expression}`.localeCompare(`${right.functionName}:${right.expression}`),
+      );
+    const getterCandidates = functionBodies.flatMap((candidate) => {
+      const header = candidate.body.slice(0, candidate.body.indexOf("{"));
+      const signature =
+        /^\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)[\s\S]*?returns\s*\(\s*([A-Za-z0-9_]+)\s*\)/u.exec(
+          header,
+        );
+      const returned = new RegExp(`\\breturn\\s+([^;\\n]*\\b${fieldPattern}\\b[^;\\n]*)\\s*;`, "u").exec(
+        candidate.body,
+      );
+      if (signature === null || returned === null) return [];
+      return [
+        {
+          getterReadExpression: returned[1].trim().replace(/\s+/gu, ""),
+          getterReturnType: signature[3],
+          getterSignature: `${signature[1]}(${signature[2].trim()})`,
+          getterSourceRangeSha256: candidate.sourceRange.sha256,
+        },
+      ];
+    });
+    if (enforcementReads.length === 0 || getterCandidates.length !== 1) continue;
+    storageFieldEvidence[fieldName] = {
+      declarationSourceRangeSha256: declaration.declarationRange.sha256,
+      enforcementReads,
+      fieldName,
+      fieldType: declaration.fieldType,
+      getterReadExpression: getterCandidates[0].getterReadExpression,
+      getterReturnType: getterCandidates[0].getterReturnType,
+      getterSignature: getterCandidates[0].getterSignature,
+      getterSourceRangeSha256: getterCandidates[0].getterSourceRangeSha256,
+      storageStructName: declaration.storageStructName,
+    };
+  }
   const parsed: ParsedAuthoritySource = {
     parserId: AUTHORITY_SOURCE_PARSER.id,
     parserVersion: AUTHORITY_SOURCE_PARSER.version,
@@ -4344,6 +4472,7 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
     declarationRanges,
     enforcementRanges,
     constantValues,
+    storageFieldEvidence,
     enforcementOperators,
     /* INVARIANT D — the ceiling semantics are DERIVED from the operators the source actually uses. */
     derivedLimitSemantics: (() => {
@@ -5198,32 +5327,111 @@ export function compareClaimsAgainstDerivation(record: AuthorityBindingRecord, d
         `binding record block/batch state ${String(blockOrBatch.state)} disagrees with the parser conclusion ${parsed.blockOrBatchConclusion}`,
       );
     }
-    /* Enforcement-proof entries must name functions the parser actually found, with the parser's
-     * constant values and the parser's recomputed source ranges. */
+    /* Enforcement-proof entries must name functions and values the parser actually found. A
+     * storage-backed value is deliberately checked against the parsed field/getter/read graph,
+     * never against constantValues. */
     const entries =
       isObject(enforcement.manifest) && Array.isArray((enforcement.manifest as Record<string, unknown>).entries)
         ? ((enforcement.manifest as Record<string, unknown>).entries as Record<string, unknown>[])
         : [];
     for (const entry of entries.filter(isObject)) {
-      const fn = String(entry.enforcementFunction);
-      if (!parsed.enforcementFunctions.includes(fn)) {
-        errors.push(`binding record enforcement entry names ${fn}, which the parsed source does not enforce with`);
+      const sourceKind = String(entry.sourceKind);
+      if (sourceKind === "CONSTANT") {
+        const fn = String(entry.enforcementFunction);
+        if (!parsed.enforcementFunctions.includes(fn)) {
+          errors.push(`binding record enforcement entry names ${fn}, which the parsed source does not enforce with`);
+          continue;
+        }
+        const constantName = String(entry.constantName);
+        const parsedValue = parsed.constantValues[constantName];
+        if (parsedValue === undefined) {
+          errors.push(`binding record enforcement entry names constant ${constantName}, absent from the parsed source`);
+        } else if (parsedValue !== entry.constantValue) {
+          errors.push(`binding record enforcement entry ${constantName} value disagrees with the parsed source`);
+        }
+        const declarationRange = parsed.declarationRanges[constantName];
+        if (declarationRange !== undefined && entry.declarationSourceRangeSha256 !== declarationRange.sha256) {
+          errors.push(`binding record enforcement entry ${constantName} declaration range digest was not recomputed`);
+        }
+        const enforcementRange = parsed.enforcementRanges[fn];
+        if (enforcementRange !== undefined && entry.enforcementSourceRangeSha256 !== enforcementRange.sha256) {
+          errors.push(`binding record enforcement entry ${fn} enforcement range digest was not recomputed`);
+        }
         continue;
       }
-      const constantName = String(entry.constantName);
-      const parsedValue = parsed.constantValues[constantName];
-      if (parsedValue === undefined) {
-        errors.push(`binding record enforcement entry names constant ${constantName}, absent from the parsed source`);
-      } else if (parsedValue !== entry.constantValue) {
-        errors.push(`binding record enforcement entry ${constantName} value disagrees with the parsed source`);
+      if (sourceKind !== "STORAGE_FIELD") continue;
+
+      const fieldName = String(entry.storageFieldName);
+      const evidence = parsed.storageFieldEvidence[fieldName];
+      if (evidence === undefined) {
+        errors.push(
+          `binding record storage field ${fieldName} is absent from the authenticated storage-field evidence`,
+        );
+        continue;
       }
-      const declarationRange = parsed.declarationRanges[constantName];
-      if (declarationRange !== undefined && entry.declarationSourceRangeSha256 !== declarationRange.sha256) {
-        errors.push(`binding record enforcement entry ${constantName} declaration range digest was not recomputed`);
+      if (entry.storageFieldType !== evidence.fieldType) {
+        errors.push(`binding record storage field ${fieldName} type disagrees with the parsed source`);
       }
-      const enforcementRange = parsed.enforcementRanges[fn];
-      if (enforcementRange !== undefined && entry.enforcementSourceRangeSha256 !== enforcementRange.sha256) {
-        errors.push(`binding record enforcement entry ${fn} enforcement range digest was not recomputed`);
+      if (entry.storageStructName !== evidence.storageStructName) {
+        errors.push(`binding record storage field ${fieldName} struct disagrees with the parsed source`);
+      }
+      if (entry.storageFieldDeclarationSourceRangeSha256 !== evidence.declarationSourceRangeSha256) {
+        errors.push(`binding record storage field ${fieldName} declaration range digest was not recomputed`);
+      }
+      if (entry.getterSignature !== evidence.getterSignature) {
+        errors.push(`binding record storage field ${fieldName} getter disagrees with the parsed source`);
+      }
+      if (entry.getterReturnType !== evidence.getterReturnType) {
+        errors.push(`binding record storage field ${fieldName} getter return type disagrees with the parsed source`);
+      }
+      if (entry.getterReadExpression !== evidence.getterReadExpression) {
+        errors.push(`binding record storage field ${fieldName} getter read disagrees with the parsed source`);
+      }
+      if (entry.getterSourceRangeSha256 !== evidence.getterSourceRangeSha256) {
+        errors.push(`binding record storage field ${fieldName} getter range digest was not recomputed`);
+      }
+      const claimedReads = Array.isArray(entry.enforcementReads) ? entry.enforcementReads : [];
+      const expectedReads = evidence.enforcementReads;
+      if (canonicalJson(claimedReads) !== canonicalJson(expectedReads)) {
+        errors.push(`binding record storage field ${fieldName} enforcement reads disagree with the parsed source`);
+      }
+      for (const read of expectedReads) {
+        const operator = parsed.enforcementOperators[read.functionName];
+        if (operator !== undefined && operator !== entry.comparisonOperator) {
+          errors.push(
+            `binding record storage field ${fieldName} comparison operator disagrees with ${read.functionName}`,
+          );
+        }
+      }
+      const getterSpecs = isObject(record.onChainInterface)
+        ? (record.onChainInterface.limitGetterSpecs as Record<string, unknown>[] | undefined)
+        : undefined;
+      const getterSpec = Array.isArray(getterSpecs)
+        ? getterSpecs.find((spec) => isObject(spec) && spec.controlId === entry.controlId)
+        : undefined;
+      if (!isObject(getterSpec)) {
+        errors.push(`binding record storage field ${fieldName} has no authenticated getter specification`);
+      } else {
+        if (
+          getterSpec.signature !== entry.getterSignature ||
+          getterSpec.selector !== keccakSelector(String(entry.getterSignature))
+        ) {
+          errors.push(
+            `binding record storage field ${fieldName} getter specification disagrees with its source evidence`,
+          );
+        }
+        if (getterSpec.returnType !== entry.getterReturnType) {
+          errors.push(`binding record storage field ${fieldName} getter ABI type disagrees with its source evidence`);
+        }
+      }
+      const expectedStorageValue =
+        entry.controlId === "BLOCK_OR_BATCH_HCU"
+          ? blockOrBatch.value
+          : entry.controlId === "TRANSACTION_TOTAL_HCU"
+            ? (record.limits as Record<string, unknown> | undefined)?.expectedTransactionTotal
+            : (record.limits as Record<string, unknown> | undefined)?.expectedTransactionDepth;
+      if (entry.storageValue !== expectedStorageValue) {
+        errors.push(`binding record storage field ${fieldName} value disagrees with the binding proof value`);
       }
     }
   }
@@ -6249,6 +6457,7 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
         if (!isObject(proofEntry)) {
           errors.push(`binding record enforcementEvidence.${field} has no entry in the enforcement proof manifest`);
         } else if (
+          proofEntry.sourceKind !== "CONSTANT" ||
           proofEntry.constantName !== entry.constantName ||
           proofEntry.constantValue !== entry.constantValue ||
           proofEntry.comparisonOperator !== entry.comparisonOperator
@@ -6296,15 +6505,31 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
             errors.push(`binding record enforcementProof entry ${index} must be an object`);
             continue;
           }
+          const sourceKind = entry.sourceKind;
+          const entryFields =
+            sourceKind === "CONSTANT"
+              ? ENFORCEMENT_PROOF_CONSTANT_ENTRY_FIELDS
+              : sourceKind === "STORAGE_FIELD"
+                ? ENFORCEMENT_PROOF_STORAGE_ENTRY_FIELDS
+                : ENFORCEMENT_PROOF_ENTRY_FIELDS;
+          if (typeof sourceKind !== "string" || !ENFORCEMENT_VALUE_SOURCE_KINDS.includes(sourceKind)) {
+            errors.push(`binding record enforcementProof entry ${index} has an unknown source kind`);
+          }
           for (const key of Object.keys(entry)) {
-            if (!ENFORCEMENT_PROOF_ENTRY_FIELDS.includes(key)) {
+            if (!entryFields.includes(key)) {
               errors.push(`binding record enforcementProof entry ${index} has an unpermitted field ${key}`);
             }
           }
-          for (const field of ENFORCEMENT_PROOF_ENTRY_FIELDS) {
+          for (const field of entryFields) {
             if (!(field in entry)) errors.push(`binding record enforcementProof entry ${index} is missing ${field}`);
           }
-          for (const digestField of ["declarationSourceRangeSha256", "enforcementSourceRangeSha256"] as const) {
+          const digestFields =
+            sourceKind === "CONSTANT"
+              ? (["declarationSourceRangeSha256", "enforcementSourceRangeSha256"] as const)
+              : sourceKind === "STORAGE_FIELD"
+                ? (["getterSourceRangeSha256", "storageFieldDeclarationSourceRangeSha256"] as const)
+                : ([] as const);
+          for (const digestField of digestFields) {
             if (typeof entry[digestField] !== "string" || !HEX64.test(entry[digestField] as string)) {
               errors.push(`binding record enforcementProof entry ${index} ${digestField} must be a 64-hex digest`);
             }
@@ -6319,20 +6544,98 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
           }
           seenControls.add(entry.controlId);
           orderedIds.push(entry.controlId);
-          for (const field of ["constantName", "enforcementFunction", "revertErrorName", "sourcePath"] as const) {
+          for (const field of ["revertErrorName", "sourcePath"] as const) {
             if (typeof entry[field] !== "string" || (entry[field] as string).length === 0) {
               errors.push(`binding record enforcementProof entry ${index} requires ${field}`);
             }
           }
-          if (typeof entry.constantValue !== "string" || !DECIMAL.test(entry.constantValue as string)) {
-            errors.push(`binding record enforcementProof entry ${index} requires a decimal constant value`);
+          if (sourceKind === "CONSTANT") {
+            for (const field of ["constantName", "enforcementFunction"] as const) {
+              if (typeof entry[field] !== "string" || (entry[field] as string).length === 0) {
+                errors.push(`binding record enforcementProof entry ${index} requires ${field}`);
+              }
+            }
+            if (typeof entry.constantValue !== "string" || !DECIMAL.test(entry.constantValue as string)) {
+              errors.push(`binding record enforcementProof entry ${index} requires a decimal constant value`);
+            }
+          }
+          if (sourceKind === "STORAGE_FIELD") {
+            for (const field of [
+              "storageFieldName",
+              "storageStructName",
+              "storageFieldType",
+              "getterSignature",
+              "getterReturnType",
+            ] as const) {
+              if (typeof entry[field] !== "string" || (entry[field] as string).length === 0) {
+                errors.push(`binding record enforcementProof entry ${index} requires ${field}`);
+              }
+            }
+            if (typeof entry.storageValue !== "string" || !DECIMAL.test(entry.storageValue as string)) {
+              errors.push(`binding record enforcementProof entry ${index} requires a decimal storage value`);
+            } else if (BigInt(entry.storageValue as string) >= 2n ** 48n) {
+              errors.push(`binding record enforcementProof entry ${index} storage value exceeds uint48`);
+            }
+            if (entry.storageFieldType !== "uint48") {
+              errors.push(`binding record enforcementProof entry ${index} storage field type must be uint48`);
+            }
+            if (entry.getterReturnType !== "uint48") {
+              errors.push(`binding record enforcementProof entry ${index} getter return type must be uint48`);
+            }
+            if (
+              typeof entry.getterSignature === "string" &&
+              !new RegExp(CANONICAL_SIGNATURE_GRAMMAR, "u").test(entry.getterSignature)
+            ) {
+              errors.push(`binding record enforcementProof entry ${index} getter signature is not canonical`);
+            }
+            if (!Array.isArray(entry.enforcementReads) || entry.enforcementReads.length === 0) {
+              errors.push(`binding record enforcementProof entry ${index} requires enforcement reads`);
+            } else {
+              for (const [readIndex, read] of entry.enforcementReads.entries()) {
+                if (!isObject(read)) {
+                  errors.push(
+                    `binding record enforcementProof entry ${index} enforcement read ${readIndex} must be an object`,
+                  );
+                  continue;
+                }
+                for (const field of ENFORCEMENT_PROOF_STORAGE_READ_FIELDS) {
+                  if (!(field in read))
+                    errors.push(
+                      `binding record enforcementProof entry ${index} enforcement read ${readIndex} is missing ${field}`,
+                    );
+                }
+                for (const key of Object.keys(read)) {
+                  if (!ENFORCEMENT_PROOF_STORAGE_READ_FIELDS.includes(key)) {
+                    errors.push(
+                      `binding record enforcementProof entry ${index} enforcement read ${readIndex} has an unpermitted field ${key}`,
+                    );
+                  }
+                }
+                if (typeof read.functionName !== "string" || read.functionName.length === 0) {
+                  errors.push(
+                    `binding record enforcementProof entry ${index} enforcement read ${readIndex} requires functionName`,
+                  );
+                }
+                if (typeof read.expression !== "string" || read.expression.length === 0) {
+                  errors.push(
+                    `binding record enforcementProof entry ${index} enforcement read ${readIndex} requires expression`,
+                  );
+                }
+                if (typeof read.sourceRangeSha256 !== "string" || !HEX64.test(read.sourceRangeSha256)) {
+                  errors.push(
+                    `binding record enforcementProof entry ${index} enforcement read ${readIndex} requires a source-range digest`,
+                  );
+                }
+              }
+            }
           }
           if (entry.comparisonOperator !== ">" && entry.comparisonOperator !== ">=") {
             errors.push(`binding record enforcementProof entry ${index} comparisonOperator must be > or >=`);
           }
-          /* The two range digests describe two different ranges; equal digests mean one range was
-           * reused for both claims. */
-          if (entry.declarationSourceRangeSha256 === entry.enforcementSourceRangeSha256) {
+          /* The two constant ranges describe different source regions; storage proofs have a
+           * declaration range and a getter range, while each enforcement read carries its own
+           * authenticated range. */
+          if (sourceKind === "CONSTANT" && entry.declarationSourceRangeSha256 === entry.enforcementSourceRangeSha256) {
             errors.push(
               `binding record enforcementProof entry ${index} reuses one source range for the declaration and the enforcement`,
             );
@@ -6466,7 +6769,8 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
         errors.push("binding record claims block/batch PROVEN_PRESENT without an enforcement-proof entry");
       } else {
         /* F37 — presence is cross-checked field by field, not merely by the entry existing. */
-        if (entry.constantValue !== blockOrBatch.value) {
+        const proofValue = entry.sourceKind === "STORAGE_FIELD" ? entry.storageValue : entry.constantValue;
+        if (proofValue !== blockOrBatch.value) {
           errors.push("binding record block/batch value disagrees with its enforcement-proof entry");
         }
         if (
@@ -6478,7 +6782,13 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
         if (typeof entry.sourcePath !== "string" || (entry.sourcePath as string).length === 0) {
           errors.push("binding record block/batch enforcement-proof entry requires its source path");
         }
-        if (typeof entry.enforcementFunction !== "string" || (entry.enforcementFunction as string).length === 0) {
+        const enforcementFunctions =
+          entry.sourceKind === "STORAGE_FIELD" && Array.isArray(entry.enforcementReads)
+            ? entry.enforcementReads.filter(isObject).map((read) => String(read.functionName))
+            : typeof entry.enforcementFunction === "string"
+              ? [entry.enforcementFunction]
+              : [];
+        if (enforcementFunctions.length === 0) {
           errors.push("binding record block/batch enforcement-proof entry requires its enforcement function");
         }
       }
@@ -6602,8 +6912,16 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
             errors.push(`binding record interface call ${callId} must target ${spec.targetRole}`);
           }
           /* Nor is the return type: it decides how the answer is decoded. */
-          if (entry.returnType !== spec.returnType) {
-            errors.push(`binding record interface call ${callId} must return ${spec.returnType}`);
+          if (
+            spec.signature.length > 0
+              ? entry.returnType !== spec.returnType
+              : !LIMIT_GETTER_RETURN_TYPES.includes(String(entry.returnType))
+          ) {
+            errors.push(
+              spec.signature.length > 0
+                ? `binding record interface call ${callId} must return ${spec.returnType}`
+                : `binding record interface call ${callId} must return a supported limit getter type`,
+            );
           }
           const signature = entry.signature;
           if (typeof signature !== "string" || !new RegExp(CANONICAL_SIGNATURE_GRAMMAR, "u").test(signature)) {
@@ -6742,8 +7060,8 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
           if (!Array.isArray(spec.argumentValues) || spec.argumentValues.length !== 0) {
             errors.push(`binding record limitGetterSpec ${index} must declare no argument values`);
           }
-          if (spec.returnType !== "uint256") {
-            errors.push(`binding record limitGetterSpec ${index} must return uint256`);
+          if (!LIMIT_GETTER_RETURN_TYPES.includes(String(spec.returnType))) {
+            errors.push(`binding record limitGetterSpec ${index} must return a supported uint limit type`);
           }
           /* F40 — the spec and the interface manifest entry execution consumes must be the same
            * call. Two declarations of one getter that could differ is exactly the defect. */
@@ -7205,6 +7523,12 @@ export function decodeUint256(returnData: unknown): bigint | null {
   return BigInt(`0x${hex}`);
 }
 
+export function decodeUint48(returnData: unknown): bigint | null {
+  const decoded = decodeUint256(returnData);
+  if (decoded === null || decoded >= 2n ** 48n) return null;
+  return decoded;
+}
+
 export function decodeAbiString(returnData: unknown): string | null {
   if (typeof returnData !== "string") return null;
   const hex = returnData.replace(/^0x/u, "");
@@ -7621,6 +7945,7 @@ export async function runLiveAuthorityVerification(
           : "BLOCK_OR_BATCH_HCU";
     const spec = specs.find((entry) => isObject(entry) && entry.controlId === controlId);
     const signature = spec && typeof spec.signature === "string" ? spec.signature : undefined;
+    const returnType = spec && typeof spec.returnType === "string" ? spec.returnType : undefined;
     const mandatory = field !== "blockOrBatchCap";
 
     /* F24 — a generic NOT_APPLICABLE can never satisfy a mandatory per-transaction control. */
@@ -7671,7 +7996,7 @@ export async function runLiveAuthorityVerification(
       method: "eth_call",
       params: [{ to: target, data: declaredCalldata(LIMIT_CONTROL_INTERFACE_CALLS[controlId]) }, pinnedHex],
     });
-    const decoded = decodeUint256(raw);
+    const decoded = returnType === "uint48" ? decodeUint48(raw) : returnType === "uint256" ? decodeUint256(raw) : null;
     if (decoded === null) {
       failures.push(`LIMIT_GETTER_MALFORMED_RESULT:${field}`);
       return { getterAvailability: "AVAILABLE_AND_READ_ON_CHAIN", onChainValue: "UNRESOLVED", result: "MISMATCH" };

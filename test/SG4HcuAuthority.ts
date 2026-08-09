@@ -62,8 +62,10 @@ import {
   checkStaleAddressUsage,
   classifyBlockOrBatchControl,
   classifyCodeIdentity,
+  compareClaimsAgainstDerivation,
   compareOperationTables,
   createGuardedTransport,
+  decodeUint48,
   decodeUint256,
   enumerateAuthoritySurface,
   enumerateLimitConstants,
@@ -1115,6 +1117,7 @@ function enforcementProofManifestFixture(overrides: Record<string, unknown> = {}
     sourcePath: String(AUTHORITY_TUPLE.path),
     declarationSourceRangeSha256: parsed.declarationRanges[constantName]?.sha256,
     enforcementSourceRangeSha256: parsed.enforcementRanges[enforcementFunction]?.sha256,
+    sourceKind: "CONSTANT",
   });
   return {
     schema: "zama-szn4.sg4-enforcement-proof-manifest.v1",
@@ -6741,6 +6744,7 @@ describe("SG-4 HCU authority: derived proofs", function () {
           enforcementFunction: "_updateAndVerifyHCUBlockLimit",
           enforcementSourceRangeSha256: sha256("enforcement:block"),
           revertErrorName: "HCUBlockLimitExceeded",
+          sourceKind: "CONSTANT",
           sourcePath: String(AUTHORITY_TUPLE.path),
         },
         ...(enforcementProofManifestFixture().entries as Record<string, unknown>[]),
@@ -7424,6 +7428,114 @@ describe("SG-4 HCU authority: corrected official source extractors", function ()
     return parseAuthoritySource({ subject: "authoritySource", bytes, contentSha256: sha256(bytes) });
   };
 
+  const officialStorageProofRecord = () => {
+    const parsed = officialAuthority();
+    const controls = [
+      ["BLOCK_OR_BATCH_HCU", "globalHCUCapPerBlock", "100000000", "HCUBlockLimitExceeded"],
+      ["TRANSACTION_DEPTH_HCU", "maxHCUDepthPerTx", "5000000", "HCUTransactionDepthLimitExceeded"],
+      ["TRANSACTION_TOTAL_HCU", "maxHCUPerTx", "20000000", "HCUTransactionLimitExceeded"],
+    ] as const;
+    const entries = controls.map(([controlId, fieldName, storageValue, revertErrorName]) => {
+      const evidence = parsed.storageFieldEvidence[fieldName];
+      return {
+        comparisonOperator: ">",
+        controlId,
+        enforcementReads: evidence.enforcementReads,
+        getterReadExpression: evidence.getterReadExpression,
+        getterReturnType: evidence.getterReturnType,
+        getterSignature: evidence.getterSignature,
+        getterSourceRangeSha256: evidence.getterSourceRangeSha256,
+        revertErrorName,
+        sourceKind: "STORAGE_FIELD",
+        sourcePath: String(AUTHORITY_TUPLE.path),
+        storageFieldDeclarationSourceRangeSha256: evidence.declarationSourceRangeSha256,
+        storageFieldName: evidence.fieldName,
+        storageFieldType: evidence.fieldType,
+        storageStructName: evidence.storageStructName,
+        storageValue,
+      };
+    });
+    const enumeration = {
+      ...enumerationManifestFixture(),
+      sourceContentSha256: parsed.sourceContentSha256,
+      declarations: parsed.declarations,
+      callableFunctions: parsed.callableFunctions,
+      errors: parsed.errors,
+      mappings: parsed.mappings,
+      storageStructFields: parsed.storageStructFields,
+      storagePrimitives: parsed.storagePrimitives,
+      enumerationComplete: parsed.parseCompleteness === "PARSED_COMPLETE_NO_RESIDUE",
+      parseCompleteness: parsed.parseCompleteness,
+    };
+    const enforcement = {
+      schema: "zama-szn4.sg4-enforcement-proof-manifest.v1",
+      version: 1,
+      provenanceSubject: "CURRENT_OFFICIAL_AUTHORITY_SOURCE",
+      sourceContentSha256: parsed.sourceContentSha256,
+      entries,
+    };
+    const baseInterface = bindingRecordFixture().onChainInterface as Record<string, unknown>;
+    const baseManifest = baseInterface.interfaceManifest as Record<string, unknown>;
+    const limitGetterSpecs = controls.map(([controlId, fieldName]) => {
+      const evidence = parsed.storageFieldEvidence[fieldName];
+      return {
+        argumentTypes: [],
+        argumentValues: [],
+        controlId,
+        returnType: evidence.getterReturnType,
+        selector: keccakId(evidence.getterSignature).slice(0, 10),
+        signature: evidence.getterSignature,
+        state: "AVAILABLE_AND_READ_ON_CHAIN",
+        targetRole: "AUTHORITY",
+      };
+    });
+    const interfaceEntries = (baseManifest.entries as Record<string, unknown>[]).map((entry) => {
+      const replacement = entries.find(
+        (candidate) =>
+          candidate.controlId ===
+          (
+            {
+              TRANSACTION_TOTAL_HCU_GETTER: "TRANSACTION_TOTAL_HCU",
+              TRANSACTION_DEPTH_HCU_GETTER: "TRANSACTION_DEPTH_HCU",
+              BLOCK_OR_BATCH_HCU_GETTER: "BLOCK_OR_BATCH_HCU",
+            } as Record<string, string>
+          )[String(entry.callId)],
+      );
+      if (replacement === undefined) return entry;
+      return {
+        ...entry,
+        returnType: replacement.getterReturnType,
+        selector: keccakId(replacement.getterSignature).slice(0, 10),
+        signature: replacement.getterSignature,
+      };
+    });
+    const record = bindingRecordFixture({
+      authorityEnumeration: { manifest: enumeration, manifestSha256: sha256(canonicalJson(enumeration)) },
+      blockOrBatch: {
+        state: "PROVEN_PRESENT",
+        value: "100000000",
+        proof: "The authenticated source enforces the storage-backed per-block ceiling.",
+      },
+      enforcementProof: { manifest: enforcement, manifestSha256: sha256(canonicalJson(enforcement)) },
+      limits: {
+        ...(bindingRecordFixture().limits as Record<string, unknown>),
+        expectedTransactionDepth: "5000000",
+        expectedTransactionTotal: "20000000",
+        getterAvailability: {
+          blockOrBatchCap: "AVAILABLE_AND_READ_ON_CHAIN",
+          transactionDepth: "AVAILABLE_AND_READ_ON_CHAIN",
+          transactionTotal: "AVAILABLE_AND_READ_ON_CHAIN",
+        },
+      },
+      onChainInterface: {
+        ...baseInterface,
+        interfaceManifest: { ...baseManifest, entries: interfaceEntries },
+        limitGetterSpecs,
+      },
+    });
+    return { parsed, record };
+  };
+
   it("parses the exact official PriceData schema and nested nBucketed maps", function () {
     const parsed = officialPrice();
     expect(parsed.sourceContentSha256).to.equal("48363444ec4af98d2139572be1c3fa545c9d9cfa93d72a353237f8137cc4326a");
@@ -7500,6 +7612,165 @@ describe("SG-4 HCU authority: corrected official source extractors", function ()
     expect(parsed.declarations).to.include("HCU_LIMIT_STORAGE_LOCATION");
     expect(parsed.derivedLimitSemantics).to.equal("CONFIGURED_CEILING_INCLUSIVE_REVERT_ON_GREATER_THAN");
     expect(parsed.blockOrBatchConclusion).to.equal("PRESENT");
+  });
+
+  it("derives all three official runtime controls as storage fields, not constants", function () {
+    const parsed = officialAuthority();
+    const global = parsed.storageFieldEvidence.globalHCUCapPerBlock;
+    const total = parsed.storageFieldEvidence.maxHCUPerTx;
+    const depth = parsed.storageFieldEvidence.maxHCUDepthPerTx;
+    expect(global).to.include({
+      fieldName: "globalHCUCapPerBlock",
+      fieldType: "uint48",
+      getterSignature: "getGlobalHCUCapPerBlock()",
+      getterReturnType: "uint48",
+      getterReadExpression: "$.globalHCUCapPerBlock",
+      storageStructName: "HCULimitStorage",
+    });
+    expect(global.enforcementReads.map(({ expression, functionName }) => ({ expression, functionName }))).to.deep.equal(
+      [{ expression: "$.globalHCUCapPerBlock", functionName: "_updateAndVerifyHCUBlockLimit" }],
+    );
+    expect(total).to.include({
+      fieldName: "maxHCUPerTx",
+      fieldType: "uint48",
+      getterSignature: "getMaxHCUPerTx()",
+      getterReturnType: "uint48",
+      getterReadExpression: "_getHCULimitStorage().maxHCUPerTx",
+    });
+    expect(total.enforcementReads.map(({ expression, functionName }) => ({ expression, functionName }))).to.deep.equal([
+      { expression: "_getHCULimitStorage().maxHCUPerTx", functionName: "_updateAndVerifyHCUTransactionLimit" },
+    ]);
+    expect(depth).to.include({
+      fieldName: "maxHCUDepthPerTx",
+      fieldType: "uint48",
+      getterSignature: "getMaxHCUDepthPerTx()",
+      getterReturnType: "uint48",
+      getterReadExpression: "_getHCULimitStorage().maxHCUDepthPerTx",
+    });
+    expect(depth.enforcementReads.map((read) => read.functionName)).to.deep.equal([
+      "_adjustAndCheckFheTransactionLimitOneOp",
+      "_adjustAndCheckFheTransactionLimitThreeOps",
+      "_adjustAndCheckFheTransactionLimitTwoOps",
+      "checkHCUForFheIsIn",
+      "checkHCUForFheSum",
+    ]);
+    expect(parsed.constantValues).to.not.have.property("globalHCUCapPerBlock");
+    expect(parsed.constantValues).to.not.have.property("maxHCUPerTx");
+    expect(parsed.constantValues).to.not.have.property("maxHCUDepthPerTx");
+  });
+
+  it("replays official storage-proof derivation without manufacturing a source constant", function () {
+    const { parsed, record } = officialStorageProofRecord();
+    const errors = compareClaimsAgainstDerivation(
+      record as never,
+      {
+        blockers: [],
+        priceSchedule: null,
+        authoritySource: parsed,
+        artifactBuild: null,
+      } as never,
+    );
+    expect(errors).to.deep.equal([]);
+  });
+
+  it("keeps constant proofs closed and rejects storage/constant substitutions", function () {
+    const constant = enforcementProofManifestFixture().entries as Record<string, unknown>[];
+    const constantWithStorageField = enforcementProofManifestFixture({
+      entries: constant.map((entry) => ({ ...entry, storageFieldName: "maxHCUPerTx" })),
+    });
+    expect(
+      validateAuthorityBindingRecord(
+        bindingRecordFixture({
+          enforcementProof: {
+            manifest: constantWithStorageField,
+            manifestSha256: sha256(canonicalJson(constantWithStorageField)),
+          },
+        }),
+      ).join(" | "),
+    ).to.match(/unpermitted field storageFieldName/u);
+
+    const { record } = officialStorageProofRecord();
+    const storageManifest = (record.enforcementProof as Record<string, unknown>).manifest as Record<string, unknown>;
+    const storageWithConstant = {
+      ...storageManifest,
+      entries: (storageManifest.entries as Record<string, unknown>[]).map((entry) => ({
+        ...entry,
+        constantName: "MAX_HOMOMORPHIC_COMPUTE_UNITS_PER_TX",
+      })),
+    };
+    expect(
+      validateAuthorityBindingRecord(
+        bindingRecordFixture({
+          enforcementProof: {
+            manifest: storageWithConstant,
+            manifestSha256: sha256(canonicalJson(storageWithConstant)),
+          },
+        }),
+      ).join(" | "),
+    ).to.match(/unpermitted field constantName/u);
+  });
+
+  it("rejects wrong storage getter, field, type, cross-wiring, and runtime value", function () {
+    const { parsed, record } = officialStorageProofRecord();
+    const base = (record.enforcementProof as Record<string, unknown>).manifest as Record<string, unknown>;
+    const mutate = (entryChanges: Record<string, unknown>) => {
+      const manifest = {
+        ...base,
+        entries: (base.entries as Record<string, unknown>[]).map((entry, index) =>
+          index === 0 ? { ...entry, ...entryChanges } : entry,
+        ),
+      };
+      return compareClaimsAgainstDerivation(
+        {
+          ...record,
+          enforcementProof: { manifest, manifestSha256: sha256(canonicalJson(manifest)) },
+        } as never,
+        { blockers: [], priceSchedule: null, authoritySource: parsed, artifactBuild: null } as never,
+      ).join(" | ");
+    };
+    expect(mutate({ getterSignature: "getMaxHCUPerTx()" })).to.match(/getter disagrees/u);
+    expect(mutate({ storageFieldName: "doesNotExist" })).to.match(/absent from the authenticated/u);
+    expect(mutate({ storageFieldName: "maxHCUPerTx" })).to.match(/disagrees/u);
+    expect(mutate({ storageFieldType: "uint256" })).to.match(/type disagrees/u);
+    expect(mutate({ storageFieldName: "maxHCUPerTx", getterSignature: "getMaxHCUPerTx()" })).to.match(
+      /getter disagrees|enforcement reads disagree/u,
+    );
+    expect(mutate({ storageValue: "99999999" })).to.match(/value disagrees/u);
+  });
+
+  it("plans uint48 getters and fails closed on malformed or out-of-range results", async function () {
+    expect(decodeUint48(`0x${"00".repeat(26)}${"ff".repeat(6)}`)).to.equal(2n ** 48n - 1n);
+    expect(decodeUint48(`0x${"01"}${"00".repeat(31)}`)).to.equal(null);
+    expect(decodeUint48("0x00")).to.equal(null);
+    expect(decodeUint48(`0x${"00".repeat(32)}00`)).to.equal(null);
+    const { record } = officialStorageProofRecord();
+    const plan = generateLiveCallPlan(record as never);
+    expect(
+      plan.filter((call) => call.callId.endsWith("_HCU_GETTER")).map((call) => call.expectedResponse),
+    ).to.deep.equal(["UINT48_WORD", "UINT48_WORD", "UINT48_WORD"]);
+    const getters = plan.filter((call) => call.callId.endsWith("_HCU_GETTER"));
+    expect(getters).to.have.lengthOf(3);
+    const request = (call: (typeof getters)[number]) => {
+      const resolved = resolvePlannedRequest(
+        call,
+        (role) => (role === "AUTHORITY" ? AUTHORITY_PROXY : null),
+        PINNED_HEX,
+      );
+      if (!resolved.ok) throw new Error(resolved.reason);
+      return { method: call.method, params: resolved.params };
+    };
+    const inner = { send: async () => uintWord("1") };
+    const guarded = createGuardedTransport(inner);
+    guarded.bindToPinnedBlock(PINNED_HEX);
+    guarded.enforcePlan(getters, (role) => (role === "AUTHORITY" ? AUTHORITY_PROXY : null));
+    await guarded.send(request(getters[0]));
+    expect(await rejection(() => guarded.send(request(getters[2])))).to.match(/TRANSACTION_DEPTH_HCU_GETTER/u);
+
+    const extra = createGuardedTransport(inner);
+    extra.bindToPinnedBlock(PINNED_HEX);
+    extra.enforcePlan([getters[0]], (role) => (role === "AUTHORITY" ? AUTHORITY_PROXY : null));
+    await extra.send(request(getters[0]));
+    expect(await rejection(() => extra.send(request(getters[0])))).to.match(/unplanned extra call/u);
   });
 
   it("keeps selected operation syntax and semantic mutations fail-closed or observable", function () {
