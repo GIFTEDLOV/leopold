@@ -3445,9 +3445,10 @@ export function authenticateSourceMaterial(record: AuthorityBindingRecord, subje
  * INVARIANT B — the FULL authoritative price schedule, extracted from authenticated bytes.
  *
  * The source form is the upstream operators-prices table: one entry per operation, each with a
- * cost group ("scalar" / "nonScalar" / "types") mapping a cost-key type to an integer price. The
- * extractor produces one canonical entry per (operation, group, type) VARIANT — the whole schedule,
- * not the SG-4 subset — so completeness is a property of the parse rather than a claim.
+ * PriceData operator records carry their support metadata plus typed scalar/nonScalar/types maps or
+ * typed nBucketed maps. The extractor produces one canonical entry per (operation, group, type)
+ * VARIANT and separately retains every bucketed cost — the whole schedule, not the SG-4 subset — so
+ * completeness is a property of the parse rather than a claim.
  * ------------------------------------------------------------------------------------------- */
 
 export type ExtractedPriceVariant = {
@@ -3457,81 +3458,387 @@ export type ExtractedPriceVariant = {
   cost: number;
 };
 
+export type ExtractedPriceBucketVariant = ExtractedPriceVariant & {
+  bucketName: string;
+};
+
+export type ExtractedPriceOperator = {
+  supportScalar: boolean;
+  numberInputs: number;
+  groups: string[];
+  typedKeys: Record<string, string[]>;
+  bucketNames: Record<string, string[]>;
+};
+
 export type ExtractedPriceSchedule = {
   extractorId: string;
   extractorVersion: number;
   sourceContentSha256: string;
   operations: string[];
   variants: ExtractedPriceVariant[];
+  bucketedVariants: ExtractedPriceBucketVariant[];
+  operatorMetadata: Record<string, ExtractedPriceOperator>;
   failures: string[];
 };
 
+/* Authentication remains per-call. These caches only memoize the pure structural extraction
+ * after the selected bytes have already been authenticated, which keeps repeated validation from
+ * re-walking the same deterministic source document. */
+const PRICE_SCHEDULE_EXTRACTION_CACHE = new Map<string, ExtractedPriceSchedule>();
+
 const PRICE_OPERATION_BLOCK = /^\s*([A-Za-z][A-Za-z0-9_]*)\s*:\s*\{\s*$/u;
-const PRICE_GROUP_BLOCK = /^\s*(scalar|nonScalar|types)\s*:\s*\{\s*$/u;
+const PRICE_ROOT_BLOCK = /^\s*(?:export\s+)?const\s+[A-Za-z][A-Za-z0-9_]*\s*(?::[^=]+)?=\s*\{\s*$/u;
+const PRICE_GROUP_BLOCK = /^\s*(scalar|nonScalar|types|nBucketed)\s*:\s*\{\s*$/u;
+const PRICE_TYPED_BLOCK = /^\s*([A-Za-z][A-Za-z0-9_]*)\s*:\s*\{\s*$/u;
+const PRICE_INLINE_TYPED_BLOCK = /^\s*([A-Za-z][A-Za-z0-9_]*)\s*:\s*\{\s*(.*?)\s*\}\s*,?\s*$/u;
 const PRICE_ENTRY = /^\s*([A-Za-z][A-Za-z0-9_]*)\s*:\s*([0-9][0-9_]*)\s*,?\s*$/u;
+const PRICE_BOOLEAN_FIELD = /^\s*supportScalar\s*:\s*(true|false)\s*,?\s*$/u;
+const PRICE_NUMBER_INPUTS_FIELD = /^\s*numberInputs\s*:\s*(-?[0-9][0-9_]*)\s*,?\s*$/u;
 const PRICE_CLOSE = /^\s*\}\s*,?\s*$/u;
+
+/* Closed against the official FheTypeName and NBucketedCost declarations. */
+const PRICE_TYPE_NAMES = new Set([
+  "Bool",
+  "Uint2",
+  "Uint4",
+  "Uint6",
+  "Uint8",
+  "Uint10",
+  "Uint12",
+  "Uint14",
+  "Uint16",
+  "Uint24",
+  "Uint32",
+  "Uint40",
+  "Uint48",
+  "Uint56",
+  "Uint64",
+  "Uint72",
+  "Uint80",
+  "Uint88",
+  "Uint96",
+  "Uint104",
+  "Uint112",
+  "Uint120",
+  "Uint128",
+  "Uint136",
+  "Uint144",
+  "Uint152",
+  "Uint160",
+  "Uint168",
+  "Uint176",
+  "Uint184",
+  "Uint192",
+  "Uint200",
+  "Uint208",
+  "Uint216",
+  "Uint224",
+  "Uint232",
+  "Uint240",
+  "Uint248",
+  "Uint256",
+  "Uint512",
+  "Uint1024",
+  "Uint2048",
+  "Int2",
+  "Int4",
+  "Int6",
+  "Int8",
+  "Int10",
+  "Int12",
+  "Int14",
+  "Int16",
+  "Int24",
+  "Int32",
+  "Int40",
+  "Int48",
+  "Int56",
+  "Int64",
+  "Int72",
+  "Int80",
+  "Int88",
+  "Int96",
+  "Int104",
+  "Int112",
+  "Int120",
+  "Int128",
+  "Int136",
+  "Int144",
+  "Int152",
+  "Int160",
+  "Int168",
+  "Int176",
+  "Int184",
+  "Int192",
+  "Int200",
+  "Int208",
+  "Int216",
+  "Int224",
+  "Int232",
+  "Int240",
+  "Int248",
+  "Int256",
+  "Int512",
+  "Int1024",
+  "Int2048",
+  "AsciiString",
+]);
+const PRICE_BUCKET_NAMES = new Set(["le10", "le30", "le60", "le100", "le128"]);
 
 export function extractPriceSchedule(material: AuthenticatedMaterial): ExtractedPriceSchedule {
   const failures: string[] = [];
   const variants: ExtractedPriceVariant[] = [];
+  const bucketedVariants: ExtractedPriceBucketVariant[] = [];
   const operations: string[] = [];
+  const operatorMetadata: Record<string, ExtractedPriceOperator> = {};
   const lines = material.bytes.toString("utf8").split(/\r?\n/u);
 
   let operation: string | null = null;
   let group: string | null = null;
-  let depth = 0;
+  let nestedType: string | null = null;
+  let seenFields = new Set<string>();
+  let supportScalar: boolean | null = null;
+  let numberInputs: number | null = null;
+  let typedKeys: Record<string, string[]> = {};
+  let bucketNames: Record<string, string[]> = {};
+
+  const resetOperation = (): void => {
+    operation = null;
+    group = null;
+    nestedType = null;
+    seenFields = new Set<string>();
+    supportScalar = null;
+    numberInputs = null;
+    typedKeys = {};
+    bucketNames = {};
+  };
+
+  const finishOperation = (index: number): void => {
+    if (operation === null) return;
+    if (supportScalar === null) failures.push(`MISSING_OPERATOR_FIELD:${operation}.supportScalar:line${index + 1}`);
+    if (numberInputs === null) failures.push(`MISSING_OPERATOR_FIELD:${operation}.numberInputs:line${index + 1}`);
+    if (supportScalar !== null && numberInputs !== null) {
+      operatorMetadata[operation] = {
+        supportScalar,
+        numberInputs,
+        groups: Object.keys(typedKeys).sort(),
+        typedKeys: Object.fromEntries(
+          Object.entries(typedKeys).map(([key, values]) => [key, [...new Set(values)].sort()]),
+        ),
+        bucketNames: Object.fromEntries(
+          Object.entries(bucketNames).map(([key, values]) => [key, [...new Set(values)].sort()]),
+        ),
+      };
+    }
+    resetOperation();
+  };
+
   for (const [index, line] of lines.entries()) {
-    if (line.trim().length === 0 || line.trim().startsWith("//") || line.trim().startsWith("*")) continue;
+    const trimmed = line.trim();
+    if (trimmed.length === 0 || trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
     if (operation === null) {
+      if (PRICE_ROOT_BLOCK.test(line)) continue;
       const match = PRICE_OPERATION_BLOCK.exec(line);
       if (match) {
         operation = match[1];
         if (operations.includes(operation)) failures.push(`DUPLICATE_OPERATION:${operation}:line${index + 1}`);
         operations.push(operation);
-        depth = 1;
+        seenFields = new Set<string>();
+        supportScalar = null;
+        numberInputs = null;
+        typedKeys = {};
+        bucketNames = {};
       }
       continue;
     }
-    if (group === null) {
-      const groupMatch = PRICE_GROUP_BLOCK.exec(line);
-      if (groupMatch) {
-        group = groupMatch[1];
-        depth = 2;
+
+    if (group === "nBucketed" && nestedType !== null) {
+      const entry = PRICE_ENTRY.exec(line);
+      if (entry) {
+        if (!PRICE_BUCKET_NAMES.has(entry[1])) {
+          failures.push(`UNKNOWN_BUCKET_NAME:${operation}.${nestedType}.${entry[1]}:line${index + 1}`);
+          continue;
+        }
+        const cost = Number.parseInt(entry[2].replace(/_/gu, ""), 10);
+        if (!Number.isSafeInteger(cost) || cost < 0) {
+          failures.push(`UNSAFE_COST:${operation}.nBucketed.${nestedType}.${entry[1]}:line${index + 1}`);
+          continue;
+        }
+        bucketNames[nestedType] ??= [];
+        if (bucketNames[nestedType].includes(entry[1])) {
+          failures.push(`DUPLICATE_BUCKET:${operation}.${nestedType}.${entry[1]}:line${index + 1}`);
+        }
+        bucketNames[nestedType].push(entry[1]);
+        bucketedVariants.push({
+          canonicalName: operation,
+          operandMode: "nBucketed",
+          costKeyType: nestedType,
+          bucketName: entry[1],
+          cost,
+        });
         continue;
       }
       if (PRICE_CLOSE.test(line)) {
-        operation = null;
-        depth = 0;
+        nestedType = null;
         continue;
       }
-      /* Anything else inside an operation block is an unrecognised dimension. Failing closed here
-       * is the point: an unparsed line could carry a price nobody compared. */
-      failures.push(`UNRECOGNIZED_OPERATION_MEMBER:${operation}:line${index + 1}`);
+      failures.push(`UNRECOGNIZED_BUCKET_MEMBER:${operation}.${nestedType}:line${index + 1}`);
       continue;
     }
-    const entry = PRICE_ENTRY.exec(line);
-    if (entry) {
-      const cost = Number.parseInt(entry[2].replace(/_/gu, ""), 10);
-      if (!Number.isSafeInteger(cost) || cost < 0) {
-        failures.push(`UNSAFE_COST:${operation}.${group}.${entry[1]}:line${index + 1}`);
+
+    if (group !== null) {
+      if (group === "nBucketed" && nestedType === null) {
+        const inline = PRICE_INLINE_TYPED_BLOCK.exec(line);
+        if (inline) {
+          if (!PRICE_TYPE_NAMES.has(inline[1])) {
+            failures.push(`UNKNOWN_PRICE_TYPE:${operation}.nBucketed.${inline[1]}:line${index + 1}`);
+            continue;
+          }
+          typedKeys[group] ??= [];
+          if (typedKeys[group].includes(inline[1])) {
+            failures.push(`DUPLICATE_PRICE_TYPE:${operation}.${group}.${inline[1]}:line${index + 1}`);
+          }
+          typedKeys[group].push(inline[1]);
+          const bucketFields = inline[2]
+            .split(",")
+            .map((entry) => entry.trim())
+            .filter((entry) => entry.length > 0);
+          if (bucketFields.length === 0) {
+            failures.push(`EMPTY_BUCKET_MAP:${operation}.${inline[1]}:line${index + 1}`);
+            continue;
+          }
+          for (const field of bucketFields) {
+            const bucket = /^([A-Za-z][A-Za-z0-9_]*)\s*:\s*([0-9][0-9_]*)$/u.exec(field);
+            if (!bucket) {
+              failures.push(`UNRECOGNIZED_BUCKET_MEMBER:${operation}.${inline[1]}:line${index + 1}`);
+              continue;
+            }
+            if (!PRICE_BUCKET_NAMES.has(bucket[1])) {
+              failures.push(`UNKNOWN_BUCKET_NAME:${operation}.${inline[1]}.${bucket[1]}:line${index + 1}`);
+              continue;
+            }
+            const cost = Number.parseInt(bucket[2].replace(/_/gu, ""), 10);
+            if (!Number.isSafeInteger(cost) || cost < 0) {
+              failures.push(`UNSAFE_COST:${operation}.nBucketed.${inline[1]}.${bucket[1]}:line${index + 1}`);
+              continue;
+            }
+            bucketNames[inline[1]] ??= [];
+            if (bucketNames[inline[1]].includes(bucket[1])) {
+              failures.push(`DUPLICATE_BUCKET:${operation}.${inline[1]}.${bucket[1]}:line${index + 1}`);
+            }
+            bucketNames[inline[1]].push(bucket[1]);
+            bucketedVariants.push({
+              canonicalName: operation,
+              operandMode: "nBucketed",
+              costKeyType: inline[1],
+              bucketName: bucket[1],
+              cost,
+            });
+          }
+          continue;
+        }
+        const typed = PRICE_TYPED_BLOCK.exec(line);
+        if (typed) {
+          if (!PRICE_TYPE_NAMES.has(typed[1])) {
+            failures.push(`UNKNOWN_PRICE_TYPE:${operation}.nBucketed.${typed[1]}:line${index + 1}`);
+            continue;
+          }
+          typedKeys[group] ??= [];
+          if (typedKeys[group].includes(typed[1])) {
+            failures.push(`DUPLICATE_PRICE_TYPE:${operation}.${group}.${typed[1]}:line${index + 1}`);
+          }
+          typedKeys[group].push(typed[1]);
+          nestedType = typed[1];
+          continue;
+        }
+        if (PRICE_CLOSE.test(line)) {
+          group = null;
+          continue;
+        }
+        failures.push(`UNRECOGNIZED_NBUCKETED_LINE:${operation}:line${index + 1}`);
         continue;
       }
-      variants.push({ canonicalName: operation, operandMode: group, costKeyType: entry[1], cost });
+
+      const groupMatch = PRICE_GROUP_BLOCK.exec(line);
+      if (groupMatch) failures.push(`UNEXPECTED_NESTED_GROUP:${operation}.${group}:line${index + 1}`);
+      const entry = PRICE_ENTRY.exec(line);
+      if (entry) {
+        if (!PRICE_TYPE_NAMES.has(entry[1])) {
+          failures.push(`UNKNOWN_PRICE_TYPE:${operation}.${group}.${entry[1]}:line${index + 1}`);
+          continue;
+        }
+        const cost = Number.parseInt(entry[2].replace(/_/gu, ""), 10);
+        if (!Number.isSafeInteger(cost) || cost < 0) {
+          failures.push(`UNSAFE_COST:${operation}.${group}.${entry[1]}:line${index + 1}`);
+          continue;
+        }
+        typedKeys[group] ??= [];
+        if (typedKeys[group].includes(entry[1])) {
+          failures.push(`DUPLICATE_PRICE_TYPE:${operation}.${group}.${entry[1]}:line${index + 1}`);
+        }
+        typedKeys[group].push(entry[1]);
+        variants.push({ canonicalName: operation, operandMode: group, costKeyType: entry[1], cost });
+        continue;
+      }
+      if (PRICE_CLOSE.test(line)) {
+        group = null;
+        continue;
+      }
+      failures.push(`UNRECOGNIZED_COST_LINE:${operation}.${group}:line${index + 1}`);
+      continue;
+    }
+
+    const scalarField = PRICE_BOOLEAN_FIELD.exec(line);
+    if (scalarField) {
+      if (seenFields.has("supportScalar")) {
+        failures.push(`DUPLICATE_OPERATOR_FIELD:${operation}.supportScalar:line${index + 1}`);
+      }
+      seenFields.add("supportScalar");
+      supportScalar = scalarField[1] === "true";
+      continue;
+    }
+    const inputsField = PRICE_NUMBER_INPUTS_FIELD.exec(line);
+    if (inputsField) {
+      if (seenFields.has("numberInputs")) {
+        failures.push(`DUPLICATE_OPERATOR_FIELD:${operation}.numberInputs:line${index + 1}`);
+      }
+      const value = Number.parseInt(inputsField[1].replace(/_/gu, ""), 10);
+      if (!Number.isSafeInteger(value)) failures.push(`UNSAFE_NUMBER_INPUTS:${operation}:line${index + 1}`);
+      seenFields.add("numberInputs");
+      numberInputs = value;
+      continue;
+    }
+
+    const groupMatch = PRICE_GROUP_BLOCK.exec(line);
+    if (groupMatch) {
+      if (seenFields.has(groupMatch[1])) {
+        failures.push(`DUPLICATE_OPERATOR_FIELD:${operation}.${groupMatch[1]}:line${index + 1}`);
+      }
+      seenFields.add(groupMatch[1]);
+      group = groupMatch[1];
       continue;
     }
     if (PRICE_CLOSE.test(line)) {
-      group = null;
-      depth = 1;
+      finishOperation(index);
       continue;
     }
-    failures.push(`UNRECOGNIZED_COST_LINE:${operation}.${group}:line${index + 1}`);
+    /* Unknown operator-level properties remain fail-closed. */
+    failures.push(`UNRECOGNIZED_OPERATION_MEMBER:${operation}:line${index + 1}`);
   }
-  if (operation !== null || group !== null || depth !== 0) failures.push("UNTERMINATED_SCHEDULE_BLOCK");
+  if (operation !== null || group !== null || nestedType !== null) {
+    failures.push("UNTERMINATED_SCHEDULE_BLOCK");
+    finishOperation(lines.length - 1);
+  }
   if (variants.length === 0) failures.push("EMPTY_SCHEDULE");
 
   variants.sort((left, right) =>
     `${left.canonicalName}.${left.operandMode}.${left.costKeyType}`.localeCompare(
       `${right.canonicalName}.${right.operandMode}.${right.costKeyType}`,
+    ),
+  );
+  bucketedVariants.sort((left, right) =>
+    `${left.canonicalName}.${left.costKeyType}.${left.bucketName}`.localeCompare(
+      `${right.canonicalName}.${right.costKeyType}.${right.bucketName}`,
     ),
   );
   return {
@@ -3540,6 +3847,8 @@ export function extractPriceSchedule(material: AuthenticatedMaterial): Extracted
     sourceContentSha256: material.contentSha256,
     operations: [...operations].sort(),
     variants,
+    bucketedVariants,
+    operatorMetadata,
     failures: [...new Set(failures)].sort(),
   };
 }
@@ -3575,23 +3884,45 @@ export type ParsedAuthoritySource = {
   parseCompleteness: string;
   blockOrBatchConclusion: "ABSENT" | "PRESENT" | "UNRESOLVED";
   residue: string[];
+  pricingRelevantResidue: string[];
+  pricingOperationNames: string[];
+  pricingSemantics: Record<string, PricingOperationSemantic>;
+};
+
+const AUTHORITY_SOURCE_EXTRACTION_CACHE = new Map<string, ParsedAuthoritySource>();
+const AUTHORITY_ARTIFACT_EXTRACTION_CACHE = new Map<string, ExtractedArtifactBuild>();
+const EXECUTOR_ARTIFACT_EXTRACTION_CACHE = new Map<string, ExtractedArtifactBuild>();
+
+export type PricingOperationSemantic = {
+  costAssignments: { cost: number; line: number }[];
+  typeSelectors: string[];
+  scalarSelectors: string[];
+  bucketSelectors: string[];
+  accountingCalls: string[];
+  semanticSha256: string;
 };
 
 const DECLARATION_LINE =
-  /^\s*(?:uint256|uint128|uint64)\s+(?:public\s+|internal\s+|private\s+)?constant\s+([A-Z][A-Z0-9_]*)\s*=\s*([0-9][0-9_]*)\s*;/u;
+  /^\s*(?:uint256|uint128|uint64|uint48)\s+(?:public\s+|internal\s+|private\s+)?constant\s+([A-Z][A-Z0-9_]*)\s*=\s*([0-9][0-9_]*)\s*;/u;
+const GENERAL_CONSTANT_START =
+  /^\s*(?:string|address|bytes[0-9]*|uint[0-9]+|int[0-9]+)\s+(?:(?:public|internal|private)\s+|immutable\s+)*constant\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*/u;
+const STATE_DECLARATION_LINE =
+  /^\s*(?:address|bool|string|bytes[0-9]*|uint[0-9]+|int[0-9]+)\s+(?:(?:public|internal|private|transient|immutable)\s+)*[A-Za-z_][A-Za-z0-9_]*(?:\s*\[[^\]]*\])?\s*;/u;
 const FUNCTION_LINE = /^\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/u;
 const ERROR_LINE = /^\s*error\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/u;
+const EVENT_LINE = /^\s*event\s+[A-Za-z_][A-Za-z0-9_]*\s*\(/u;
 const MAPPING_LINE = /^\s*mapping\s*\([^)]*\)\s+(?:public\s+|internal\s+|private\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*;/u;
 /* An ordinary value-type state declaration, with optional visibility and mutability. A constant
  * with an initialiser is matched by DECLARATION_LINE first; this covers the rest. Anything outside
  * these forms — a custom type, an unusual modifier order, an inline initialiser the parser does not
  * model — is deliberately NOT matched, and becomes residue. */
 const STRUCT_FIELD_LINE =
-  /^\s{4,}(?:uint8|uint16|uint32|uint64|uint128|uint256|int256|bool|address|bytes32)\s+(?:public\s+|internal\s+|private\s+)?(?:immutable\s+|transient\s+)?([a-zA-Z_][A-Za-z0-9_]*)\s*;/u;
+  /^\s{4,}(?:uint8|uint16|uint32|uint48|uint64|uint128|uint256|int256|bool|address|bytes32)\s+(?:public\s+|internal\s+|private\s+)?(?:immutable\s+|transient\s+)?([a-zA-Z_][A-Za-z0-9_]*)\s*;/u;
 const STORAGE_PRIMITIVE = /\b(tload|tstore|sload|sstore)\b/gu;
 
-/* A function is an ENFORCEMENT function when its body compares a running total against one of the
- * declared ceiling constants. That is a property of the parsed body, not of its name. */
+/* A function is an ENFORCEMENT function when its body compares a running HCU total against an
+ * authenticated declared ceiling or storage-backed ceiling. That is a property of the parsed body,
+ * not of its name. */
 /* Lines a purpose-built HCU-surface parser can account for without classifying them as surface:
  * pragmas, imports, licence headers, braces, the contract header itself, visibility-only lines and
  * empty lines. Everything else must be classified or become residue. */
@@ -3601,6 +3932,173 @@ const IGNORABLE_LINE =
 /* Anything that could plausibly bear on an HCU or block/batch ceiling. A line matching this that
  * the parser cannot fully classify is a hard residue, not a shrug. */
 const HCU_RELEVANT_HINT = /\b(?:HCU|HOMOMORPHIC|COMPUTE_UNIT|BLOCK|BATCH|LIMIT|CEILING|MAX_)/iu;
+const HCU_OPERATION_FUNCTION = /^checkHCUFor[A-Za-z_][A-Za-z0-9_]*$/u;
+const KNOWN_HCU_OPERATION_FUNCTIONS = new Set([
+  "checkHCUForCast",
+  "checkHCUForFheAdd",
+  "checkHCUForFheBitAnd",
+  "checkHCUForFheBitOr",
+  "checkHCUForFheBitXor",
+  "checkHCUForFheDiv",
+  "checkHCUForFheEq",
+  "checkHCUForFheGe",
+  "checkHCUForFheGt",
+  "checkHCUForFheIsIn",
+  "checkHCUForFheLe",
+  "checkHCUForFheLt",
+  "checkHCUForFheMax",
+  "checkHCUForFheMin",
+  "checkHCUForFheMul",
+  "checkHCUForFheNe",
+  "checkHCUForFheNeg",
+  "checkHCUForFheNot",
+  "checkHCUForFheRand",
+  "checkHCUForFheRandBounded",
+  "checkHCUForFheRem",
+  "checkHCUForFheRotl",
+  "checkHCUForFheRotr",
+  "checkHCUForFheShl",
+  "checkHCUForFheShr",
+  "checkHCUForFheSub",
+  "checkHCUForFheSum",
+  "checkHCUForIfThenElse",
+  "checkHCUForTrivialEncrypt",
+]);
+const PRICING_RELEVANT_HINT =
+  /\b(?:opHCU|scalarByte|resultType|valueType|FheType|_adjustAndCheck|_updateAndVerify|HCUTransaction|_setHCU|_getHCU|maxInputDepth|inputDepth|totalHCU|values\.length|caller|[A-Za-z_][A-Za-z0-9_]*HCU[A-Za-z0-9_]*)\b/u;
+
+function findBraceBlockEnd(lines: string[], startIndex: number): number | null {
+  let depth = 0;
+  let seenOpen = false;
+  let quote: '"' | "'" | null = null;
+  let escaped = false;
+  for (let index = startIndex; index < lines.length; index++) {
+    for (const character of lines[index]) {
+      if (quote !== null) {
+        if (escaped) escaped = false;
+        else if (character === "\\") escaped = true;
+        else if (character === quote) quote = null;
+        continue;
+      }
+      if (character === '"' || character === "'") {
+        quote = character;
+        continue;
+      }
+      if (character === "{") {
+        depth += 1;
+        seenOpen = true;
+      } else if (character === "}") {
+        depth -= 1;
+        if (seenOpen && depth === 0) return index;
+      }
+    }
+  }
+  return null;
+}
+
+function findStatementEnd(lines: string[], startIndex: number): number | null {
+  let quote: '"' | "'" | null = null;
+  let escaped = false;
+  for (let index = startIndex; index < lines.length; index++) {
+    for (const character of lines[index]) {
+      if (quote !== null) {
+        if (escaped) escaped = false;
+        else if (character === "\\") escaped = true;
+        else if (character === quote) quote = null;
+      } else if (character === '"' || character === "'") {
+        quote = character;
+      } else if (character === ";") {
+        return index;
+      }
+    }
+  }
+  return null;
+}
+
+function extractPricingSemantics(body: string, startLine: number): PricingOperationSemantic {
+  const costAssignments: { cost: number; line: number }[] = [];
+  const typeSelectors: string[] = [];
+  const scalarSelectors: string[] = [];
+  const bucketSelectors: string[] = [];
+  const accountingCalls: string[] = [];
+  const lines = body.split(/\r?\n/u);
+  for (const [offset, line] of lines.entries()) {
+    for (const match of line.matchAll(/\bopHCU\s*=\s*([0-9][0-9_]*)\b/gu)) {
+      costAssignments.push({ cost: Number.parseInt(match[1].replace(/_/gu, ""), 10), line: startLine + offset });
+    }
+    for (const match of line.matchAll(
+      /\b(?:resultType|valueType)\s*(===?|!==?)\s*FheType\.([A-Za-z][A-Za-z0-9_]*)/gu,
+    )) {
+      typeSelectors.push(`${match[1]}:${match[2]}`);
+    }
+    for (const match of line.matchAll(/\bscalarByte\s*(===?|!==?)\s*(0x[0-9A-Fa-f]+|[0-9]+)/gu)) {
+      scalarSelectors.push(`${match[1]}:${match[2]}`);
+    }
+    for (const match of line.matchAll(/\bn\s*(<=|<|>=|>)\s*([0-9][0-9_]*)/gu)) {
+      bucketSelectors.push(`${match[1]}:${match[2].replace(/_/gu, "")}`);
+    }
+    for (const match of line.matchAll(/\b(_(?:adjustAndCheck|updateAndVerify|setHCU|getHCU)[A-Za-z0-9_]*)\s*\(/gu)) {
+      accountingCalls.push(match[1]);
+    }
+  }
+  const canonical = {
+    accountingCalls: [...new Set(accountingCalls)].sort(),
+    bucketSelectors: [...new Set(bucketSelectors)].sort(),
+    costAssignments,
+    scalarSelectors: [...new Set(scalarSelectors)].sort(),
+    typeSelectors: [...new Set(typeSelectors)].sort(),
+  };
+  return { ...canonical, semanticSha256: sha256(canonicalJson(canonical)) };
+}
+
+const PRICING_OPERATION_VARIABLES = new Set(["i", "inputDepth", "maxInputDepth", "n", "opHCU", "totalHCU"]);
+
+function pricingOperationLineIsKnown(line: string): boolean {
+  const normalized = line.replace(/^\s*\}\s*/u, "").trim();
+  if (normalized.length === 0 || normalized === "{" || normalized === "}") return true;
+  if (/^(?:if|else\s+if|else|for)\b/u.test(normalized)) return true;
+  if (/^revert\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^;]*\);$/u.test(normalized)) return true;
+  if (/^(?:_[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\);$/u.test(normalized)) {
+    return /^_(?:adjustAndCheck|updateAndVerify|setHCU|getHCU)[A-Za-z0-9_]*\s*\(/u.test(normalized);
+  }
+  const declaration = /^(?:uint[0-9]+|bytes[0-9]+)\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s*=\s*[^;]+)?;$/u.exec(normalized);
+  if (declaration !== null) return PRICING_OPERATION_VARIABLES.has(declaration[1]);
+  const assignment = /^([A-Za-z_][A-Za-z0-9_]*)\s*(?:=|\+=|\+\+|--)/u.exec(normalized);
+  if (assignment !== null) return PRICING_OPERATION_VARIABLES.has(assignment[1]);
+  return false;
+}
+
+function pricingOperationLineHasUnknownHcuIdentifier(line: string): boolean {
+  const known = new Set([
+    "FHEVM_EXECUTOR_ADDRESS",
+    "HCUTransactionDepthLimitExceeded",
+    "HCUTransactionLimitExceeded",
+    "OnlyScalarOperationsAreSupported",
+    "UnsupportedOperation",
+    "_getHCULimitStorage",
+    "caller",
+    "globalHCUCapPerBlock",
+    "maxHCUDepthPerTx",
+    "maxHCUPerTx",
+    "opHCU",
+    "totalHCU",
+    "usedBlockHCU",
+  ]);
+  for (const token of line.matchAll(/\b[A-Za-z_][A-Za-z0-9_]*\b/gu)) {
+    if (
+      token[0].includes("HCU") &&
+      !known.has(token[0]) &&
+      !token[0].startsWith("Fhe") &&
+      !token[0].startsWith("_adjustAndCheck") &&
+      !token[0].startsWith("_getHCU") &&
+      !token[0].startsWith("_setHCU") &&
+      !token[0].startsWith("_updateAndVerify")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAuthoritySource {
   const rawText = material.bytes.toString("utf8");
@@ -3620,6 +4118,9 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
   const constantValues: Record<string, string> = {};
   const enforcementOperators: Record<string, string> = {};
   const residue: string[] = [];
+  const pricingRelevantResidue: string[] = [];
+  const pricingOperationNames: string[] = [];
+  const pricingSemantics: Record<string, PricingOperationSemantic> = {};
   const storagePrimitives = new Set<string>();
 
   /* Byte offsets come from the ORIGINAL bytes, so a range digest is over real source. */
@@ -3655,10 +4156,36 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
       accounted.add(index);
       continue;
     }
+    const generalConstant = GENERAL_CONSTANT_START.exec(line);
+    if (generalConstant) {
+      const endIndex = findStatementEnd(lines, index);
+      if (endIndex === null) {
+        residue.push(`UNTERMINATED_CONSTANT:${generalConstant[1]}:line${index + 1}`);
+        accountFor(index, lines.length - 1);
+        continue;
+      }
+      const statement = lines.slice(index, endIndex + 1).join(" ");
+      const value = /=\s*(.*?)\s*;/u.exec(statement)?.[1]?.replace(/\s+/gu, " ") ?? "UNRESOLVED";
+      declarations.push(generalConstant[1]);
+      constantValues[generalConstant[1]] = value;
+      declarationRanges[generalConstant[1]] = rangeFor(index, endIndex);
+      accountFor(index, endIndex);
+      continue;
+    }
     const error = ERROR_LINE.exec(line);
     if (error) {
       errors.push(error[1]);
       accounted.add(index);
+      continue;
+    }
+    if (EVENT_LINE.test(line)) {
+      const endIndex = findStatementEnd(lines, index);
+      if (endIndex === null) {
+        residue.push(`UNTERMINATED_EVENT:line${index + 1}`);
+        accountFor(index, lines.length - 1);
+      } else {
+        accountFor(index, endIndex);
+      }
       continue;
     }
     const mapping = MAPPING_LINE.exec(line);
@@ -3667,37 +4194,95 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
       accounted.add(index);
       continue;
     }
+    if (/^\s*constructor\s*\(/u.test(line)) {
+      const endIndex = findBraceBlockEnd(lines, index);
+      if (endIndex === null) {
+        residue.push(`UNTERMINATED_CONSTRUCTOR:line${index + 1}`);
+        accountFor(index, lines.length - 1);
+      } else {
+        accountFor(index, endIndex);
+      }
+      continue;
+    }
+    if (/^\s*struct\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/u.test(line)) {
+      const endIndex = findBraceBlockEnd(lines, index);
+      if (endIndex === null) {
+        residue.push(`UNTERMINATED_STORAGE_STRUCT:line${index + 1}`);
+        accountFor(index, lines.length - 1);
+        continue;
+      }
+      for (let cursor = index + 1; cursor < endIndex; cursor++) {
+        const structField = STRUCT_FIELD_LINE.exec(lines[cursor]);
+        const structMapping = MAPPING_LINE.exec(lines[cursor]);
+        if (structField) storageStructFields.push(structField[1]);
+        else if (structMapping) mappings.push(structMapping[1]);
+        else if (!IGNORABLE_LINE.test(lines[cursor])) {
+          residue.push(`UNSUPPORTED_STORAGE_STRUCT_LINE:line${cursor + 1}`);
+        }
+      }
+      accountFor(index, endIndex);
+      continue;
+    }
     const fn = FUNCTION_LINE.exec(line);
     if (fn) {
       callableFunctions.push(fn[1]);
-      /* Walk the body to its matching close brace, counting braces on real lines only. */
-      let depth = 0;
-      let endIndex = index;
-      let seenOpen = false;
-      for (let cursor = index; cursor < lines.length; cursor++) {
-        for (const character of lines[cursor]) {
-          if (character === "{") {
-            depth += 1;
-            seenOpen = true;
-          } else if (character === "}") depth -= 1;
-        }
-        endIndex = cursor;
-        if (seenOpen && depth === 0) break;
-      }
-      if (!seenOpen || depth !== 0) {
+      const endIndex = findBraceBlockEnd(lines, index);
+      if (endIndex === null) {
         residue.push(`UNTERMINATED_FUNCTION:${fn[1]}:line${index + 1}`);
-        accountFor(index, endIndex);
+        accountFor(index, lines.length - 1);
         continue;
       }
       const body = lines.slice(index, endIndex + 1).join("\n");
+      if (HCU_OPERATION_FUNCTION.test(fn[1])) {
+        pricingOperationNames.push(fn[1]);
+        if (!KNOWN_HCU_OPERATION_FUNCTIONS.has(fn[1])) {
+          pricingRelevantResidue.push(`UNACCOUNTED_HCU_OPERATION_FUNCTION:${fn[1]}:line${index + 1}`);
+        } else {
+          const openingLine = lines.findIndex(
+            (candidate, candidateIndex) => candidateIndex >= index && candidate.includes("{"),
+          );
+          const operationBody = openingLine === -1 ? body : lines.slice(openingLine + 1, endIndex + 1).join("\n");
+          const semantic = extractPricingSemantics(operationBody, openingLine === -1 ? index : openingLine + 1);
+          pricingSemantics[fn[1]] = semantic;
+          if (semantic.costAssignments.length === 0) {
+            pricingRelevantResidue.push(`MISSING_HCU_COST_ASSIGNMENT:${fn[1]}:line${index + 1}`);
+          }
+          for (const [offset, operationLine] of operationBody.split(/\r?\n/u).entries()) {
+            if (operationLine.trim().length === 0) continue;
+            if (
+              !pricingOperationLineIsKnown(operationLine) ||
+              (PRICING_RELEVANT_HINT.test(operationLine) && pricingOperationLineHasUnknownHcuIdentifier(operationLine))
+            ) {
+              pricingRelevantResidue.push(
+                `UNRECOGNIZED_HCU_OPERATION_SYNTAX:${fn[1]}:line${(openingLine === -1 ? index : openingLine + 1) + offset + 1}`,
+              );
+            }
+          }
+        }
+      }
       /* Enforcement is decided by what the body DOES: it compares against a declared ceiling and
        * reverts. Naming alone establishes nothing. */
-      const comparesCeiling = declarations.some((name) => new RegExp(`\\b${name}\\b`, "u").test(body));
-      if (comparesCeiling && /\brevert\b/u.test(body) && /[><]=?/u.test(body)) {
+      const comparesRunningHcuAgainstCeiling =
+        /\b(?:running|transactionHCU|totalHCU|nextHCU)\b/u.test(body) &&
+        /\b(?:maxHCUPerTx|maxHCUDepthPerTx|globalHCUCapPerBlock)\b/u.test(body);
+      const comparesCeiling =
+        declarations.some((name) => new RegExp(`\\b${name}\\b`, "u").test(body)) ||
+        /\b(?:maxHCUPerTx|maxHCUDepthPerTx|globalHCUCapPerBlock)\b/u.test(body);
+      if (
+        (comparesRunningHcuAgainstCeiling ||
+          (declarations.some((name) => new RegExp(`\\b${name}\\b`, "u").test(body)) &&
+            /\b(?:running|transactionHCU|totalHCU|depthHCU)\b/u.test(body))) &&
+        comparesCeiling &&
+        /\brevert\b/u.test(body) &&
+        /[><]=?/u.test(body)
+      ) {
         enforcementFunctions.push(fn[1]);
         enforcementRanges[fn[1]] = rangeFor(index, endIndex);
-        const ceiling = declarations.find((name) => new RegExp(`\\b${name}\\b`, "u").test(body));
-        const comparison = ceiling === undefined ? null : new RegExp(`(>=|>|<=|<)\\s*${ceiling}\\b`, "u").exec(body);
+        const ceilingNames = ["maxHCUPerTx", "maxHCUDepthPerTx", "globalHCUCapPerBlock", ...declarations];
+        const comparisonLine = body
+          .split(/\r?\n/u)
+          .find((candidate) => ceilingNames.some((name) => new RegExp(`\\b${name}\\b`, "u").test(candidate)));
+        const comparison = comparisonLine === undefined ? null : /(>=|>|<=|<)/u.exec(comparisonLine);
         if (comparison !== null) enforcementOperators[fn[1]] = comparison[1];
       }
       accountFor(index, endIndex);
@@ -3706,6 +4291,10 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
     const field = STRUCT_FIELD_LINE.exec(line);
     if (field) {
       storageStructFields.push(field[1]);
+      accounted.add(index);
+      continue;
+    }
+    if (STATE_DECLARATION_LINE.test(line)) {
       accounted.add(index);
       continue;
     }
@@ -3732,7 +4321,15 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
   }
 
   const sorted = (values: string[]) => [...new Set(values)].sort();
-  const parseCompleteness = residue.length === 0 ? "PARSED_COMPLETE_NO_RESIDUE" : "PARTIAL";
+  if (pricingOperationNames.length > 0) {
+    for (const expected of KNOWN_HCU_OPERATION_FUNCTIONS) {
+      if (!pricingOperationNames.includes(expected)) {
+        pricingRelevantResidue.push(`MISSING_HCU_OPERATION_FUNCTION:${expected}`);
+      }
+    }
+  }
+  const parseCompleteness =
+    residue.length === 0 && pricingRelevantResidue.length === 0 ? "PARSED_COMPLETE_NO_RESIDUE" : "PARTIAL";
   const parsed: ParsedAuthoritySource = {
     parserId: AUTHORITY_SOURCE_PARSER.id,
     parserVersion: AUTHORITY_SOURCE_PARSER.version,
@@ -3759,6 +4356,9 @@ export function parseAuthoritySource(material: AuthenticatedMaterial): ParsedAut
     parseCompleteness,
     blockOrBatchConclusion: "ABSENT",
     residue: sorted(residue),
+    pricingRelevantResidue: sorted(pricingRelevantResidue),
+    pricingOperationNames: sorted(pricingOperationNames),
+    pricingSemantics,
   };
   /* CORRECTION 3 — ABSENT is a conclusion about a COMPLETE enumeration. A partial parse cannot
    * establish that something is not there; it can only establish that it was not seen. Reporting
@@ -4374,22 +4974,36 @@ export function deriveAuthorityFromSourceMaterial(
       continue;
     }
     if (subject === "priceSchedule") {
-      const schedule = extractPriceSchedule(authentication.material);
+      let schedule = PRICE_SCHEDULE_EXTRACTION_CACHE.get(authentication.material.contentSha256);
+      if (schedule === undefined) {
+        schedule = extractPriceSchedule(authentication.material);
+        PRICE_SCHEDULE_EXTRACTION_CACHE.set(authentication.material.contentSha256, schedule);
+      }
       blockers.push(...schedule.failures.map((entry) => `PRICE_SCHEDULE_EXTRACTION:${entry}`));
       derived.priceSchedule = schedule;
     } else if (subject === "authoritySource") {
-      const parsed = parseAuthoritySource(authentication.material);
+      let parsed = AUTHORITY_SOURCE_EXTRACTION_CACHE.get(authentication.material.contentSha256);
+      if (parsed === undefined) {
+        parsed = parseAuthoritySource(authentication.material);
+        AUTHORITY_SOURCE_EXTRACTION_CACHE.set(authentication.material.contentSha256, parsed);
+      }
       blockers.push(...parsed.residue.map((entry) => `AUTHORITY_SOURCE_PARSE:${entry}`));
+      blockers.push(...parsed.pricingRelevantResidue.map((entry) => `AUTHORITY_SOURCE_PRICING_PARSE:${entry}`));
       derived.authoritySource = parsed;
     } else if (subject === "officialArtifactBuild") {
       /* The build extraction is cross-linked to the INDEPENDENTLY authenticated authority source,
        * so a correctly shaped and reproducible build of a different HCULimit cannot satisfy it. */
       const authoritySourceTuple = selectedProvenanceTuple(record, "CURRENT_OFFICIAL_AUTHORITY_SOURCE");
-      const build = extractArtifactBuild(
-        authentication.material,
-        { implementationAddress: implementationAddress ?? "" },
-        provenanceContentSha256(authoritySourceTuple),
-      );
+      const cacheKey = `${authentication.material.contentSha256}:${implementationAddress ?? ""}:${provenanceContentSha256(authoritySourceTuple) ?? ""}`;
+      let build = AUTHORITY_ARTIFACT_EXTRACTION_CACHE.get(cacheKey);
+      if (build === undefined) {
+        build = extractArtifactBuild(
+          authentication.material,
+          { implementationAddress: implementationAddress ?? "" },
+          provenanceContentSha256(authoritySourceTuple),
+        );
+        AUTHORITY_ARTIFACT_EXTRACTION_CACHE.set(cacheKey, build);
+      }
       blockers.push(...build.failures.map((entry) => `ARTIFACT_BUILD_EXTRACTION:${entry}`));
       derived.artifactBuild = build;
     }
@@ -4431,11 +5045,16 @@ export function deriveExecutorFromSourceMaterial(
         ? policy.expectedImplementationAddress
         : null);
   const sourceTuple = selectedProvenanceTuple(record, "CURRENT_OFFICIAL_EXECUTOR_SOURCE");
-  const executorBuild = extractExecutorArtifactBuild(
-    build.material,
-    { implementationAddress: reviewedImplementationAddress ?? "" },
-    provenanceContentSha256(sourceTuple),
-  );
+  const cacheKey = `${build.material.contentSha256}:${reviewedImplementationAddress ?? ""}:${provenanceContentSha256(sourceTuple) ?? ""}`;
+  let executorBuild = EXECUTOR_ARTIFACT_EXTRACTION_CACHE.get(cacheKey);
+  if (executorBuild === undefined) {
+    executorBuild = extractExecutorArtifactBuild(
+      build.material,
+      { implementationAddress: reviewedImplementationAddress ?? "" },
+      provenanceContentSha256(sourceTuple),
+    );
+    EXECUTOR_ARTIFACT_EXTRACTION_CACHE.set(cacheKey, executorBuild);
+  }
   blockers.push(...executorBuild.failures.map((entry) => `EXECUTOR_ARTIFACT_BUILD_EXTRACTION:${entry}`));
   return { blockers, executorBuild };
 }
@@ -6688,7 +7307,7 @@ export function provenanceContentSha256(tuple: ProvenanceTuple | null): string |
  * is absent; if one does, it is present. The record cannot assert its way past this.
  */
 export function deriveBlockOrBatchConclusion(manifest: Record<string, unknown>): "ABSENT" | "PRESENT" {
-  const pattern = new RegExp(BLOCK_OR_BATCH_SURFACE_PATTERN, "u");
+  const pattern = new RegExp(BLOCK_OR_BATCH_SURFACE_PATTERN, "iu");
   const surface: string[] = [];
   for (const field of ENUMERATION_MANIFEST_LIST_FIELDS) {
     const list = manifest[field];

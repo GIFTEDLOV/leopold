@@ -127,6 +127,17 @@ const MOCK = resolve(ROOT, "node_modules/@fhevm/mock-utils");
 const hcuLimitSource = readFileSync(resolve(HOST, "contracts/HCULimit.sol"), "utf8");
 const costTableSource = readFileSync(resolve(MOCK, "fhevm/coprocessor/HCUByOperator.ts"), "utf8");
 const eventsSource = readFileSync(resolve(MOCK, "fhevm/coprocessor/CoprocessorEvents.ts"), "utf8");
+const OFFICIAL_PRICE_SOURCE_PATH = resolve(ROOT, "test/fixtures/fhevm-v0.13.2-operatorsPrices.ts.txt");
+const OFFICIAL_PRICE_SOURCE_TEXT = readFileSync(OFFICIAL_PRICE_SOURCE_PATH, "utf8");
+const OFFICIAL_HCU_BUILD_INFO_PATH = resolve(
+  ROOT,
+  "test/fixtures/fhevm-v0.13.2-FHEVMExecutor-4d775fb2ba96328ce842168d97046c84.build-info.json.gz",
+);
+const OFFICIAL_HCU_SOURCE_TEXT = (
+  JSON.parse(gunzipSync(readFileSync(OFFICIAL_HCU_BUILD_INFO_PATH)).toString("utf8")) as {
+    input: { sources: Record<string, { content: string }> };
+  }
+).input.sources["contracts/HCULimit.sol"].content;
 const artifactJson = readFileSync(resolve(HOST, "artifacts/contracts/HCULimit.sol/HCULimit.json"), "utf8");
 const runtime = readInstalledRuntimeBytecode(artifactJson);
 const ARTIFACT_EXECUTOR = deriveAuthorityProtocol().bytecodeVerification.artifactEmbeddedExecutorAddress;
@@ -564,6 +575,9 @@ function priceScheduleTextForTest(): string {
   for (const operation of operations) {
     lines.push(`  ${operation}: {`);
     const groups = installed.get(operation);
+    const supportsScalar = groups?.has("scalar") === true;
+    const numberInputs = groups?.has("types") === true ? 1 : 2;
+    lines.push(`    supportScalar: ${supportsScalar},`, `    numberInputs: ${numberInputs},`);
     for (const group of [...(groups?.keys() ?? [])].sort()) {
       lines.push(`    ${group}: {`);
       const byType = groups?.get(group as never);
@@ -576,7 +590,15 @@ function priceScheduleTextForTest(): string {
   }
   /* The two operations the current official schedule prices and SG-4 never uses. */
   for (const operation of [...CURRENT_OFFICIAL_EXPECTED_ADDITIONAL_OPERATIONS].sort()) {
-    lines.push(`  ${operation}: {`, "    nonScalar: {", "      Uint64: 100000,", "    },", "  },");
+    lines.push(
+      `  ${operation}: {`,
+      "    supportScalar: false,",
+      "    numberInputs: 2,",
+      "    nonScalar: {",
+      "      Uint64: 100000,",
+      "    },",
+      "  },",
+    );
   }
   lines.push("};", "");
   return lines.join("\n");
@@ -7389,6 +7411,154 @@ describe("SG-4 HCU authority: INVARIANT B — pricing extracted from authenticat
       contentSha256: sha256(withResidue),
     });
     expect(parsed.failures.join(",")).to.match(/UNRECOGNIZED_COST_LINE|UNRECOGNIZED_OPERATION_MEMBER/u);
+  });
+});
+
+describe("SG-4 HCU authority: corrected official source extractors", function () {
+  const officialPrice = () => {
+    const bytes = Buffer.from(OFFICIAL_PRICE_SOURCE_TEXT, "utf8");
+    return extractPriceSchedule({ subject: "priceSchedule", bytes, contentSha256: sha256(bytes) });
+  };
+  const officialAuthority = () => {
+    const bytes = Buffer.from(OFFICIAL_HCU_SOURCE_TEXT, "utf8");
+    return parseAuthoritySource({ subject: "authoritySource", bytes, contentSha256: sha256(bytes) });
+  };
+
+  it("parses the exact official PriceData schema and nested nBucketed maps", function () {
+    const parsed = officialPrice();
+    expect(parsed.sourceContentSha256).to.equal("48363444ec4af98d2139572be1c3fa545c9d9cfa93d72a353237f8137cc4326a");
+    expect(parsed.failures).to.deep.equal([]);
+    expect(parsed.operations).to.have.lengthOf(29);
+    expect(parsed.variants).to.have.lengthOf(271);
+    expect(parsed.bucketedVariants).to.have.lengthOf(42);
+    expect(parsed.operatorMetadata.fheAdd.supportScalar).to.equal(true);
+    expect(parsed.operatorMetadata.fheAdd.numberInputs).to.equal(2);
+    expect(parsed.operatorMetadata.fheAdd.groups).to.deep.equal(["nonScalar", "scalar"]);
+    expect(parsed.operatorMetadata.ifThenElse.groups).to.deep.equal(["types"]);
+    expect(parsed.operatorMetadata.fheSum.groups).to.deep.equal(["nBucketed"]);
+    expect(parsed.operatorMetadata.fheSum.bucketNames.Uint8).to.deep.equal(["le10", "le100", "le30", "le60"]);
+  });
+
+  it("fails closed on unknown operator properties, types, buckets, and changed costs", function () {
+    const unknownProperty = Buffer.from(
+      OFFICIAL_PRICE_SOURCE_TEXT.replace("    supportScalar: true,", "    surprise: true,\n    supportScalar: true,"),
+      "utf8",
+    );
+    expect(
+      extractPriceSchedule({
+        subject: "priceSchedule",
+        bytes: unknownProperty,
+        contentSha256: sha256(unknownProperty),
+      }).failures.join(" | "),
+    ).to.include("UNRECOGNIZED_OPERATION_MEMBER");
+
+    const unknownType = Buffer.from(
+      OFFICIAL_PRICE_SOURCE_TEXT.replace("      Uint8: 84000,", "      MysteryType: 84000,\n      Uint8: 84000,"),
+      "utf8",
+    );
+    expect(
+      extractPriceSchedule({
+        subject: "priceSchedule",
+        bytes: unknownType,
+        contentSha256: sha256(unknownType),
+      }).failures.join(" | "),
+    ).to.include("UNKNOWN_PRICE_TYPE");
+
+    const unknownBucket = Buffer.from(OFFICIAL_PRICE_SOURCE_TEXT.replace("le10: 90900", "le999: 90900"), "utf8");
+    expect(
+      extractPriceSchedule({
+        subject: "priceSchedule",
+        bytes: unknownBucket,
+        contentSha256: sha256(unknownBucket),
+      }).failures.join(" | "),
+    ).to.include("UNKNOWN_BUCKET_NAME");
+
+    const changedCost = Buffer.from(OFFICIAL_PRICE_SOURCE_TEXT.replace("Uint8: 84000", "Uint8: 84001"), "utf8");
+    const changed = extractPriceSchedule({
+      subject: "priceSchedule",
+      bytes: changedCost,
+      contentSha256: sha256(changedCost),
+    });
+    expect(changed.failures).to.deep.equal([]);
+    expect(
+      changed.variants.find(
+        (entry) => entry.canonicalName === "fheAdd" && entry.operandMode === "scalar" && entry.costKeyType === "Uint8",
+      )?.cost,
+    ).to.equal(84001);
+    expect(changed.variants).to.not.deep.equal(officialPrice().variants);
+  });
+
+  it("structurally classifies ordinary HCULimit declarations and all official operation checks", function () {
+    const parsed = officialAuthority();
+    expect(parsed.sourceContentSha256).to.equal("16d71ee5f899f1bfd5872bdb83e08d90f510fd529cd8a93d5001dc29f25634b8");
+    expect(parsed.parseCompleteness).to.equal("PARSED_COMPLETE_NO_RESIDUE");
+    expect(parsed.residue).to.deep.equal([]);
+    expect(parsed.pricingRelevantResidue).to.deep.equal([]);
+    expect(parsed.pricingOperationNames).to.have.lengthOf(29);
+    expect(parsed.storageStructFields).to.include.members(["globalHCUCapPerBlock", "maxHCUPerTx"]);
+    expect(parsed.mappings).to.include("blockHCUWhitelist");
+    expect(parsed.declarations).to.include("HCU_LIMIT_STORAGE_LOCATION");
+    expect(parsed.derivedLimitSemantics).to.equal("CONFIGURED_CEILING_INCLUSIVE_REVERT_ON_GREATER_THAN");
+    expect(parsed.blockOrBatchConclusion).to.equal("PRESENT");
+  });
+
+  it("keeps selected operation syntax and semantic mutations fail-closed or observable", function () {
+    const unknownSyntax = Buffer.from(
+      OFFICIAL_HCU_SOURCE_TEXT.replace(
+        "        uint256 opHCU;",
+        "        uint256 opHCU;\n        uint256 unknownHCU = 7;",
+      ),
+      "utf8",
+    );
+    expect(officialAuthority().pricingRelevantResidue).to.deep.equal([]);
+    expect(
+      parseAuthoritySource({
+        subject: "authoritySource",
+        bytes: unknownSyntax,
+        contentSha256: sha256(unknownSyntax),
+      }).pricingRelevantResidue.join(" | "),
+    ).to.include("UNRECOGNIZED_HCU_OPERATION_SYNTAX");
+
+    const newOperation = Buffer.from(
+      OFFICIAL_HCU_SOURCE_TEXT.replace(
+        "    function checkHCUForFheAdd(",
+        "    function checkHCUForNewPrice(FheType resultType, bytes32 result, address caller) external virtual { uint256 opHCU = 1; }\n\n    function checkHCUForFheAdd(",
+      ),
+      "utf8",
+    );
+    expect(
+      parseAuthoritySource({
+        subject: "authoritySource",
+        bytes: newOperation,
+        contentSha256: sha256(newOperation),
+      }).pricingRelevantResidue.join(" | "),
+    ).to.include("UNACCOUNTED_HCU_OPERATION_FUNCTION");
+
+    const changedCost = Buffer.from(OFFICIAL_HCU_SOURCE_TEXT.replace("opHCU = 84000", "opHCU = 84001"), "utf8");
+    const changedCostParsed = parseAuthoritySource({
+      subject: "authoritySource",
+      bytes: changedCost,
+      contentSha256: sha256(changedCost),
+    });
+    expect(changedCostParsed.pricingRelevantResidue).to.deep.equal([]);
+    expect(changedCostParsed.pricingSemantics.checkHCUForFheAdd.semanticSha256).to.not.equal(
+      officialAuthority().pricingSemantics.checkHCUForFheAdd.semanticSha256,
+    );
+
+    const changedBranch = Buffer.from(
+      OFFICIAL_HCU_SOURCE_TEXT.replace("scalarByte == 0x01", "scalarByte != 0x01"),
+      "utf8",
+    );
+    const changedBranchParsed = parseAuthoritySource({
+      subject: "authoritySource",
+      bytes: changedBranch,
+      contentSha256: sha256(changedBranch),
+    });
+    expect(changedBranchParsed.pricingRelevantResidue).to.deep.equal([]);
+    expect(changedBranchParsed.pricingSemantics.checkHCUForFheAdd.semanticSha256).to.not.equal(
+      officialAuthority().pricingSemantics.checkHCUForFheAdd.semanticSha256,
+    );
+    expect(changedBranchParsed.pricingSemantics.checkHCUForFheAdd.scalarSelectors).to.deep.equal(["!=:0x01"]);
   });
 });
 

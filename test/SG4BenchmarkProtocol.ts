@@ -1579,6 +1579,7 @@ describe("SG-4 scope", function () {
       "test/SG4BenchmarkProtocol.ts",
       "test/SG4HcuAuthority.ts",
       "test/fixtures/fhevm-v0.13.2-FHEVMExecutor-4d775fb2ba96328ce842168d97046c84.build-info.json.gz",
+      "test/fixtures/fhevm-v0.13.2-operatorsPrices.ts.txt",
     ];
     expect(paths.filter((path) => !permitted.includes(path))).to.deep.equal([]);
   });
