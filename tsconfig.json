@@ -25,6 +25,9 @@
     "test/**/*",
     "deploy/**/*",
     "types/",
-    "scripts/sg4-hcu-authority-binding-generator.ts"
+    "scripts/sg4-hcu-authority-binding-generator.ts",
+    "scripts/sg4-randomness-benchmark.ts",
+    "scripts/validate-sg4-randomness-evidence.ts",
+    "scripts/verify-sg4-randomness-receipts.ts"
   ]
 }
