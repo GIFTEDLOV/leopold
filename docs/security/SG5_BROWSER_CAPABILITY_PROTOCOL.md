@@ -1,6 +1,8 @@
 # SG-5 clean-browser FHE capability protocol v2
 
-SG-5 is the browser-runtime capability gate for the pinned Zama stack. It is independent of the closed SG-4 authority gate and the locked SG-4 production-randomness decision. SG-5 does not implement the prize pool, winner selection, TWAB accounting, or production settlement.
+SG-5 is the browser-runtime capability gate for the pinned Zama stack. It is independent of the closed SG-4 authority
+gate and the locked SG-4 production-randomness decision. SG-5 does not implement the prize pool, winner selection, TWAB
+accounting, or production settlement.
 
 ## Pinned implementation
 
@@ -10,13 +12,20 @@ SG-5 is the browser-runtime capability gate for the pinned Zama stack. It is ind
 - Ethereum Sepolia, chain ID `11155111`
 - Dedicated probe `SG5BrowserProbe` at `0xfc672ca5846896A7A135943E79dd11283c38FE78`
 
-The probe encrypts one benign `euint64` value (`1`) using `ZamaSDK.encrypt`, submits it through `ViemSigner` over the browser EIP-1193 provider, reads the encrypted result, and checks user decryption. The probe never contains a randomness ticket or winner-selection logic.
+The probe encrypts one benign `euint64` value (`1`) using `ZamaSDK.encrypt`, submits it through `ViemSigner` over the
+browser EIP-1193 provider, reads the encrypted result, and checks user decryption. The probe never contains a randomness
+ticket or winner-selection logic.
 
 ## Browser and wallet model
 
-The authoritative run uses the production Next bundle at `/sg5-probe` with `SG5_PROBE_PRODUCTION=1`. The route is dynamic and still requires `SG5_PROBE_PAGE=ENABLED_LOCAL_ONLY` plus the exact live acknowledgment. A fresh Playwright Chromium context has no cookies or storage origins and blocks service workers.
+The authoritative run uses the production Next bundle at `/sg5-probe` with `SG5_PROBE_PRODUCTION=1`. The route is
+dynamic and still requires `SG5_PROBE_PAGE=ENABLED_LOCAL_ONLY` plus the exact live acknowledgment. A fresh Playwright
+Chromium context has no cookies or storage origins and blocks service workers.
 
-The test-only automation wallet is held by the Playwright Node runner. It supplies an EIP-1193 bridge to the page for account discovery, transaction signing, and EIP-712 user-decryption signatures. The frontend process receives no private key. An independent unfunded identity is exposed only for the negative decryption test and cannot submit transactions. The production wallet interface remains the ordinary browser EIP-1193 interface.
+The test-only automation wallet is held by the Playwright Node runner. It supplies an EIP-1193 bridge to the page for
+account discovery, transaction signing, and EIP-712 user-decryption signatures. The frontend process receives no private
+key. An independent unfunded identity is exposed only for the negative decryption test and cannot submit transactions.
+The production wallet interface remains the ordinary browser EIP-1193 interface.
 
 ## Required scenarios
 
@@ -34,11 +43,15 @@ The complete set is:
 10. reload and two independent clean-context repeats;
 11. production-build execution.
 
-The Playwright harness records page errors, console errors/warnings relevant to runtime, unhandled rejections, failed requests, exact registered origin/category observations, public transaction hashes and block numbers, and sanitized lifecycle stages. It never persists ciphertexts, input proofs, handles, wallet keys, signed payloads, headers, bodies, or authenticated URLs.
+The Playwright harness records page errors, console errors/warnings relevant to runtime, unhandled rejections, failed
+requests, exact registered origin/category observations, public transaction hashes and block numbers, and sanitized
+lifecycle stages. It never persists ciphertexts, input proofs, handles, wallet keys, signed payloads, headers, bodies,
+or authenticated URLs.
 
 ## Network authority
 
-The installed Sepolia relayer configuration is used without mocking. The exact asset authority was resolved by an authorized read-only request to `/v2/keyurl`:
+The installed Sepolia relayer configuration is used without mocking. The exact asset authority was resolved by an
+authorized read-only request to `/v2/keyurl`:
 
 - relayer: `https://relayer.testnet.zama.org`
 - RPC: `https://ethereum-sepolia-rpc.publicnode.com`
@@ -46,10 +59,23 @@ The installed Sepolia relayer configuration is used without mocking. The exact a
 - public-key path prefix: `/PUB-p1/PublicKey/`
 - CRS path prefix: `/PUB-p1/CRS/`
 
-The browser CSP and Playwright routing policy allow only localhost, the relayer, the Sepolia RPC, and this exact S3 origin/path authority. Unknown origins, credentials, fragments, unauthorized paths, failed critical responses, and forbidden redirects fail the run.
+The browser CSP and Playwright routing policy allow only localhost, the relayer, the Sepolia RPC, and this exact S3
+origin/path authority. Unknown origins, credentials, fragments, unauthorized paths, failed critical responses, and
+forbidden redirects fail the run.
+
+The pinned SDK also uses an embedded `data:` runtime asset during browser encryption. `data:` is allowed only as an
+embedded runtime-asset scheme; it is not an external network authority and is not accepted as a substitute for the
+relayer, RPC, public-key, or CRS observations.
 
 ## Evidence and retry policy
 
-The deterministic protocol is emitted by `pnpm sg5:protocol` and is hashed before live execution. The live runner binds the run to an exact preparation commit/tree and writes `evidence/cp0/SG5_BROWSER_CAPABILITY.json` only after the complete suite passes. Its SHA-256 sidecar is checked by the evidence validator. Failed private run directories are retained for forensic review; a failed individual context is never silently replaced.
+The deterministic protocol is emitted by `pnpm sg5:protocol` and is hashed before live execution. The live runner binds
+the run to an exact preparation commit/tree and writes `evidence/cp0/SG5_BROWSER_CAPABILITY.json` only after the
+complete suite passes. Its SHA-256 sidecar is checked by the evidence validator. Failed private run directories are
+retained for forensic review; a failed individual context is never silently replaced.
 
-SG-5 is closed only when the aggregate has two real Chromium contexts, the wrong-network scenario, production-build marker, all lifecycle checks, zero critical browser failures, and a valid evidence marker.
+Run `pnpm sg5:evidence:validate` to verify the evidence marker, sidecar digest, scenario matrix, transaction records,
+chain identity, clean-context count, production-build result, and secret-field exclusion.
+
+SG-5 is closed only when the aggregate has two real Chromium contexts, the wrong-network scenario, production-build
+marker, all lifecycle checks, zero critical browser failures, and a valid evidence marker.

@@ -215,6 +215,7 @@ export interface SanitizedAggregateResult {
   wrongNetworkScenarioPassed: boolean;
   productionBuildPassed: boolean;
   contexts: SanitizedProbeResult[];
+  repeatContexts: SanitizedProbeResult[];
 }
 
 export interface HarnessObservationCounters {
@@ -286,6 +287,7 @@ const AGGREGATE_KEYS = [
   "wrongNetworkScenarioPassed",
   "productionBuildPassed",
   "contexts",
+  "repeatContexts",
 ] as const;
 const NETWORK_KEYS = [
   "originClassification",
@@ -810,8 +812,16 @@ export function assertSanitizedAggregateResult(value: unknown): asserts value is
   assertBoolean(result.wrongNetworkScenarioPassed, "wrong network");
   assertBoolean(result.productionBuildPassed, "production build");
   assert(Array.isArray(result.contexts) && result.contexts.length === 2, "aggregate contexts");
+  assert(Array.isArray(result.repeatContexts) && result.repeatContexts.length === 2, "aggregate repeat contexts");
   for (const context of result.contexts) assertSanitizedResult(context);
+  for (const context of result.repeatContexts) assertSanitizedResult(context);
   const passing = result.contexts.filter(
+    (context) =>
+      context.status === "CAPABILITY_COMPLETE" &&
+      errorFree(context as unknown as Record<string, unknown>) &&
+      hasRequiredNetworkProof(context),
+  ).length;
+  const repeatPassing = result.repeatContexts.filter(
     (context) =>
       context.status === "CAPABILITY_COMPLETE" &&
       errorFree(context as unknown as Record<string, unknown>) &&
@@ -821,7 +831,7 @@ export function assertSanitizedAggregateResult(value: unknown): asserts value is
   assert(result.excludedMockContexts === "0", "mock context present");
   if (result.status === "PASS")
     assert(
-      passing === 2 && result.wrongNetworkScenarioPassed && result.productionBuildPassed,
+      passing === 2 && repeatPassing === 2 && result.wrongNetworkScenarioPassed && result.productionBuildPassed,
       "aggregate PASS contradiction",
     );
 }

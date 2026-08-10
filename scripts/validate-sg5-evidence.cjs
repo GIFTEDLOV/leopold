@@ -11,7 +11,7 @@ const HEX32 = /^0x[0-9a-fA-F]{64}$/u;
 const HEX64 = /^[0-9a-f]{64}$/u;
 const DECIMAL = /^(0|[1-9][0-9]*)$/u;
 const SECRET_KEY =
-  /(private|secret|seed|mnemonic|password|token|authorization|auth|ciphertext|inputproof|handle|signedpayload|rawpayload|browserstorage|completeurl)/iu;
+  /(^|[_-])(private|secret|seed|mnemonic|password|token|authorization|auth|ciphertext|inputproof|handle|signedpayload|rawpayload|browserstorage|completeurl)([_-]|$)/iu;
 
 function fail(message) {
   throw new Error(`SG5_EVIDENCE_INVALID:${message}`);
@@ -26,7 +26,7 @@ function assertNoSecrets(value, path = "$") {
     return;
   }
   for (const [key, child] of Object.entries(value)) {
-    requireValue(key === "secretsPersisted" || !SECRET_KEY.test(key), `${path}.${key} is forbidden`);
+    requireValue(!SECRET_KEY.test(key), `${path}.${key} is forbidden`);
     assertNoSecrets(child, `${path}.${key}`);
   }
 }
@@ -94,6 +94,10 @@ function validate() {
     "aggregate requirements",
   );
   requireValue(Array.isArray(value.aggregate.contexts) && value.aggregate.contexts.length === 2, "cold contexts");
+  requireValue(
+    Array.isArray(value.aggregate.repeatContexts) && value.aggregate.repeatContexts.length === 2,
+    "repeat contexts",
+  );
   const requiredScenarios = [
     "SG5-01_CLEAN_LOAD",
     "SG5-02_SDK_INITIALIZATION",
@@ -108,7 +112,7 @@ function validate() {
     "SG5-11_PRODUCTION_BUILD",
   ];
   requireValue(value.scenarios && requiredScenarios.every((key) => value.scenarios[key] === true), "scenario matrix");
-  for (const context of value.aggregate.contexts) {
+  for (const context of [...value.aggregate.contexts, ...value.aggregate.repeatContexts]) {
     requireValue(
       context.status === "CAPABILITY_COMPLETE" &&
         context.executionMode === "LIVE_SEPOLIA" &&

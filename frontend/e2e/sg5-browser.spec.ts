@@ -18,6 +18,7 @@ import {
 
 const live = process.env.SG5_LIVE_ACK === SG5_LIVE_ACK;
 const liveResults: SanitizedProbeResult[] = [];
+const repeatResults: SanitizedProbeResult[] = [];
 const scenarioResults: Record<string, boolean> = {};
 const rpcUrl = process.env.SG5_SEPOLIA_RPC_URL;
 const automationKey = process.env.SG5_AUTOMATION_PRIVATE_KEY;
@@ -249,8 +250,12 @@ test.describe("SG-5 browser capability", () => {
       await waitForProbeOutcome(page);
       const repeat = attachHarnessObservations(await readResult(page), observed.networkObservations, observed.errors);
       expect(repeat.status).toBe("CAPABILITY_COMPLETE");
+      expect(repeat.transactionStatus).toBe("SUCCESS");
+      expect(repeat.authorizedPlaintextMatched).toBe(true);
+      expect(repeat.unauthorizedDecryptionRejected).toBe(true);
       scenarioResults["SG5-10_FRESH_CONTEXT_REPEAT"] = true;
       liveResults.push(result);
+      repeatResults.push(repeat);
       await context.close();
     }
     for (const key of [
@@ -266,6 +271,7 @@ test.describe("SG-5 browser capability", () => {
     ])
       scenarioResults[key] = true;
     expect(liveResults).toHaveLength(2);
+    expect(repeatResults).toHaveLength(2);
   });
 
   test("SG5-04 wrong network refuses before FHE work", async ({ browser }) => {
@@ -295,6 +301,7 @@ test.describe("SG-5 browser capability", () => {
       wrongNetworkScenarioPassed: scenarioResults["SG5-04_WRONG_NETWORK"] === true,
       productionBuildPassed: scenarioResults["SG5-11_PRODUCTION_BUILD"] === true,
       contexts: liveResults,
+      repeatContexts: repeatResults,
     } as const;
     if (passing === 2 && scenarioResults["SG5-04_WRONG_NETWORK"] === true) assertSanitizedAggregateResult(aggregate);
     if (process.env.SG5_RESULT_PATH)
