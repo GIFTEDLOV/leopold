@@ -13,6 +13,7 @@ const ACK = "I_UNDERSTAND_THIS_CONTACTS_SEPOLIA";
 const PAGE_ENABLE = "ENABLED_LOCAL_ONLY";
 const EVIDENCE = join(ROOT, "evidence/cp0/SG5_BROWSER_CAPABILITY.json");
 const SIDECAR = `${EVIDENCE}.sha256`;
+const PRIVATE_BROWSER_LIBS = "/tmp/sg5-libs/root/usr/lib/x86_64-linux-gnu";
 
 function fail(message) { process.stderr.write(`SG5 live launcher refused: ${message}\n`); process.exitCode = 1; }
 function git(...args) { return execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim(); }
@@ -93,7 +94,7 @@ async function main() {
   try {
     await waitForHealth();
     const unauthorized = `0x${createHash("sha256").update(`sg5-unauthorized-${randomBytes(16).toString("hex")}`).digest("hex")}`;
-    const playwright = spawn(process.execPath, [PLAYWRIGHT, "test", "e2e/sg5-browser.spec.ts"], { cwd: FRONTEND, env: childEnv({ SG5_LIVE_ACK: ACK, SG5_EXTERNAL_SERVER: "1", SG5_PROBE_PRODUCTION: "1", SG5_PLAYWRIGHT_OUTPUT_DIR: outputDir, SG5_RESULT_PATH: resultPath, SG5_PRODUCTION_BUILD: "1", SG5_BROWSER_EXECUTABLE: browser, SG5_SEPOLIA_RPC_URL: vars.rpc, SG5_AUTOMATION_PRIVATE_KEY: vars.key, SG5_UNAUTHORIZED_PRIVATE_KEY: unauthorized }), detached: true, stdio: "inherit" });
+    const playwright = spawn(process.execPath, [PLAYWRIGHT, "test", "e2e/sg5-browser.spec.ts"], { cwd: FRONTEND, env: childEnv({ SG5_LIVE_ACK: ACK, SG5_EXTERNAL_SERVER: "1", SG5_PROBE_PRODUCTION: "1", SG5_PLAYWRIGHT_OUTPUT_DIR: outputDir, SG5_RESULT_PATH: resultPath, SG5_PRODUCTION_BUILD: "1", SG5_BROWSER_EXECUTABLE: browser, SG5_SEPOLIA_RPC_URL: vars.rpc, SG5_AUTOMATION_PRIVATE_KEY: vars.key, SG5_UNAUTHORIZED_PRIVATE_KEY: unauthorized, ...(existsSync(PRIVATE_BROWSER_LIBS) ? { LD_LIBRARY_PATH: `${PRIVATE_BROWSER_LIBS}${process.env.LD_LIBRARY_PATH ? `:${process.env.LD_LIBRARY_PATH}` : ""}` } : {}) }), detached: true, stdio: "inherit" });
     const status = await new Promise((resolvePromise, rejectPromise) => { playwright.once("error", rejectPromise); playwright.once("exit", (code, signal) => resolvePromise({ code, signal })); });
     if (status.code !== 0 || status.signal !== null) throw new Error("SG5_PLAYWRIGHT_SUITE_FAILED");
     if (!existsSync(resultPath)) throw new Error("SG5_PLAYWRIGHT_RESULT_MISSING");
