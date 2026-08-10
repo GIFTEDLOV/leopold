@@ -18,6 +18,7 @@ type Props = {
 export function SG5ProbeClient({ mode }: Props) {
   const [result, setResult] = useState<SanitizedProbeResult | null>(null);
   const [failure, setFailure] = useState(false);
+  const [failureClass, setFailureClass] = useState("UNKNOWN");
   const [wrongNetwork, setWrongNetwork] = useState(false);
 
   useEffect(() => {
@@ -32,7 +33,12 @@ export function SG5ProbeClient({ mode }: Props) {
         if (active) setResult(next);
       } catch (error) {
         if (active && error instanceof Error && error.message === "SG5_WRONG_NETWORK_REFUSED") setWrongNetwork(true);
-        else if (active) setFailure(true);
+        else if (active) {
+          const name = error instanceof Error && /^[A-Za-z][A-Za-z0-9_]*Error$/u.test(error.name) ? error.name : "UNKNOWN";
+          setFailureClass(name);
+          console.info(`SG5_FAILURE_CLASS:${name}`);
+          setFailure(true);
+        }
       }
     };
     void execute();
@@ -49,6 +55,7 @@ export function SG5ProbeClient({ mode }: Props) {
       {wrongNetwork ? <p data-testid="sg5-wrong-network-refused">WRONG_NETWORK_REFUSED</p> : null}
       {wrongNetwork ? <p data-testid="sg5-no-transaction">NO_TRANSACTION_ATTEMPTED</p> : null}
       {failure ? <p data-testid="sg5-failure">SANITIZED_PROBE_FAILURE</p> : null}
+      {failure ? <p data-testid="sg5-failure-class">{failureClass}</p> : null}
       {result ? (
         <pre data-testid="sg5-result" data-status={result.status}>
           {JSON.stringify(result, null, 2)}

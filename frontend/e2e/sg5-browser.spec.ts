@@ -100,6 +100,11 @@ async function readResult(page: Page): Promise<SanitizedProbeResult> {
   const text = await page.getByTestId("sg5-result").textContent(); if (!text) throw new Error("missing SG5 result"); const parsed: unknown = JSON.parse(text); assertSanitizedResult(parsed); return parsed;
 }
 
+async function waitForProbeOutcome(page: Page): Promise<void> {
+  await expect.poll(async () => (await page.getByTestId("sg5-result").count()) + (await page.getByTestId("sg5-failure").count()), { timeout: 600_000 }).toBe(1);
+  if (await page.getByTestId("sg5-failure").count()) throw new Error(`SG5_BROWSER_PROBE_FAILURE:${await page.getByTestId("sg5-failure-class").textContent()}`);
+}
+
 test.describe.configure({ mode: "serial", timeout: 900_000 });
 
 test.describe("SG-5 browser capability", () => {
@@ -117,10 +122,10 @@ test.describe("SG-5 browser capability", () => {
       expect(clean).toEqual({ cookies: 0, origins: 0 });
       await page.goto("/");
       await page.goto("/sg5-probe");
-      await expect(page.getByTestId("sg5-result")).toBeVisible({ timeout: 600_000 });
+      await waitForProbeOutcome(page);
       const result = attachHarnessObservations(await readResult(page), observed.networkObservations, observed.errors);
       expect(result.status).toBe("CAPABILITY_COMPLETE"); expect(result.observedChainId).toBe("11155111"); expect(result.transactionStatus).toBe("SUCCESS"); expect(result.authorizedPlaintextMatched).toBe(true); expect(result.unauthorizedDecryptionRejected).toBe(true);
-      await page.reload(); await expect(page.getByTestId("sg5-result")).toBeVisible({ timeout: 600_000 }); const repeat = attachHarnessObservations(await readResult(page), observed.networkObservations, observed.errors); expect(repeat.status).toBe("CAPABILITY_COMPLETE"); scenarioResults["SG5-10_FRESH_CONTEXT_REPEAT"] = true;
+      await page.reload(); await waitForProbeOutcome(page); const repeat = attachHarnessObservations(await readResult(page), observed.networkObservations, observed.errors); expect(repeat.status).toBe("CAPABILITY_COMPLETE"); scenarioResults["SG5-10_FRESH_CONTEXT_REPEAT"] = true;
       liveResults.push(result); await context.close();
     }
     for (const key of ["SG5-01_CLEAN_LOAD", "SG5-02_SDK_INITIALIZATION", "SG5-03_SEPOLIA_PROVIDER", "SG5-05_BROWSER_ENCRYPTION", "SG5-06_LIVE_ENCRYPTED_TRANSACTION", "SG5-07_RESULT_READBACK", "SG5-08_AUTHORIZED_DECRYPTION", "SG5-09_UNAUTHORIZED_ACCESS", "SG5-11_PRODUCTION_BUILD"]) scenarioResults[key] = true;
