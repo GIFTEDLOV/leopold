@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { createHash, randomBytes } = require("node:crypto");
-const { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } = require("node:fs");
+const { existsSync, mkdirSync, readFileSync, readlinkSync, writeFileSync, rmSync } = require("node:fs");
 const { join, resolve } = require("node:path");
 const { execFileSync, spawn } = require("node:child_process");
 
@@ -38,7 +38,7 @@ function loadVars() {
   }
 }
 function portPids() { try { const value = execFileSync("bash", ["-lc", "fuser -n tcp 3000 2>/dev/null || true"], { encoding: "utf8" }); return value.trim().split(/\s+/u).filter((v) => /^[0-9]+$/u.test(v)).map(Number); } catch { return []; } }
-function processText(pid) { try { return { cwd: readFileSync(`/proc/${pid}/cwd`, "utf8"), cmdline: readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ") }; } catch { return null; } }
+function processText(pid) { try { return { cwd: readlinkSync(`/proc/${pid}/cwd`), cmdline: readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ") }; } catch { return null; } }
 function clearOwnedPort() {
   const owned = [];
   for (const pid of portPids()) {
