@@ -18,6 +18,7 @@ type Props = {
 export function SG5ProbeClient({ mode }: Props) {
   const [result, setResult] = useState<SanitizedProbeResult | null>(null);
   const [failure, setFailure] = useState(false);
+  const [wrongNetwork, setWrongNetwork] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -29,8 +30,9 @@ export function SG5ProbeClient({ mode }: Props) {
             : sanitizeObservation(controlledStructuralObservation(), "OFFLINE_STRUCTURAL", navigator.userAgent);
         assertSanitizedResult(next);
         if (active) setResult(next);
-      } catch {
-        if (active) setFailure(true);
+      } catch (error) {
+        if (active && error instanceof Error && error.message === "SG5_WRONG_NETWORK_REFUSED") setWrongNetwork(true);
+        else if (active) setFailure(true);
       }
     };
     void execute();
@@ -42,8 +44,10 @@ export function SG5ProbeClient({ mode }: Props) {
   return (
     <main style={{ fontFamily: "monospace", margin: "2rem", maxWidth: "72rem" }}>
       <h1>SG-5 local capability probe — non-production</h1>
-      <p data-testid="sg5-banner">Test-only route. No wallet, signature, or transaction is requested.</p>
+      <p data-testid="sg5-banner">Internal SG-5 capability route. The automated test wallet is isolated from the frontend.</p>
       <p data-testid="sg5-mode">{mode}</p>
+      {wrongNetwork ? <p data-testid="sg5-wrong-network-refused">WRONG_NETWORK_REFUSED</p> : null}
+      {wrongNetwork ? <p data-testid="sg5-no-transaction">NO_TRANSACTION_ATTEMPTED</p> : null}
       {failure ? <p data-testid="sg5-failure">SANITIZED_PROBE_FAILURE</p> : null}
       {result ? (
         <pre data-testid="sg5-result" data-status={result.status}>

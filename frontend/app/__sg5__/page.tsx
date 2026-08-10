@@ -9,7 +9,7 @@ import {
 } from "@/lib/sg5/protocol";
 
 export default function SG5ProbePage() {
-  if (!probeRouteEnabled(process.env.NODE_ENV, process.env.SG5_PROBE_PAGE)) {
+  if (!probeRouteEnabled(process.env.NODE_ENV, process.env.SG5_PROBE_PAGE, process.env.SG5_PROBE_PRODUCTION)) {
     notFound();
   }
 
@@ -18,7 +18,7 @@ export default function SG5ProbePage() {
   const mode: ProbeExecutionMode = liveRequested ? "LIVE_SEPOLIA" : "OFFLINE_STRUCTURAL";
   const connectSources =
     mode === "LIVE_SEPOLIA"
-      ? "'self' https://relayer.testnet.zama.org https://ethereum-sepolia-rpc.publicnode.com"
+      ? "'self' https://relayer.testnet.zama.org https://ethereum-sepolia-rpc.publicnode.com https://zama-mpc-testnet-public-efd88e2b.s3.eu-west-1.amazonaws.com"
       : "'self'";
 
   return (
