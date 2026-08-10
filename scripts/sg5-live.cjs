@@ -25,9 +25,10 @@ function loadVars() {
   const varsPath = "/home/dell/.config/hardhat-nodejs/vars.json";
   if (!existsSync(varsPath)) throw new Error("SG5_AUTOMATION_WALLET_UNAVAILABLE");
   try {
-    const vars = JSON.parse(readFileSync(varsPath, "utf8"));
-    const loadedRpc = rpc || vars.SEPOLIA_RPC_URL;
-    const loadedKey = key || vars.SEPOLIA_PRIVATE_KEY;
+    const parsed = JSON.parse(readFileSync(varsPath, "utf8"));
+    const vars = parsed && parsed.vars ? parsed.vars : parsed;
+    const loadedRpc = rpc || vars.SEPOLIA_RPC_URL?.value || vars.SEPOLIA_RPC_URL;
+    const loadedKey = key || vars.SEPOLIA_PRIVATE_KEY?.value || vars.SEPOLIA_PRIVATE_KEY;
     if (typeof loadedRpc !== "string" || typeof loadedKey !== "string" || !/^https:\/\//u.test(loadedRpc) || !/^0x[0-9a-fA-F]{64}$/u.test(loadedKey)) throw new Error("invalid automation wallet configuration");
     return { rpc: loadedRpc, key: loadedKey };
   } catch (error) {
