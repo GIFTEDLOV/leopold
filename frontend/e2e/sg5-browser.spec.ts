@@ -29,6 +29,13 @@ function safeHexChainId(chainId: number): string {
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
+function redactedDiagnostic(value: string): string {
+  return value
+    .replace(/https?:\/\/[^\s]+/gu, "<url>")
+    .replace(/0x[0-9a-f]{16,}/giu, "<hex>")
+    .replace(/[A-Za-z0-9+/=_-]{80,}/gu, "<opaque>")
+    .slice(0, 180);
+}
 
 async function bridgeRequest(
   wallet: Wallet,
@@ -120,11 +127,15 @@ async function observeContext(context: BrowserContext, page: Page) {
     }
   });
   page.on("console", (message) => {
-    if (message.type() === "error") errors.console += 1;
+    if (message.type() === "error") {
+      errors.console += 1;
+      process.stdout.write(`SG5_BROWSER_CONSOLE_DIAGNOSTIC:${redactedDiagnostic(message.text())}\n`);
+    }
     if (message.text().startsWith("SG5_STAGE:")) process.stdout.write(`${message.text()}\n`);
   });
-  page.on("pageerror", () => {
+  page.on("pageerror", (error) => {
     errors.page += 1;
+    process.stdout.write(`SG5_BROWSER_PAGE_DIAGNOSTIC:${error.name}:${redactedDiagnostic(error.message)}\n`);
   });
   page.on("request", (request) => {
     try {
@@ -175,8 +186,10 @@ async function observeContext(context: BrowserContext, page: Page) {
     }
   });
   page.on("console", (message) => {
-    if (message.type() === "warning" && /failed|error|wasm|worker|hydration/iu.test(message.text()))
+    if (message.type() === "warning" && /failed|error|wasm|worker|hydration/iu.test(message.text())) {
       errors.console += 1;
+      process.stdout.write(`SG5_BROWSER_WARNING_DIAGNOSTIC:${redactedDiagnostic(message.text())}\n`);
+    }
   });
   await page.addInitScript(() => {
     window.addEventListener("unhandledrejection", () => {
