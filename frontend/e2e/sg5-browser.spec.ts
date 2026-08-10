@@ -193,7 +193,7 @@ async function observeContext(context: BrowserContext, page: Page) {
   });
   await page.addInitScript(() => {
     window.addEventListener("unhandledrejection", () => {
-      document.documentElement.dataset.sg5UnhandledRejection = "true";
+      if (document.documentElement) document.documentElement.dataset.sg5UnhandledRejection = "true";
     });
   });
   return { errors, networkObservations };

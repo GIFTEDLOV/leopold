@@ -77,6 +77,7 @@ const protocol = {
       "https://zama-mpc-testnet-public-efd88e2b.s3.eu-west-1.amazonaws.com",
     ],
     officialRelayerPathNamespace: "/v2/",
+    embeddedRuntimeAssetSchemes: ["data:"],
     requiredCategories: ["RELAYER_KEYURL_METADATA", "RELAYER_RUNTIME", "PUBLIC_KEY_ASSET", "CRS_ASSET", "SEPOLIA_RPC"],
     criticalFailuresDisallowed: true,
     secretsAndBodiesNotPersisted: true,
