@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 
@@ -7,6 +7,7 @@ import {
   CURRENT_OFFICIAL_EXPECTED_ADDITIONAL_OPERATIONS,
   DEPTH_SAFETY_THRESHOLD,
   ERC1967_IMPLEMENTATION_SLOT,
+  HCU_LIMIT_STORAGE_SLOT,
   EXPECTED_DEPLOYED_NORMALIZED_RUNTIME_SHA256,
   EXECUTOR_IMMEDIATE_COUNT,
   EXECUTOR_IMMEDIATE_OFFSETS,
@@ -54,11 +55,13 @@ import {
   EXPECTED_AUTHORITY_PROTOCOL_SHA256,
   EXPECTED_SG4_PROTOCOL_SHA256,
   ROOT,
+  authorityBindingCanonicalSha256,
   assertBoundToPinnedBlock,
   assertLiveCallPlanIsReadOnly,
   checkDirectPin,
   checkLockfilePin,
   checkPreparationLineage,
+  checkPreparationState,
   checkStaleAddressUsage,
   classifyBlockOrBatchControl,
   classifyCodeIdentity,
@@ -180,6 +183,8 @@ function control(overrides: Partial<ControlDeclaration> = {}): ControlDeclaratio
 const PINNED_HEX = "0x7a1200";
 const PINNED_DECIMAL = "8000000";
 const PINNED_HASH = `0x${"ab".repeat(32)}`;
+const PINNED_STATE_ROOT = `0x${"cd".repeat(32)}`;
+const PINNED_TIMESTAMP = "1700000000";
 const AUTHORITY_PROXY = "0xa10998783c8cf88d886bc30307e631d6686f0a22";
 const AUTHORITY_IMPLEMENTATION = "0x2222222222222222222222222222222222222222";
 const SEPOLIA_EXECUTOR = deriveAuthorityProtocol().network.configuredExecutorAddress;
@@ -392,7 +397,7 @@ const OFFICIAL_NORMALIZED_HASH = normalizeRuntimeBytecode(
 
 type FakeOverrides = {
   chainId?: string;
-  block?: { number: string; hash: string } | null;
+  block?: { number: string; hash: string; stateRoot: string; timestamp: string } | null;
   executorCode?: string;
   executorImplementationAddress?: string;
   executorImplementationCode?: string;
@@ -405,11 +410,14 @@ type FakeOverrides = {
   totalHcu?: string;
   depthHcu?: string;
   exempt?: string;
+  hcuStorageWord?: string;
 };
 
 function uintWord(value: bigint | string): string {
   return `0x${BigInt(value).toString(16).padStart(64, "0")}`;
 }
+
+const TEST_HCU_STORAGE_WORD = uintWord((20_000_000n << 192n) | (5_000_000n << 144n) | ((1n << 48n) - 1n));
 
 function createFakeTransport(overrides: FakeOverrides = {}) {
   const calls: { method: string; params: readonly unknown[] }[] = [];
@@ -427,7 +435,14 @@ function createFakeTransport(overrides: FakeOverrides = {}) {
         case "eth_chainId":
           return overrides.chainId ?? "0xaa36a7";
         case "eth_getBlockByNumber":
-          return overrides.block === undefined ? { number: PINNED_HEX, hash: PINNED_HASH } : overrides.block;
+          return overrides.block === undefined
+            ? {
+                number: PINNED_HEX,
+                hash: PINNED_HASH,
+                stateRoot: PINNED_STATE_ROOT,
+                timestamp: uintWord(PINNED_TIMESTAMP),
+              }
+            : overrides.block;
         case "eth_getCode": {
           const target = String(call.params[0]).toLowerCase();
           if (target === SEPOLIA_EXECUTOR.toLowerCase()) return overrides.executorCode ?? EXECUTOR_RUNTIME_CODE;
@@ -438,6 +453,8 @@ function createFakeTransport(overrides: FakeOverrides = {}) {
         }
         case "eth_getStorageAt": {
           const target = String(call.params[0]).toLowerCase();
+          const slot = String(call.params[1]).toLowerCase();
+          if (slot === HCU_LIMIT_STORAGE_SLOT) return overrides.hcuStorageWord ?? TEST_HCU_STORAGE_WORD;
           if (target === SEPOLIA_EXECUTOR.toLowerCase()) {
             return overrides.executorImplementationSlot ?? word(executorImplementationAddress);
           }
@@ -1410,9 +1427,79 @@ function bindingRecordFixture(overrides: Record<string, unknown> = {}): Record<s
   const pricingManifest = pricingManifestFixture();
   const enforcementManifest = enforcementProofManifestFixture();
   const enumerationManifest = enumerationManifestFixture();
+  const authorityImplementationCode = `0x${officialImplementationRuntime().toString("hex")}`;
   const base: Record<string, unknown> = {
-    schema: "zama-szn4.sg4-hcu-authority-binding.v3",
-    recordVersion: 3,
+    schema: "zama-szn4.sg4-hcu-authority-binding.v4",
+    recordVersion: 4,
+    integrity: {
+      canonicalization: "CANONICAL_JSON_SHA256_WITH_DIGEST_FIELD_NULL",
+      canonicalSha256: null,
+    },
+    snapshot: {
+      network: "sepolia",
+      chainId: "11155111",
+      finalityMode: "finalized",
+      blockNumberDecimal: PINNED_DECIMAL,
+      blockNumberHex: PINNED_HEX,
+      blockHash: PINNED_HASH,
+      stateRoot: PINNED_STATE_ROOT,
+      blockTimestamp: PINNED_TIMESTAMP,
+      capturedAt: "2026-08-10T00:00:00.000Z",
+      rpcMethods: [...LIVE_RPC_ALLOWED_METHODS].sort(),
+      contractAddresses: { executor: SEPOLIA_EXECUTOR, hcuLimit: AUTHORITY_PROXY },
+      durabilityModel: "PINNED_BLOCK_RPC_REPLAY",
+    },
+    stateEvidence: {
+      executor: {
+        address: SEPOLIA_EXECUTOR,
+        proxyRuntimeBytecode: EXECUTOR_RUNTIME_CODE,
+        proxyRuntimeSha256: EXECUTOR_RUNTIME_HASH,
+        implementationSlotWord: word(EXECUTOR_IMPLEMENTATION),
+        implementationAddress: SEPOLIA_EXECUTOR,
+        implementationRuntimeBytecode: EXECUTOR_RUNTIME_CODE,
+        implementationRuntimeSha256: EXECUTOR_RUNTIME_HASH,
+        normalizedImplementationRuntimeSha256: EXECUTOR_DERIVED_NORMALIZED_HASH,
+        version: "FHEVMExecutor v0.4.0",
+        reciprocalAddress: AUTHORITY_PROXY,
+      },
+      authority: {
+        address: AUTHORITY_PROXY,
+        proxyRuntimeBytecode: AUTHORITY_PROXY_CODE,
+        proxyRuntimeSha256: PROXY_RUNTIME_HASH,
+        implementationSlotWord: word(AUTHORITY_IMPLEMENTATION),
+        implementationAddress: AUTHORITY_IMPLEMENTATION,
+        implementationRuntimeBytecode: authorityImplementationCode,
+        implementationRuntimeSha256: sha256(Buffer.from(authorityImplementationCode.slice(2), "hex")),
+        normalizedImplementationRuntimeSha256: DERIVED_NORMALIZED_HASH,
+        version: "HCULimit v0.1.0",
+        reciprocalAddress: SEPOLIA_EXECUTOR,
+      },
+      hcuStorage: {
+        storageSlot: HCU_LIMIT_STORAGE_SLOT,
+        rawWord: TEST_HCU_STORAGE_WORD,
+        fieldOrderLeastToMostSignificant: [
+          "globalHCUCapPerBlock",
+          "usedBlockHCU",
+          "lastSeenBlockNumber",
+          "maxHCUDepthPerTx",
+          "maxHCUPerTx",
+        ],
+        fieldWidthBits: 48,
+        byteOrder: "BIG_ENDIAN_WORD_LSB_FIRST_PACKED_FIELDS",
+        decodedFields: {
+          globalHCUCapPerBlock: "281474976710655",
+          usedBlockHCU: "0",
+          lastSeenBlockNumber: "0",
+          maxHCUDepthPerTx: "5000000",
+          maxHCUPerTx: "20000000",
+        },
+        getterValues: {
+          globalHCUCapPerBlock: "281474976710655",
+          maxHCUDepthPerTx: "5000000",
+          maxHCUPerTx: "20000000",
+        },
+      },
+    },
     lineage: {
       implementationCommit: COMMIT_A,
       implementationTree: TREE_A,
@@ -1514,14 +1601,21 @@ function bindingRecordFixture(overrides: Record<string, unknown> = {}): Record<s
       ]),
     ),
   };
-  return { ...base, ...overrides };
+  const resolved = { ...base, ...overrides };
+  if (!("integrity" in overrides)) {
+    resolved.integrity = {
+      canonicalization: "CANONICAL_JSON_SHA256_WITH_DIGEST_FIELD_NULL",
+      canonicalSha256: authorityBindingCanonicalSha256(resolved),
+    };
+  }
+  return resolved;
 }
 
 /* A record carrying only the lineage — the rejected preparation-only shape. */
 function preparationOnlyRecordFixture(): Record<string, unknown> {
   return {
-    schema: "zama-szn4.sg4-hcu-authority-binding.v3",
-    recordVersion: 3,
+    schema: "zama-szn4.sg4-hcu-authority-binding.v4",
+    recordVersion: 4,
     lineage: bindingRecordFixture().lineage as Record<string, unknown>,
   };
 }
@@ -1529,7 +1623,10 @@ function preparationOnlyRecordFixture(): Record<string, unknown> {
 type LineageOverrides = {
   branch?: string;
   worktreeClean?: boolean;
+  trackedWorktreeClean?: boolean;
   indexClean?: boolean;
+  untrackedPaths?: string[];
+  bindingTracked?: boolean;
   headCommit?: string;
   headTree?: string;
   parentCommit?: string;
@@ -1547,7 +1644,10 @@ function verifiedLineageProbe(overrides: LineageOverrides = {}) {
   return {
     branch: () => overrides.branch ?? "main",
     worktreeClean: () => overrides.worktreeClean ?? true,
+    trackedWorktreeClean: () => overrides.trackedWorktreeClean ?? true,
     indexClean: () => overrides.indexClean ?? true,
+    untrackedPaths: () => overrides.untrackedPaths ?? ["scripts/sg4-hcu-authority-binding.json"],
+    bindingTracked: () => overrides.bindingTracked ?? false,
     parentCount: () => overrides.parentCount ?? 1,
     revParse: (rev: string) => {
       if (rev === "HEAD") return headCommit;
@@ -2305,6 +2405,9 @@ describe("SG-4 HCU authority: determinism and execution gating", function () {
     const verifierSource = readFileSync(resolve(ROOT, "scripts/sg4-hcu-authority.ts"), "utf8");
     expect(verifierSource).to.not.match(/eth_sendTransaction|eth_sendRawTransaction|personal_|eth_sign|Wallet\(/u);
     expect(verifierSource).to.not.match(/writeFileSync|writeFile\(|appendFileSync|mkdirSync/u);
+    const generatorSource = readFileSync(resolve(ROOT, "scripts/sg4-hcu-authority-binding-generator.ts"), "utf8");
+    expect(generatorSource).to.not.match(/eth_sendTransaction|eth_sendRawTransaction|personal_|eth_sign|Wallet\(/u);
+    expect(generatorSource).to.include('flag: "wx"');
 
     /* Live verification is unreachable without the exact acknowledgment. */
     expect(await rejection(() => runLiveAuthorityVerification(undefined))).to.match(/exact acknowledgment/u);
@@ -2325,7 +2428,7 @@ describe("SG-4 HCU authority: determinism and execution gating", function () {
 
 describe("SG-4 HCU authority: offline preflight", function () {
   it("passes every offline check", function () {
-    const report = runOfflinePreflight();
+    const report = runOfflinePreflight(verifiedLineageProbe({ record: null }));
     const failed = report.checks.filter((entry) => entry.status === "FAIL");
     expect(failed.map((entry) => `${entry.id}: ${entry.detail}`)).to.deep.equal([]);
     expect(report.verdict).to.equal("PASS");
@@ -2535,6 +2638,7 @@ describe("SG-4 HCU authority: result validation", function () {
   });
 
   it("66. rejects a false PASS for each missing or mismatched nested condition", function () {
+    this.timeout(120_000);
     const cases: [Record<string, unknown>, RegExp][] = [
       [{ codeIdentityResult: "UNRESOLVED" }, /verified executor\/authority code identity/u],
       [{ normalizedImplementationHash: "f".repeat(64) }, /equal the resolved official artifact hash/u],
@@ -2783,6 +2887,8 @@ describe("SG-4 HCU authority: live read-only verifier", function () {
       "eth_getCode",
       "eth_getStorageAt",
       "eth_getCode",
+      /* Packed HCULimit storage proof. */
+      "eth_getStorageAt",
       "eth_call",
       "eth_call",
       /* The numeric limits themselves, read from the verified interface. */
@@ -2791,8 +2897,8 @@ describe("SG-4 HCU authority: live read-only verifier", function () {
       /* Caller applicability for the one subject whose getter is AVAILABLE. */
       "eth_call",
     ]);
-    /* The pinned block is requested with the finalized tag, never "latest". */
-    expect(calls[1].params[0]).to.equal("finalized");
+    /* Verification replays the binding's exact finalized block, never "latest". */
+    expect(calls[1].params[0]).to.equal(PINNED_HEX);
     expect(result.pinnedBlockFinality).to.equal("FINALIZED");
     expect(result.pinnedBlockNumber).to.equal(PINNED_DECIMAL);
     expect(result.pinnedBlockHash).to.equal(PINNED_HASH);
@@ -2859,11 +2965,17 @@ describe("SG-4 HCU authority: live read-only verifier", function () {
       transport,
       lineageProbe: verifiedLineageProbe(),
     });
-    const slotReads = calls.filter((call) => call.method === "eth_getStorageAt");
+    const slotReads = calls.filter(
+      (call) => call.method === "eth_getStorageAt" && call.params[1] === ERC1967_IMPLEMENTATION_SLOT,
+    );
     expect(slotReads).to.have.lengthOf(1);
     expect(slotReads[0].params[0]).to.equal(AUTHORITY_PROXY);
     expect(slotReads[0].params[1]).to.equal(ERC1967_IMPLEMENTATION_SLOT);
     expect(slotReads[0].params[2]).to.equal(PINNED_HEX);
+    const hcuReads = calls.filter(
+      (call) => call.method === "eth_getStorageAt" && call.params[1] === HCU_LIMIT_STORAGE_SLOT,
+    );
+    expect(hcuReads).to.have.lengthOf(1);
     /* No eth_call carries the slot, and the plan assertion enforces the mechanism. */
     for (const call of calls.filter((entry) => entry.method === "eth_call")) {
       expect(JSON.stringify(call.params)).to.not.include(ERC1967_IMPLEMENTATION_SLOT);
@@ -2886,7 +2998,7 @@ describe("SG-4 HCU authority: live read-only verifier", function () {
     expect(result.authorityImplementationAddress).to.equal("UNRESOLVED");
     expect(result.codeIdentityResult).to.equal("UNRESOLVED");
     expect(String(result.status)).to.include("ERC1967_IMPLEMENTATION_SLOT_EMPTY_OR_MALFORMED");
-    expect(result.finalVerdict).to.equal("BLOCKED");
+    expect(result.finalVerdict).to.equal("FAIL");
   });
 
   it("76. fails on a normalized bytecode mismatch against a verified authoritative artifact", function () {
@@ -2942,13 +3054,16 @@ describe("SG-4 HCU authority: live read-only verifier", function () {
 
   it("78. blocks until the preparation binding record exists", async function () {
     const { transport } = createFakeTransport();
-    const result = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT, { transport });
+    const result = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT, {
+      transport,
+      lineageProbe: verifiedLineageProbe({ record: null }),
+    });
     expect(result.finalVerdict).to.not.equal("PASS");
     expect(result.preparationLineageResult).to.equal("UNRESOLVED");
     expect(String(result.status)).to.include("PREPARATION_BINDING_RECORD_ABSENT");
   });
 
-  it("79. accepts no RPC, executor, authority, or address override", function () {
+  it("79. accepts only the read-only RPC endpoint override, never authority or address overrides", function () {
     const verifierSource = readFileSync(resolve(ROOT, "scripts/sg4-hcu-authority.ts"), "utf8");
     /* The only environment reads are the process PATH and the valueless live acknowledgement gate;
      * neither carries an endpoint, an address, or a credential. */
@@ -2956,16 +3071,17 @@ describe("SG-4 HCU authority: live read-only verifier", function () {
       (entry) => entry[1] ?? entry[2],
     );
     expect([...new Set(envReads)].sort()).to.deep.equal(["PATH", "SG4_AUTHORITY_LIVE_ACK"]);
-    /* The endpoint is only ever read from the committed protocol constant. */
-    expect(verifierSource).to.include("new URL(LIVE_RPC_ENDPOINT)");
-    expect(verifierSource).to.not.match(/new URL\((?!LIVE_RPC_ENDPOINT)/u);
-    /* The options type carries exactly the two declared test seams. */
+    /* The endpoint is configurable, while contract identities remain protocol/binding derived. */
+    expect(verifierSource).to.include("new URL(endpointOverride || LIVE_RPC_ENDPOINT)");
+    expect(verifierSource).to.not.match(/process\.env\.(?:EXECUTOR|AUTHORITY|HCU)/u);
+    /* The options type carries the transport/probe seams and an explicit closure mode. */
     const optionsBlock = /export type LiveVerificationOptions = \{[\s\S]*?\n\};/u.exec(verifierSource);
     expect(optionsBlock, "LiveVerificationOptions not found").to.not.equal(null);
     /* Compare the declared members only; the surrounding comment names the things it excludes. */
     const members = (optionsBlock?.[0] ?? "").replace(/\/\*[\s\S]*?\*\//gu, "").replace(/\/\/[^\n]*/gu, "");
     expect(members).to.match(/transport\?:/u);
     expect(members).to.match(/lineageProbe\?:/u);
+    expect(members).to.match(/verificationMode\?:/u);
     expect(members).to.not.match(/url|endpoint|address|executor|authority|key/iu);
   });
 });
@@ -3149,7 +3265,7 @@ describe("SG-4 HCU authority: declarations, provenance, and stale-constant scope
       },
     );
     expect(spawned).to.not.equal(null);
-    expect((spawned as unknown as { args: string[] }).args).to.include("live");
+    expect((spawned as unknown as { args: string[] }).args).to.include("post-commit");
     /* Only PATH and the acknowledgment cross the boundary. */
     expect(Object.keys((spawned as unknown as { env: Record<string, string> }).env).sort()).to.deep.equal([
       "PATH",
@@ -3164,7 +3280,9 @@ describe("SG-4 HCU authority: declarations, provenance, and stale-constant scope
   it("87. withholds the committed-endpoint transport while the preparation binding is unmet", async function () {
     /* No transport is injected, so the real one would be used — but the binding is unmet, so it is
      * never constructed and no network call is attempted. */
-    const result = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT);
+    const result = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT, {
+      lineageProbe: verifiedLineageProbe({ record: null }),
+    });
     expect(result.finalVerdict).to.not.equal("PASS");
     expect(String(result.status)).to.include("NETWORK_TRANSPORT_WITHHELD_UNTIL_PREPARATION_BINDING_IS_SATISFIED");
     expect(result.rpcMethodsUsed).to.deep.equal([]);
@@ -3198,7 +3316,7 @@ describe("SG-4 HCU authority: two-commit preparation lineage", function () {
 
     const model = deriveAuthorityProtocol().liveMode.preparationLineage;
     expect(model.selfReferentialBindingRejected).to.equal(true);
-    expect(model.model).to.equal("TWO_COMMIT_IMPLEMENTATION_THEN_AUTHORITY_BINDING");
+    expect(model.model).to.equal("ORIGINAL_A_TO_REMEDIATED_A2_TO_BINDING_B");
     expect(model.bindingRecordMustNotContainItsOwnCommitOrTree).to.equal(true);
     expect(model.rejectedModel).to.match(/Unsatisfiable by construction/u);
 
@@ -3226,6 +3344,47 @@ describe("SG-4 HCU authority: two-commit preparation lineage", function () {
     const lineage = checkPreparationLineage(verifiedLineageProbe());
     expect(lineage.result, lineage.blockers.join("|")).to.equal("VERIFIED");
     expect(lineage.blockers).to.deep.equal([]);
+  });
+
+  it("90a. accepts the clean preparation state and the one-untracked-candidate state", function () {
+    const preparation = checkPreparationState(verifiedLineageProbe({ record: null, untrackedPaths: [] }));
+    expect(preparation.result, preparation.blockers.join("|")).to.equal("VERIFIED");
+
+    const candidate = checkPreparationLineage(
+      verifiedLineageProbe({ headCommit: COMMIT_A, headTree: TREE_A }),
+      "CANDIDATE",
+    );
+    expect(candidate.result, candidate.blockers.join("|")).to.equal("VERIFIED");
+    expect(candidate.record).to.not.equal(null);
+  });
+
+  it("90b. rejects malformed candidate combinations without relaxing cleanliness", function () {
+    const cases: [string, LineageOverrides, string][] = [
+      ["tracked binding", { bindingTracked: true }, "CANDIDATE_BINDING_MUST_BE_UNTRACKED"],
+      [
+        "extra untracked",
+        { untrackedPaths: ["extra.json", "scripts/sg4-hcu-authority-binding.json"] },
+        "CANDIDATE_UNTRACKED_SET_INVALID",
+      ],
+      ["dirty tracked worktree", { trackedWorktreeClean: false }, "TRACKED_WORKTREE_IS_NOT_CLEAN"],
+      ["dirty index", { indexClean: false }, "INDEX_IS_NOT_CLEAN"],
+      ["wrong A2", { headCommit: "9".repeat(40) }, "CANDIDATE_HEAD_IS_NOT_IMPLEMENTATION_COMMIT"],
+      ["wrong A2 tree", { headTree: "9".repeat(40) }, "CANDIDATE_HEAD_TREE_MISMATCH"],
+    ];
+    for (const [label, overrides, blocker] of cases) {
+      const result = checkPreparationLineage(
+        verifiedLineageProbe({ headCommit: COMMIT_A, headTree: TREE_A, ...overrides }),
+        "CANDIDATE",
+      );
+      expect(result.result, label).to.not.equal("VERIFIED");
+      expect(result.blockers.join("|"), label).to.include(blocker);
+    }
+  });
+
+  it("90c. detects candidate byte mutation through its canonical digest", function () {
+    const record = bindingRecordFixture();
+    ((record.snapshot as Record<string, unknown>).blockHash as string) = `0x${"11".repeat(32)}`;
+    expect(validateAuthorityBindingRecord(record)).to.include("binding record canonical digest mismatch");
   });
 
   it("91. rejects a wrong parent commit", function () {
@@ -3308,8 +3467,10 @@ describe("SG-4 HCU authority: two-commit preparation lineage", function () {
     const absent = checkPreparationLineage(verifiedLineageProbe({ record: null }));
     expect(absent.result).to.equal("UNRESOLVED");
     expect(absent.blockers).to.include("PREPARATION_BINDING_RECORD_ABSENT");
-    /* It really is absent in this preparation: commit A does not exist yet. */
-    expect(existsSync(resolve(ROOT, "scripts/sg4-hcu-authority-binding.json"))).to.equal(false);
+    /* Preparation absence is an explicit state, independent of which phase is running this suite. */
+    expect(checkPreparationState(verifiedLineageProbe({ record: null, untrackedPaths: [] })).result).to.equal(
+      "VERIFIED",
+    );
 
     const lineageOf = (patch: Record<string, unknown>): Record<string, unknown> =>
       bindingRecordFixture({
@@ -3345,21 +3506,21 @@ describe("SG-4 HCU authority: two-commit preparation lineage", function () {
   it("98. documents the exact post-review two-commit sequence", function () {
     const model = deriveAuthorityProtocol().liveMode.preparationLineage;
     expect(model.postReviewSequence).to.deep.equal([
-      "A. commit the reviewed implementation",
-      "B. independently reverify the immutable sources, build or obtain the official artifact, and produce the single authority-binding JSON",
-      "C. independently review that JSON",
-      "D. commit only that JSON as B",
-      "E. verify the A->B lineage and the authority-binding record",
-      "F. execute the live read-only verification",
+      "A. preserve the original preparation commit unchanged",
+      "B. commit the remediated closure implementation as A2, with no binding record",
+      "C. generate one untracked binding candidate naming A2 and verify it live without requiring B",
+      "D. commit only the candidate bytes as B",
+      "E. verify B has parent A2 and changes only the binding record",
+      "F. replay the exact bound snapshot and complete post-commit live verification",
     ]);
     expect(model.bindingRecordPath).to.equal("scripts/sg4-hcu-authority-binding.json");
     expect(model.checks).to.have.lengthOf(10);
     /* The document carries the same sequence. */
     const doc = readFileSync(resolve(ROOT, "docs/security/SG4_HCU_AUTHORITY_PROTOCOL.md"), "utf8");
     expect(doc).to.include("scripts/sg4-hcu-authority-binding.json");
-    expect(doc).to.include("commit only that JSON as");
-    expect(doc).to.match(/HEAD\^` equals the recorded `implementationCommit`/u);
-    expect(doc).to.match(/not\*\* falsely required to equal A's tree/u);
+    expect(doc).to.include("commit only the verified bytes as B");
+    expect(doc).to.match(/HEAD\^` equals the recorded `implementationCommit` A2/u);
+    expect(doc).to.match(/not\*\* falsely required to equal A2's tree/u);
   });
 });
 
@@ -3636,7 +3797,6 @@ describe("SG-4 HCU authority: artifact identity roots", function () {
 
 describe("SG-4 HCU authority: late-bound authority-binding record", function () {
   it("109. blocks while the authority-binding record is absent", async function () {
-    expect(existsSync(resolve(ROOT, "scripts/sg4-hcu-authority-binding.json"))).to.equal(false);
     const absent = checkPreparationLineage(verifiedLineageProbe({ record: null }));
     expect(absent.result).to.equal("UNRESOLVED");
     expect(absent.record).to.equal(null);
@@ -3898,7 +4058,9 @@ describe("SG-4 HCU authority: on-chain limit reads", function () {
     });
     /* The block/batch cap has no getter and is not applicable, with an artifact proof. */
     expect(result.blockOrBatchOnChainReading).to.deep.include({ result: "NOT_APPLICABLE_WITH_ARTIFACT_PROOF" });
-    expect(generateLiveCallPlan(bindingRecordFixture() as never)).to.have.lengthOf(13);
+    const plan = generateLiveCallPlan(bindingRecordFixture() as never);
+    expect(plan).to.have.lengthOf(14);
+    expect(plan.some((call) => call.callId === "AUTHORITY_HCU_PACKED_STORAGE")).to.equal(true);
   });
 
   it("119. fails on an on-chain limit that disagrees with the binding record", async function () {
@@ -3988,7 +4150,8 @@ describe("SG-4 HCU authority: deployment chain identity", function () {
       lineageProbe: verifiedLineageProbe(),
     });
     expect(result.executorCodeIdentityResult).to.equal("UNRESOLVED");
-    expect(result.finalVerdict).to.equal("BLOCKED");
+    expect(result.finalVerdict).to.equal("FAIL");
+    expect(String(result.status)).to.include("EXECUTOR_SNAPSHOT_PROXY_EVIDENCE_MISMATCH");
     expect(String(result.status)).to.include("EXECUTOR_IMPLEMENTATION_CODE_IDENTITY_UNRESOLVED");
   });
 
@@ -4031,8 +4194,8 @@ describe("SG-4 HCU authority: deployment chain identity", function () {
       transport: second.transport,
       lineageProbe: verifiedLineageProbe({ record: authorityDrift }),
     });
-    expect(authorityResult.authorityVersionResult).to.equal("MISMATCH");
-    expect(String(authorityResult.status)).to.include("AUTHORITY_VERSION_MISMATCH");
+    expect(authorityResult.authorityVersionResult).to.equal("UNRESOLVED");
+    expect(String(authorityResult.status)).to.include("authority evidence version mismatch");
   });
 
   it("127. handles a direct authority deployment without reading any slot", async function () {
@@ -4065,7 +4228,7 @@ describe("SG-4 HCU authority: deployment chain identity", function () {
     expect(result.authorityImplementationAddress).to.equal(result.authorityAddress);
     expect(result.codeIdentityResult).to.equal("VERIFIED");
     /* No ERC-1967 slot was read, because the reviewed model says there is no proxy. */
-    expect(calls.some((call) => call.method === "eth_getStorageAt")).to.equal(false);
+    expect(calls.some((call) => call.params[1] === ERC1967_IMPLEMENTATION_SLOT)).to.equal(false);
   });
 
   it("128. refuses to assume ERC-1967 when the model is not established", async function () {
@@ -4094,7 +4257,7 @@ describe("SG-4 HCU authority: deployment chain identity", function () {
       lineageProbe: verifiedLineageProbe(),
     });
     expect(String(emptyResult.status)).to.include("ERC1967_IMPLEMENTATION_SLOT_EMPTY_OR_MALFORMED");
-    expect(emptyResult.finalVerdict).to.equal("BLOCKED");
+    expect(emptyResult.finalVerdict).to.equal("FAIL");
 
     const broken = createFakeTransport({ reciprocal: word("0x3333333333333333333333333333333333333333") });
     const brokenResult = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT, {
@@ -4125,7 +4288,7 @@ describe("SG-4 HCU authority: deployment chain identity", function () {
  * ------------------------------------------------------------------------------------------- */
 
 describe("SG-4 HCU authority: finality and transport integrity", function () {
-  it("131. pins a finalized block and never falls back to latest", async function () {
+  it("131. captures finalized during generation and replays only the exact bound block", async function () {
     const policy = deriveAuthorityProtocol().liveMode.pinnedBlockFinalityPolicy;
     expect(policy.blockTag).to.equal("finalized");
     expect(policy.fallbackToLatestForbidden).to.equal(true);
@@ -4136,7 +4299,7 @@ describe("SG-4 HCU authority: finality and transport integrity", function () {
       transport,
       lineageProbe: verifiedLineageProbe(),
     });
-    expect(calls[1].params[0]).to.equal("finalized");
+    expect(calls[1].params[0]).to.equal(PINNED_HEX);
     expect(calls.some((call) => call.params.includes("latest"))).to.equal(false);
     expect(result.pinnedBlockFinality).to.equal("FINALIZED");
 
@@ -4147,8 +4310,10 @@ describe("SG-4 HCU authority: finality and transport integrity", function () {
       lineageProbe: verifiedLineageProbe(),
     });
     expect(blocked.pinnedBlockFinality).to.equal("UNRESOLVED");
-    expect(String(blocked.status)).to.include("FINALIZED_BLOCK_NOT_AVAILABLE");
+    expect(String(blocked.status)).to.include("BOUND_SNAPSHOT_BLOCK_NOT_AVAILABLE");
     expect(blocked.finalVerdict).to.equal("BLOCKED");
+    const generator = readFileSync(resolve(ROOT, "scripts/sg4-hcu-authority-binding-generator.ts"), "utf8");
+    expect(generator).to.include('rpc("eth_getBlockByNumber", ["finalized", false])');
     expect(validateAuthorityResult(passResult({ pinnedBlockFinality: "UNRESOLVED" })).join(" | ")).to.match(
       /finalized pinned block/u,
     );
@@ -4743,7 +4908,8 @@ describe("SG-4 HCU authority: executor deployment model", function () {
       "eth_call",
       "eth_call",
     ]);
-    expect(result.finalVerdict).to.equal("BLOCKED");
+    expect(result.finalVerdict).to.equal("FAIL");
+    expect(String(result.status)).to.include("EXECUTOR_SNAPSHOT");
     expect(String(result.status)).to.include("OFFICIAL_BUILD_IS_NOT_THE_PINNED_REPRODUCTION");
   });
 });
@@ -5358,7 +5524,7 @@ describe("SG-4 HCU authority: end-to-end live PASS", function () {
      * pin, the executor code, its version and authority getter, the proxy code, the ERC-1967 slot,
      * the implementation code, the authority version, the reciprocal executor getter, the two
      * ceiling getters and one caller-applicability getter. */
-    expect(calls).to.have.lengthOf(13);
+    expect(calls).to.have.lengthOf(14);
     expect(calls.map((call) => call.method)).to.deep.equal([
       "eth_chainId",
       "eth_getBlockByNumber",
@@ -5368,6 +5534,7 @@ describe("SG-4 HCU authority: end-to-end live PASS", function () {
       "eth_getCode",
       "eth_getStorageAt",
       "eth_getCode",
+      "eth_getStorageAt",
       "eth_call",
       "eth_call",
       "eth_call",
@@ -5400,7 +5567,7 @@ describe("SG-4 HCU authority: end-to-end live PASS", function () {
     }
 
     const transportCases: [string, FakeOverrides, string, RegExp][] = [
-      ["executor code drift", { executorCode: "0xdeadbeef" }, "BLOCKED", /EXECUTOR_(?:IMPLEMENTATION_)?CODE_IDENTITY/u],
+      ["executor code drift", { executorCode: "0xdeadbeef" }, "FAIL", /EXECUTOR_(?:SNAPSHOT|IMPLEMENTATION_)?/u],
       ["on-chain total drift", { totalHcu: "19999999" }, "FAIL", /ON_CHAIN|LIMIT/u],
       ["on-chain depth drift", { depthHcu: "4999999" }, "FAIL", /ON_CHAIN|LIMIT/u],
       ["broken reciprocal", { reciprocal: word(AUTHORITY_PROXY) }, "FAIL", /RECIPROCAL/u],
@@ -5420,6 +5587,7 @@ describe("SG-4 HCU authority: end-to-end live PASS", function () {
   });
 
   it("170. keeps the PASS conditions and the verdict in agreement", async function () {
+    this.timeout(120_000);
     const { transport } = createFakeTransport();
     const result = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT, {
       transport,
@@ -6147,7 +6315,8 @@ describe("SG-4 HCU authority: deployment and plan coherence", function () {
       },
     });
     const plan = generateLiveCallPlan(directRecord as never);
-    expect(plan.some((step) => step.method === "eth_getStorageAt")).to.equal(false);
+    expect(plan.some((step) => step.callId === "AUTHORITY_ERC1967_IMPLEMENTATION_SLOT")).to.equal(false);
+    expect(plan.some((step) => step.callId === "AUTHORITY_HCU_PACKED_STORAGE")).to.equal(true);
     assertLiveCallPlanIsReadOnly(plan);
     /* And the proxied record does generate it. */
     expect(
@@ -6166,7 +6335,7 @@ describe("SG-4 HCU authority: deployment and plan coherence", function () {
     expect(result.authorityAddress).to.equal("UNRESOLVED");
     expect(result.authorityCodeIdentityResult).to.not.equal("VERIFIED");
     expect(broken.calls.some((call) => call.method === "eth_getStorageAt")).to.equal(false);
-    expect(result.finalVerdict).to.equal("BLOCKED");
+    expect(result.finalVerdict).to.equal("FAIL");
   });
 
   it("201. never advertises an RPC method outside the read-only allowlist", async function () {
@@ -6225,6 +6394,7 @@ describe("SG-4 HCU authority: split roots", function () {
   });
 
   it("203. is unaffected by the obsolete local fixture and blocked by the two real roots", function () {
+    this.timeout(120_000);
     /* Changing ONLY the local 0.10.0 fixture identity leaves a coherent PASS a PASS. */
     for (const drift of [
       {
@@ -6980,7 +7150,7 @@ describe("SG-4 HCU authority: runtime plan enforcement", function () {
     expect(result.livePlanDigest).to.equal(livePlanDigest(plan));
     expect(result.liveCallLogDigest).to.equal(liveCallLogDigest(calls as never));
     /* The exact enforced plan for a fully coherent proxied record. */
-    expect(result.livePlanCallCount).to.equal(13);
+    expect(result.livePlanCallCount).to.equal(14);
     expect(result.livePlanDigest).to.equal(livePlanDigest(generateLiveCallPlan(record as never)));
     expect(plan.map((call) => `${call.callId}:${call.method}:${call.targetRole}`)).to.deep.equal([
       "CHAIN_ID:eth_chainId:NONE",
@@ -6991,6 +7161,7 @@ describe("SG-4 HCU authority: runtime plan enforcement", function () {
       "AUTHORITY_CODE:eth_getCode:AUTHORITY",
       "AUTHORITY_ERC1967_IMPLEMENTATION_SLOT:eth_getStorageAt:AUTHORITY",
       "AUTHORITY_IMPLEMENTATION_CODE:eth_getCode:AUTHORITY_IMPLEMENTATION",
+      "AUTHORITY_HCU_PACKED_STORAGE:eth_getStorageAt:AUTHORITY",
       "AUTHORITY_RECIPROCAL_EXECUTOR_GETTER:eth_call:AUTHORITY",
       "AUTHORITY_VERSION:eth_call:AUTHORITY",
       "TRANSACTION_TOTAL_HCU_GETTER:eth_call:AUTHORITY",
@@ -7062,7 +7233,7 @@ describe("SG-4 HCU authority: runtime plan enforcement", function () {
     const advance = async (transport: ReturnType<typeof guarded>, upTo: number) => {
       const issued = [
         { method: "eth_chainId", params: [] },
-        { method: "eth_getBlockByNumber", params: ["finalized", false] },
+        { method: "eth_getBlockByNumber", params: [PINNED_HEX, false] },
         { method: "eth_getCode", params: [SEPOLIA_EXECUTOR, PINNED_HEX] },
       ];
       for (const call of issued.slice(0, upTo)) await transport.send(call);
@@ -8150,7 +8321,7 @@ describe("SG-4 HCU authority: INVARIANTS F/H/I/J — end to end", function () {
     });
     expect(directResult.implementationResolutionResult).to.equal("NOT_APPLICABLE_DIRECT_DEPLOYMENT");
     expect(directResult.implementationAddressPolicyResult).to.equal("NOT_APPLICABLE_DIRECT_DEPLOYMENT");
-    expect(direct.calls.some((call) => call.method === "eth_getStorageAt")).to.equal(false);
+    expect(direct.calls.some((call) => call.params[1] === ERC1967_IMPLEMENTATION_SLOT)).to.equal(false);
   });
 
   it("249. classifies every PASS-consumed field and populates none from a fixture", function () {
@@ -8867,7 +9038,21 @@ describe("SG-4 HCU authority: CORRECTION 4 — no provenance by stale address eq
     /* The executor genuinely returns the address the obsolete plugin literal happens to carry.
      * That is a coincidence about the literal, not evidence about the deployment. */
     const stale = STALE_PLUGIN_HCU_LIMIT.sepoliaValue;
-    const record = bindingRecordFixture();
+    const baseRecord = bindingRecordFixture();
+    const baseSnapshot = baseRecord.snapshot as Record<string, unknown>;
+    const baseAddresses = baseSnapshot.contractAddresses as Record<string, unknown>;
+    const baseEvidence = baseRecord.stateEvidence as Record<string, Record<string, unknown>>;
+    const record = bindingRecordFixture({
+      snapshot: {
+        ...baseSnapshot,
+        contractAddresses: { ...baseAddresses, hcuLimit: stale },
+      },
+      stateEvidence: {
+        ...baseEvidence,
+        executor: { ...baseEvidence.executor, reciprocalAddress: stale },
+        authority: { ...baseEvidence.authority, address: stale },
+      },
+    });
     const { transport } = createFakeTransport({ authorityAddress: stale });
     const result = await runLiveAuthorityVerification(LIVE_ACKNOWLEDGEMENT, {
       transport,

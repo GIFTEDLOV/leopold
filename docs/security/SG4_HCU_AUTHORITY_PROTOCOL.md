@@ -1,10 +1,38 @@
 # SG-4 HCU authority protocol
 
+## Closure protocol v4
+
+This revision repairs the closure state machine. The immutable original preparation commit is followed by a remediated
+preparation commit A2, then by a binding-only commit B:
+
+`ORIGINAL_A -> REMEDIATED_PREPARATION_COMMIT_A2 -> BINDING_COMMIT_B`
+
+The reachable transitions are: clean A2 with no binding; clean A2 with exactly one untracked binding candidate;
+candidate live verification; B whose parent is A2 and whose only diff is the binding; post-commit live verification;
+SG-4 closure. Candidate verification never requires B to exist, and the binding never predicts B's commit or tree. Git
+derives B after it exists.
+
+Binding schema `zama-szn4.sg4-hcu-authority-binding.v4` adds a canonical content digest, a complete finalized Sepolia
+snapshot, and exact state evidence. The snapshot records chain id, decimal and hexadecimal block number, block hash,
+state root, timestamp, capture time, read-only RPC method set, relevant addresses, and durability model. The selected
+durability model is recorded honestly as `PINNED_BLOCK_RPC_REPLAY`; no state-root proof is claimed without an
+independently verified EIP-1186 trie proof.
+
+The generator resolves `finalized` once and performs every state read against that exact block. Candidate and
+post-commit verification request the bound block number and reject any block hash, state root, timestamp, code,
+implementation slot, getter, or packed-storage mismatch. `SEPOLIA_RPC_URL` may select a read-only HTTPS provider;
+addresses and authority facts remain non-overridable. The fallback endpoint remains PublicNode.
+
+The packed HCULimit word is read at `0xc13af6c514bff8997f30c90003baa82bd02aad978179d1ce58d85c4319ad6500`. Its five
+fields are decoded as strict least-to-most-significant `uint48` values, with the high 16 bits required to be zero, and
+the three limit fields must equal their getters. The verifier still writes no files; only the explicit generator writes
+the untracked candidate.
+
 ## Executive decision
 
-This document preregisters authority protocol version `sg4-hcu-authority-protocol/v1`. It records how the SG-4 HCU
-blocker is resolved, not that it has been resolved live. No live RPC call was made, no benchmark was executed, and no
-evidence was created. SG-4 remains PENDING and SG-5 remains PENDING.
+This document specifies authority protocol version `sg4-hcu-authority-protocol/v1` with closure binding schema v4. A2
+records how the SG-4 HCU blocker is closed; the binding and live evidence are produced only after clean A2 passes.
+Permanent benchmark execution remains prohibited until post-commit verification succeeds.
 
 The previous SG-4 preregistration recorded that no locally authoritative numeric HCU ceiling existed. That premise was
 incorrect. Candidate ceilings are present in installed, integrity-pinned code, and they are bindable to the live
@@ -362,10 +390,10 @@ value, byte-exact equality is asserted over the **full** runtime rather than onl
 
 ## On-chain corroboration
 
-Ordered, all bound to one pinned block number and block hash:
+Ordered, all bound to one snapshot block number, block hash and state root:
 
 1. `eth_chainId` equals 11155111;
-2. pin one finalized block number and hash; bind every later read to it;
+2. during generation resolve `finalized`, record the complete header, and bind every state read to its exact number;
 3. `eth_getCode` at the committed executor address, non-empty;
 4. for reviewed `ERC1967_PROXY` executor: authenticate the proxy runtime, read only the exact implementation slot
    `0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`, enforce the exact-address policy, fetch
@@ -374,7 +402,9 @@ Ordered, all bound to one pinned block number and block hash:
 5. only then call executor `getVersion()` and `getHCULimitAddress()`;
 6. authenticate the derived authority proxy/direct runtime and, if reviewed as a proxy, resolve its exact ERC-1967
    implementation slot and compare implementation code to the authenticated `HCULimit` artifact;
-7. verify reciprocal linkage, authority version, limits, applicability and the verified implementation surface.
+7. read and strictly decode the packed HCULimit storage word;
+8. verify reciprocal linkage, authority version, getter/storage equality, limits, applicability and the verified
+   implementation surface.
 
 ### ERC-1967 resolution mechanism
 
@@ -457,21 +487,23 @@ hashes, calculator and table hashes, the parsed operation-table comparison, comp
 unsupported operations, the stale-constant guard, both independent controls, exclusive threshold rules, the explicit
 block/batch state, and that no unresolved control is treated as absent.
 
-**Live read-only verification** — fully **implemented**, deliberately **not executed**. It is not an unconditional
-refusal: it requires the exact acknowledgment, and with it, it runs the complete ordered plan. It is not run during this
-preparation phase, and it cannot pass yet, because the preparation commit and tree are not recorded (see below) and four
-controls remain unresolved.
+**Candidate live verification** — runs at clean A2 with exactly one untracked binding. It validates the candidate's A2
+identity and tree, canonical digest, sources, pricing, provenance, snapshot, deployment identities, reciprocal linkage,
+packed storage and getters. It does not require B and returns `CANDIDATE_VERIFIED` only on a complete read-only PASS.
+
+**Post-commit live verification** — runs at clean B, requires `B^ == A2`, and requires the A2→B diff to contain exactly
+the binding. It replays the same bound snapshot and returns `POST_COMMIT_VERIFIED` only on a complete PASS.
 
 It may use only `eth_chainId`, `eth_getBlockByNumber`, `eth_getCode`, `eth_call`, and `eth_getStorageAt`, all bound to
 one pinned block. A guarded transport refuses any other method outright and refuses any block-bound call issued against
 a block other than the pinned one. It never submits a transaction, enumerates accounts, uses wallet, signing, debug, or
 trace methods, probes balances, or probes limits empirically. It writes **no evidence** in this phase.
 
-#### Finality
+#### Finality and replay
 
-The pinned block is requested with the **`finalized`** tag. A reorg-eligible head makes an authority result
-unreproducible, so there is no fallback to `latest`: if a finalized block cannot be obtained the run fails closed with
-`FINALIZED_BLOCK_NOT_AVAILABLE`, and a PASS requires `pinnedBlockFinality` to be `FINALIZED`.
+The generator requests the **`finalized`** tag. A reorg-eligible head makes an authority result unreproducible, so there
+is no fallback to `latest`. Candidate and post-commit verification request the recorded hexadecimal block number, never
+`finalized` or `latest`, and require the returned header to equal every bound snapshot identifier.
 
 #### JSON-RPC response integrity and resource bounds
 
@@ -484,20 +516,19 @@ The committed-endpoint transport hardens every response before it is trusted:
 - exactly one of `result` or `error` must be present — both, or neither, is rejected;
 - errors are sanitized: the raw third-party body is never echoed.
 
-The RPC origin, executor address, and expected source roots are committed protocol values; no environment override of
-any of them is accepted, and the verifier's options type carries no URL, address, endpoint, or key parameter. The
-transport is injectable solely as a test seam so the whole path can be exercised against an in-memory fake with no
-network access; the injected object exposes a single `send` function. Output is sanitized: no complete RPC responses,
-headers, credentials, provider objects, receipts, traces, private URLs, or environment dumps are retained.
+The executor address and expected source roots are committed protocol values. `SEPOLIA_RPC_URL` may select a read-only
+HTTPS provider because retention capability is transport, not authority; no executor, authority or HCU fact is accepted
+from the environment. The transport is injectable solely as a test seam. Output is sanitized: no endpoint, headers,
+credentials, provider objects, receipts, traces, private URLs, or environment dumps are retained.
 
-### Preparation binding — two commits, no self-reference, and a late-bound authority record
+### Preparation binding — original A, remediated A2, then B
 
 An earlier revision stored the preparation commit and tree in a tracked source file and required a clean `HEAD` to equal
 them. That is **unsatisfiable by construction**: writing the values into a tracked file changes the tree, and committing
 that change produces a different commit and tree, so the recorded values can never equal the clean `HEAD` that contains
 them. That model is rejected.
 
-The replacement verifies a **lineage** rather than an identity.
+The replacement verifies a **lineage** rather than an identity and separates pre-commit from post-commit verification.
 
 A second defect had to be closed with it. An earlier revision made B carry **only** the lineage. But commit A hardcodes
 the official artifact hash, the limit semantics, the provenance state and the schedule state as unresolved; B may add
@@ -505,18 +536,21 @@ only the binding record and may not touch implementation source; and any later c
 breaks the lineage. So after B, **no permitted action could ever supply the missing values** — the gate was permanently
 unresolvable. A lineage-only record is now rejected by the validator for exactly that reason.
 
-- **Commit A — implementation.** All SG-4 implementation, protocol, documentation and tests, plus the verifier support
-  for a future authority-binding record. A claims nothing about its own commit or tree.
+- **Original A.** Preserved unchanged as the parent of the closure remediation.
+- **Commit A2 — remediated implementation.** All closure schema, generator, verifier, launcher, documentation and tests.
+  A2 contains no binding and claims nothing about its own commit or tree.
 - **Commit B — authority binding.** Adds exactly one dedicated record at `scripts/sg4-hcu-authority-binding.json` and
-  changes nothing else. B does not record its own commit or tree either, and does not need to: the verifier reads B from
-  `HEAD` and A from `HEAD^`.
+  changes nothing else. B does not record its own commit or tree; the verifier reads B from `HEAD` and A2 from `HEAD^`.
 
 The record carries **both** the implementation lineage **and** every late-bound authority input, so the resolved facts
 arrive as independently reviewed data rather than as code. Its closed sections are:
 
 | Section               | Carries                                                                                                                                                                                                                                       |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lineage`             | implementation commit A, tree A, both protocol digests, permitted path, binding purpose                                                                                                                                                       |
+| `integrity`           | canonical JSON content digest computed with only its own digest field set to null                                                                                                                                                             |
+| `snapshot`            | complete finalized Sepolia block identity, RPC methods, addresses and durability model                                                                                                                                                        |
+| `stateEvidence`       | exact proxy/implementation bytes and hashes, slots, versions, reciprocal getters, packed HCU storage and getters                                                                                                                              |
+| `lineage`             | implementation commit A2, tree A2, both protocol digests, permitted path, binding purpose                                                                                                                                                     |
 | `authorityResolution` | `status`, `reviewedIndependently`, review statement                                                                                                                                                                                           |
 | `provenance`          | reverification status and eight discriminated entries: six `SOURCE_FILE` entries with `path`/`contentSha256`, plus separate `HCULimit` and `FHEVMExecutor` `REPRODUCED_BUILD` entries with `buildInfoSha256` and closed reproduction evidence |
 | `artifact`            | id, release, compiler version, metadata model, normalization manifest + digest, normalized runtime hash                                                                                                                                       |
@@ -537,8 +571,8 @@ Running at clean `HEAD` B, the verifier requires all of:
 2. worktree **and** index are clean;
 3. **B has exactly one parent** — merge and octopus commits are rejected, because a merge whose first parent is A would
    otherwise satisfy the `HEAD^` check while dragging in an unreviewed second history;
-4. `HEAD^` equals the recorded `implementationCommit` A;
-5. `HEAD^{tree}` is B's own binding tree — it is **not** falsely required to equal A's tree, and must not equal the
+4. `HEAD^` equals the recorded `implementationCommit` A2;
+5. `HEAD^{tree}` is B's own binding tree — it is **not** falsely required to equal A2's tree, and must not equal the
    recorded implementation tree;
 6. the recorded `implementationTree` equals `A^{tree}`;
 7. `git diff --name-only A..B` is exactly the one dedicated binding-record path;
@@ -636,13 +670,12 @@ code-identical-upgrade permission exists for the executor in this lineage.
 
 #### Exact post-review sequence
 
-1. **A.** commit the reviewed implementation;
-2. **B.** independently reverify the immutable sources, build or obtain the official artifact, and produce the single
-   authority-binding JSON at `scripts/sg4-hcu-authority-binding.json`;
-3. **C.** independently review that JSON;
-4. **D.** commit only that JSON as B;
-5. **E.** verify the A→B lineage and the authority-binding record;
-6. **F.** execute the live read-only verification.
+1. preserve original A unchanged;
+2. commit only the closure remediation as A2, with no binding;
+3. generate one untracked binding against A2 and a fresh finalized snapshot;
+4. run candidate verification and require `CANDIDATE_VERIFIED`;
+5. commit only the verified bytes as B;
+6. require `B^ == A2`, the A2→B diff to be binding-only, and `POST_COMMIT_VERIFIED`.
 
 ## The reachable PASS
 
@@ -657,13 +690,14 @@ The number of JSON-RPC calls is deployment-model and getter dependent. For a pro
 | #    | Method                 | Purpose                                                                     |
 | ---- | ---------------------- | --------------------------------------------------------------------------- |
 | 1    | `eth_chainId`          | confirm chain 11155111                                                      |
-| 2    | `eth_getBlockByNumber` | pin one `finalized` block number and hash                                   |
+| 2    | `eth_getBlockByNumber` | replay the binding's exact finalized block header                           |
 | 3    | `eth_getCode`          | executor runtime at the pinned block                                        |
 | 4    | `eth_getStorageAt`     | executor's exact ERC-1967 implementation slot                               |
 | 5    | `eth_getCode`          | executor implementation runtime                                             |
 | 6    | `eth_call`             | executor `getVersion()`, only after implementation identity                 |
 | 7    | `eth_call`             | executor `getHCULimitAddress()` — authority is derived, never assumed       |
 | next | role-dependent reads   | authority runtime and, if proxy, authority slot then implementation runtime |
+| next | `eth_getStorageAt`     | packed HCULimit storage at its exact ERC-7201 slot                          |
 | next | `eth_call`             | authority version, reciprocal linkage, limits and applicability             |
 
 The call log is compared against `generateLiveCallPlan(record)` for that same record: the verifier may not make a call
@@ -1277,7 +1311,11 @@ operation without an authoritative cost.
 - [ ] ERC-1967 implementation resolved with `eth_getStorageAt` at the exact slot, never claimed through `eth_call`.
 - [ ] Live verifier implemented and exercised against a fake read-only transport, not an unconditional refusal.
 - [ ] Both HCU safety comparisons committed in the strict `<` form.
-- [ ] Preparation binding is a two-commit A→B lineage with no self-reference; binding record absent and blocking.
+- [ ] Original A is unchanged; A2 contains only closure remediation and no binding.
+- [ ] Candidate mode allows exactly one untracked binding at clean A2 and does not require B.
+- [ ] Post-commit mode requires B^ = A2 and a binding-only A2→B diff.
+- [ ] Binding canonical digest excludes only its own digest value and contains no future B identity.
+- [ ] Snapshot records chain id, block number/hex, hash, state root, timestamp, methods, addresses and durability model.
 - [ ] Network ceiling semantics `UNRESOLVED`; local `>=` and prior-reviewed `>` recorded separately.
 - [ ] Internal 75% safety comparisons strict regardless of network ceiling inclusivity.
 - [ ] Prior-reviewed immutable provenance recorded in full, `reverified: false`, and still blocking.
@@ -1289,7 +1327,9 @@ operation without an authoritative cost.
 - [ ] On-chain HCU limits are read from the verified interface and compared to the binding record.
 - [ ] Executor and authority code identity and versions verified against the binding record.
 - [ ] ERC-1967 used only when the reviewed record proves that deployment model.
-- [ ] Pinned block is `finalized`; no fallback to `latest`.
+- [ ] Generator captures `finalized`; verification replays only the exact bound block and never substitutes `latest`.
+- [ ] Packed HCULimit storage is read, strictly decoded as five uint48 fields, and matched to all three getters.
+- [ ] `SEPOLIA_RPC_URL` changes transport only; authority addresses and facts remain non-overridable.
 - [ ] RPC responses checked for id, version, status, size, and exactly one of result/error.
 - [ ] Normalization manifest authenticated by recomputed digest and used for authoritative identity.
 - [ ] Pricing manifest carries costs, operand modes, arity and result types; digest recomputed.

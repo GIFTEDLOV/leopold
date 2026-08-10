@@ -1195,8 +1195,8 @@ export const BINDING_RECORD_PATH = "scripts/sg4-hcu-authority-binding.json";
 /* v3: the record carries distinct HCULimit and FHEVMExecutor REPRODUCED_BUILD entries plus real
  * Hardhat build-info in their separate source-material fields. Earlier record schemas cannot
  * satisfy the v3 verifier. */
-export const BINDING_RECORD_SCHEMA = "zama-szn4.sg4-hcu-authority-binding.v3";
-export const BINDING_RECORD_VERSION = 3;
+export const BINDING_RECORD_SCHEMA = "zama-szn4.sg4-hcu-authority-binding.v4";
+export const BINDING_RECORD_VERSION = 4;
 
 /* Where a facet's authoritative fact came from. The local fixture is never a PASS origin. */
 export const FACET_ORIGINS: readonly string[] = [
@@ -1980,6 +1980,22 @@ export const AUTHORITY_BINDING_RECORD_SHAPE = {
   schema: { const: BINDING_RECORD_SCHEMA },
   recordVersion: { const: BINDING_RECORD_VERSION },
   sections: {
+    integrity: ["canonicalization", "canonicalSha256"],
+    snapshot: [
+      "network",
+      "chainId",
+      "finalityMode",
+      "blockNumberDecimal",
+      "blockNumberHex",
+      "blockHash",
+      "stateRoot",
+      "blockTimestamp",
+      "capturedAt",
+      "rpcMethods",
+      "contractAddresses",
+      "durabilityModel",
+    ],
+    stateEvidence: ["executor", "authority", "hcuStorage"],
     sourceMaterial: [...SOURCE_MATERIAL_SUBJECTS],
     lineage: [
       "implementationCommit",
@@ -2148,6 +2164,7 @@ export const SG4_IMPLEMENTATION_PATHS: readonly string[] = [
   "docs/security/SG4_HCU_AUTHORITY_PROTOCOL.md",
   "package.json",
   "pnpm-lock.yaml",
+  "scripts/sg4-hcu-authority-binding-generator.ts",
   "scripts/sg4-hcu-authority-launcher.cjs",
   "scripts/sg4-hcu-authority-protocol.ts",
   "scripts/sg4-hcu-authority.ts",
@@ -2157,7 +2174,7 @@ export const SG4_IMPLEMENTATION_PATHS: readonly string[] = [
 ];
 
 export const PREPARATION_LINEAGE_MODEL = {
-  model: "TWO_COMMIT_IMPLEMENTATION_THEN_AUTHORITY_BINDING",
+  model: "ORIGINAL_A_TO_REMEDIATED_A2_TO_BINDING_B",
   selfReferentialBindingRejected: true,
   rejectedModel:
     "A single commit whose tracked source records that same commit's hash and tree. Unsatisfiable by construction: recording the value changes the tree, and committing the change changes the commit.",
@@ -2166,8 +2183,8 @@ export const PREPARATION_LINEAGE_MODEL = {
   bindingRecordPath: BINDING_RECORD_PATH,
   bindingRecordSchema: BINDING_RECORD_SCHEMA,
   bindingRecordCarriesLateBoundAuthorityInputs: true,
-  bindingRecordCreatedDuringThisPreparation: false,
-  bindingRecordAbsenceIsBlocking: true,
+  bindingRecordCreatedDuringThisPreparation: true,
+  bindingRecordAbsenceIsBlockingOnlyForCandidateAndPostCommit: true,
   bindingRecordMustNotContainItsOwnCommitOrTree: true,
   bindingCommitMustChangeOnlyTheBindingRecord: true,
   bindingCommitMustHaveExactlyOneParent: true,
@@ -2179,26 +2196,26 @@ export const PREPARATION_LINEAGE_MODEL = {
   branchRequired: "main",
   cleanWorktreeRequired: true,
   cleanIndexRequired: true,
-  verifiedAt: "CLEAN_HEAD_B",
+  verifiedAt: ["CLEAN_HEAD_A2_WITHOUT_BINDING", "CLEAN_HEAD_A2_WITH_UNTRACKED_CANDIDATE", "CLEAN_HEAD_B"],
   checks: [
     "current branch is main",
-    "worktree and index are both clean",
+    "preparation has no binding; candidate mode has a clean tracked worktree/index and exactly one untracked binding",
     "the binding commit B has exactly one parent; merge and octopus commits are rejected",
-    "HEAD^ equals the recorded implementationCommit A",
-    "HEAD^{tree} is the binding tree and is NOT required to equal A's tree",
-    "the recorded implementationTree equals A^{tree}",
-    "git diff --name-only A..B is exactly the dedicated binding-record path",
-    "every SG-4 implementation and runtime path has the same blob at B as at A",
+    "HEAD^ equals the recorded implementationCommit A2",
+    "HEAD^{tree} is the binding tree and is NOT required to equal A2's tree",
+    "the recorded implementationTree equals A2^{tree}",
+    "git diff --name-only A2..B is exactly the dedicated binding-record path",
+    "every SG-4 implementation and runtime path has the same blob at B as at A2",
     "the authority-binding record's schema, closed shape, lineage and late-bound authority inputs are valid",
     "no third commit or unrelated change has been introduced without reopening review",
   ],
   postReviewSequence: [
-    "A. commit the reviewed implementation",
-    "B. independently reverify the immutable sources, build or obtain the official artifact, and produce the single authority-binding JSON",
-    "C. independently review that JSON",
-    "D. commit only that JSON as B",
-    "E. verify the A->B lineage and the authority-binding record",
-    "F. execute the live read-only verification",
+    "A. preserve the original preparation commit unchanged",
+    "B. commit the remediated closure implementation as A2, with no binding record",
+    "C. generate one untracked binding candidate naming A2 and verify it live without requiring B",
+    "D. commit only the candidate bytes as B",
+    "E. verify B has parent A2 and changes only the binding record",
+    "F. replay the exact bound snapshot and complete post-commit live verification",
   ],
 } as const;
 
@@ -2212,6 +2229,7 @@ export const PREPARATION_LINEAGE_MODEL = {
 
 export const SG4_GUARDED_SOURCE_SCOPE: readonly string[] = [
   "contracts/benchmarks/SG4FheBenchmarkHarness.sol",
+  "scripts/sg4-hcu-authority-binding-generator.ts",
   "scripts/sg4-hcu-authority-launcher.cjs",
   "scripts/sg4-hcu-authority-protocol.ts",
   "scripts/sg4-hcu-authority.ts",
@@ -2300,6 +2318,10 @@ export const LIVE_RPC_ALLOWED_METHODS: readonly string[] = [
 /* eip-1967: bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1). */
 export const ERC1967_IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
+/* ERC-7201 namespace used by HCULimit v0.3.0. The authenticated source declares this exact
+ * constant and five uint48 fields packed least-significant field first into this word. */
+export const HCU_LIMIT_STORAGE_SLOT = "0xc13af6c514bff8997f30c90003baa82bd02aad978179d1ce58d85c4319ad6500";
+
 export const ERC1967_IMPLEMENTATION_RESOLUTION = {
   mechanism: "ETH_GET_STORAGE_AT_EXACT_ERC1967_SLOT_AT_THE_PINNED_BLOCK",
   slot: ERC1967_IMPLEMENTATION_SLOT,
@@ -2332,6 +2354,7 @@ export const LIVE_RPC_FORBIDDEN_METHOD_PREFIXES: readonly string[] = [
 ];
 
 export const LIVE_RPC_ENDPOINT = "https://ethereum-sepolia-rpc.publicnode.com";
+export const LIVE_RPC_ENDPOINT_ENV = "SEPOLIA_RPC_URL";
 export const LIVE_ACKNOWLEDGEMENT = "I ACKNOWLEDGE SG4 LIVE READ ONLY AUTHORITY VERIFICATION";
 
 /* ---------------------------------------------------------------------------------------------
@@ -3665,10 +3688,10 @@ export function validateAuthorityProtocol(protocol: AuthorityProtocol): void {
     "artifact facets must be sorted and unique",
   );
 
-  /* F9 — two-commit lineage, with no self-reference anywhere. */
+  /* F9 — original A -> remediated A2 -> binding B, with no self-reference anywhere. */
   invariant(protocol.liveMode.preparationLineage.selfReferentialBindingRejected, "self-binding model still permitted");
   invariant(
-    protocol.liveMode.preparationLineage.model === "TWO_COMMIT_IMPLEMENTATION_THEN_AUTHORITY_BINDING",
+    protocol.liveMode.preparationLineage.model === "ORIGINAL_A_TO_REMEDIATED_A2_TO_BINDING_B",
     "preparation lineage model drift",
   );
   invariant(
@@ -3676,11 +3699,11 @@ export function validateAuthorityProtocol(protocol: AuthorityProtocol): void {
     "the binding record may not contain its own commit or tree",
   );
   invariant(
-    protocol.liveMode.preparationLineage.bindingRecordCreatedDuringThisPreparation === false &&
-      protocol.liveMode.preparationLineage.bindingRecordAbsenceIsBlocking &&
+    protocol.liveMode.preparationLineage.bindingRecordCreatedDuringThisPreparation === true &&
+      protocol.liveMode.preparationLineage.bindingRecordAbsenceIsBlockingOnlyForCandidateAndPostCommit &&
       protocol.liveMode.liveBindingPresent === false &&
       protocol.liveMode.liveBindingAbsenceIsBlocking,
-    "the binding record must be absent and blocking during this preparation",
+    "the binding record must be absent in preparation and required only by later closure modes",
   );
   invariant(isSortedUnique(SG4_IMPLEMENTATION_PATHS), "implementation paths must be sorted and unique");
   invariant(

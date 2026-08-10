@@ -1573,6 +1573,7 @@ describe("SG-4 scope", function () {
       "docs/security/SG4_BENCHMARK_PROTOCOL.md",
       "docs/security/SG4_HCU_AUTHORITY_PROTOCOL.md",
       "scripts/sg4-protocol.ts",
+      "scripts/sg4-hcu-authority-binding-generator.ts",
       "scripts/sg4-hcu-authority-launcher.cjs",
       "scripts/sg4-hcu-authority-protocol.ts",
       "scripts/sg4-hcu-authority.ts",
@@ -1580,6 +1581,7 @@ describe("SG-4 scope", function () {
       "test/SG4HcuAuthority.ts",
       "test/fixtures/fhevm-v0.13.2-FHEVMExecutor-4d775fb2ba96328ce842168d97046c84.build-info.json.gz",
       "test/fixtures/fhevm-v0.13.2-operatorsPrices.ts.txt",
+      "tsconfig.json",
     ];
     expect(paths.filter((path) => !permitted.includes(path))).to.deep.equal([]);
   });

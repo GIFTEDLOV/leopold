@@ -20,6 +20,7 @@ const TS_NODE_CLI = join(ROOT, "node_modules/ts-node/dist/bin.js");
 const VERIFIER_SCRIPT = join(ROOT, "scripts/sg4-hcu-authority.ts");
 const LIVE_ACK = "I ACKNOWLEDGE SG4 LIVE READ ONLY AUTHORITY VERIFICATION";
 const LIVE_ACK_ENV = "SG4_AUTHORITY_LIVE_ACK";
+const RPC_ENV = "SEPOLIA_RPC_URL";
 const SUSPICIOUS_ENV_KEY = /(PRIVATE|SECRET|MNEMONIC|SEED|WALLET|RPC.*(URL|KEY)|AUTH|TOKEN|CREDENTIAL)/iu;
 const MAX_REPORT_BYTES = 256 * 1024;
 
@@ -43,12 +44,12 @@ function assertNoOverrideEnvironment() {
   /* The live acknowledgment is a deliberate, valueless gate rather than an override or a
    * credential, so it is exempt from both filters below. Without the exemption its own name would
    * trip the credential-name filter and the intended live gate could never be reached. */
-  const isAcknowledgment = (key) => key === LIVE_ACK_ENV;
+  const isPermitted = (key) => key === LIVE_ACK_ENV || key === RPC_ENV;
   const overrides = Object.keys(process.env).filter(
-    (key) => !isAcknowledgment(key) && /^SG4_(RPC|EXECUTOR|AUTHORITY|HCU)/iu.test(key),
+    (key) => !isPermitted(key) && /^SG4_(RPC|EXECUTOR|AUTHORITY|HCU)/iu.test(key),
   );
   if (overrides.length > 0) throw new Error("authority overrides must not be supplied through the environment");
-  const suspicious = Object.keys(process.env).filter((key) => !isAcknowledgment(key) && SUSPICIOUS_ENV_KEY.test(key));
+  const suspicious = Object.keys(process.env).filter((key) => !isPermitted(key) && SUSPICIOUS_ENV_KEY.test(key));
   if (suspicious.length > 0) throw new Error("credential-bearing environment variable names must be removed");
 }
 
@@ -75,13 +76,20 @@ function assertLiveAcknowledgement(acknowledgement) {
   if (acknowledgement !== LIVE_ACK) throw new Error("live mode requires the exact acknowledgment");
 }
 
-function runLive(acknowledgement, execute = spawnSync) {
+function runLive(modeOrAcknowledgement, acknowledgementOrExecute, maybeExecute = spawnSync) {
+  const legacyCall = modeOrAcknowledgement === LIVE_ACK;
+  const mode = legacyCall ? "post-commit" : modeOrAcknowledgement;
+  const acknowledgement = legacyCall ? modeOrAcknowledgement : acknowledgementOrExecute;
+  const execute = legacyCall ? acknowledgementOrExecute : maybeExecute;
   assertLiveAcknowledgement(acknowledgement);
-  const result = execute(process.execPath, [TS_NODE_CLI, "--transpile-only", VERIFIER_SCRIPT, "live"], {
+  if (mode !== "candidate" && mode !== "post-commit") throw new Error("invalid live verification mode");
+  const childEnv = { PATH: process.env.PATH, [LIVE_ACK_ENV]: acknowledgement };
+  if (process.env[RPC_ENV]) childEnv[RPC_ENV] = process.env[RPC_ENV];
+  const result = execute(process.execPath, [TS_NODE_CLI, "--transpile-only", VERIFIER_SCRIPT, mode], {
     cwd: ROOT,
     encoding: "utf8",
     /* The acknowledgment is forwarded; nothing else from this environment reaches the verifier. */
-    env: { PATH: process.env.PATH, [LIVE_ACK_ENV]: acknowledgement },
+    env: childEnv,
     maxBuffer: MAX_REPORT_BYTES,
     timeout: 300_000,
   });
@@ -100,11 +108,11 @@ function main() {
     runPreflight();
     return;
   }
-  if (mode === "live") {
-    runLive(process.env[LIVE_ACK_ENV]);
+  if (mode === "candidate" || mode === "post-commit") {
+    runLive(mode, process.env[LIVE_ACK_ENV]);
     return;
   }
-  throw new Error("mode must be preflight or live");
+  throw new Error("mode must be preflight, candidate, or post-commit");
 }
 
 module.exports = Object.freeze({

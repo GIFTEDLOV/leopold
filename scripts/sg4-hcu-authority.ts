@@ -12,7 +12,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { serializeProtocol } from "./sg4-protocol";
@@ -127,6 +127,7 @@ import {
   DEPTH_SAFETY_THRESHOLD,
   ERC1967_IMPLEMENTATION_RESOLUTION,
   ERC1967_IMPLEMENTATION_SLOT,
+  HCU_LIMIT_STORAGE_SLOT,
   EXPECTED_DEPLOYED_NORMALIZED_RUNTIME_SHA256,
   EXECUTOR_IMMEDIATE_COUNT,
   EXECUTOR_IMMEDIATE_OFFSETS,
@@ -149,6 +150,7 @@ import {
   LIVE_LIMIT_SEMANTICS_VALUES,
   LIVE_RPC_ALLOWED_METHODS,
   LIVE_RPC_ENDPOINT,
+  LIVE_RPC_ENDPOINT_ENV,
   LIVE_RPC_FORBIDDEN_METHOD_PREFIXES,
   OPERATION_NAME_TRANSLATIONS,
   OPERATION_SCHEDULE_AUTHORITY,
@@ -184,7 +186,7 @@ export const ROOT = join(__dirname, "..");
 /* Committed digests of the two deterministic protocols. Any edit to either generator changes its
  * digest and fails preflight until the change is reviewed and the constant is updated. */
 export const EXPECTED_SG4_PROTOCOL_SHA256 = "88d6f8c1522a0668d769f34ddafaf3e71134cbc9434a1b9676f78d5bdeb0968e";
-export const EXPECTED_AUTHORITY_PROTOCOL_SHA256 = "742026e3f9517edc446af073e36ae2dbb089cb8b966f4bc18f01aba81ad0ac31";
+export const EXPECTED_AUTHORITY_PROTOCOL_SHA256 = "53fabb080c608c1224faa8435a1fbd548ca316806d554fcc8e92b730d8cfea2b";
 
 /* Resolved through the repository root node_modules. This path exists only because
  * @fhevm/host-contracts is a direct dependency: with the transitive-only arrangement the authority
@@ -2027,7 +2029,12 @@ export function gitValue(...args: string[]): string {
   return result.status === 0 ? result.stdout.trim() : "UNRESOLVED";
 }
 
-export function runOfflinePreflight(): { schema: string; mode: string; verdict: string; checks: Check[] } {
+export function runOfflinePreflight(lineageProbe: LineageProbe = createGitLineageProbe()): {
+  schema: string;
+  mode: string;
+  verdict: string;
+  checks: Check[];
+} {
   const checks: Check[] = [];
 
   /* Repository identity. */
@@ -2347,7 +2354,8 @@ export function runOfflinePreflight(): { schema: string; mode: string; verdict: 
     ),
   );
 
-  /* Live mode must remain prepared-only. */
+  /* Live mode remains read-only and is reachable only through explicit candidate/post-commit
+   * modes; preparation itself performs no network activity. */
   checks.push(
     check(
       "LIVE_MODE_NOT_EXECUTED",
@@ -2363,9 +2371,10 @@ export function runOfflinePreflight(): { schema: string; mode: string; verdict: 
       "LIVE_MODE_CLEAN_WORKTREE_POLICY",
       protocol.liveMode.cleanWorktreeRequired === true &&
         protocol.liveMode.preparationLineage.cleanIndexRequired === true &&
-        protocol.liveMode.preparationLineage.verifiedAt === "CLEAN_HEAD_B" &&
+        Array.isArray(protocol.liveMode.preparationLineage.verifiedAt) &&
+        protocol.liveMode.preparationLineage.verifiedAt.includes("CLEAN_HEAD_B") &&
         protocol.liveMode.branchRequired === "main",
-      "live mode requires branch main, a clean worktree and index, and a verified A->B lineage at HEAD B",
+      "candidate mode allows only one untracked binding; post-commit mode requires clean A2->B lineage",
     ),
   );
   /* F39 — there is no static plan to check. The offline question is whether the GENERATOR only
@@ -2428,11 +2437,11 @@ export function runOfflinePreflight(): { schema: string; mode: string; verdict: 
     ),
   );
   /* F9 — the two-commit lineage replaces the unsatisfiable self-referential binding. */
-  const lineage = checkPreparationLineage(createGitLineageProbe());
+  const lineage = checkPreparationState(lineageProbe);
   checks.push(
     check(
-      "PREPARATION_LINEAGE_BLOCKS_LIVE_RUN",
-      lineage.result !== "VERIFIED" && lineage.blockers.includes("PREPARATION_BINDING_RECORD_ABSENT"),
+      "PREPARATION_STATE_IS_REACHABLE",
+      lineage.result === "VERIFIED",
       `${lineage.result}: ${lineage.blockers.join(",") || "none"}`,
     ),
   );
@@ -2440,7 +2449,7 @@ export function runOfflinePreflight(): { schema: string; mode: string; verdict: 
     check(
       "PREPARATION_BINDING_IS_NOT_SELF_REFERENTIAL",
       PREPARATION_LINEAGE_MODEL.selfReferentialBindingRejected &&
-        PREPARATION_LINEAGE_MODEL.model === "TWO_COMMIT_IMPLEMENTATION_THEN_AUTHORITY_BINDING" &&
+        PREPARATION_LINEAGE_MODEL.model === "ORIGINAL_A_TO_REMEDIATED_A2_TO_BINDING_B" &&
         PREPARATION_LINEAGE_MODEL.bindingRecordMustNotContainItsOwnCommitOrTree &&
         PREPARATION_LINEAGE_MODEL.bindingCommitMustHaveExactlyOneParent &&
         !SG4_IMPLEMENTATION_PATHS.includes(BINDING_RECORD_PATH),
@@ -2449,11 +2458,11 @@ export function runOfflinePreflight(): { schema: string; mode: string; verdict: 
   );
   checks.push(
     check(
-      "PREPARATION_BINDING_RECORD_ABSENT_AND_BLOCKING",
-      PREPARATION_LINEAGE_MODEL.bindingRecordCreatedDuringThisPreparation === false &&
-        !existsSync(join(ROOT, BINDING_RECORD_PATH)) &&
+      "PREPARATION_BINDING_RECORD_ABSENT",
+      PREPARATION_LINEAGE_MODEL.bindingRecordCreatedDuringThisPreparation === true &&
+        lineageProbe.readBindingRecord() === null &&
         protocol.liveMode.liveBindingAbsenceIsBlocking === true,
-      "binding record not created during preparation; its absence blocks",
+      "binding record is absent at clean A2 and generated only after preparation passes",
     ),
   );
   /* A lineage-only record — the rejected preparation-only shape — must not validate: it carries no
@@ -2650,6 +2659,7 @@ export function offlinePlanReferenceRecord(): Record<string, unknown> {
     };
   };
   return {
+    snapshot: { blockNumberHex: "0x1" },
     executor: { deploymentModel: "ERC1967_PROXY" },
     authority: { deploymentModel: "ERC1967_PROXY" },
     limits: {
@@ -2690,6 +2700,7 @@ export function generateLiveCallPlan(record: AuthorityBindingRecord): LiveCall[]
   const authority = record.authority as Record<string, unknown>;
   const iface = record.onChainInterface as Record<string, unknown>;
   const limits = record.limits as Record<string, unknown>;
+  const snapshot = record.snapshot as Record<string, unknown>;
   const availability = (limits.getterAvailability ?? {}) as Record<string, unknown>;
   const declared = (callId: string): string | null => {
     const entry = interfaceCall(record, callId);
@@ -2758,10 +2769,10 @@ export function generateLiveCallPlan(record: AuthorityBindingRecord): LiveCall[]
       method: "eth_getBlockByNumber",
       targetRole: "NONE",
       data: null,
-      purpose: "pin one finalized block",
+      purpose: "replay the exact finalized block bound by the record",
       boundToPinnedBlock: false,
       /* The exact static parameter vector: the finalized tag, and no transaction bodies. */
-      params: [PINNED_BLOCK_FINALITY_POLICY.blockTag, false],
+      params: [snapshot.blockNumberHex, false],
       parameterCount: 2,
       callObjectKeys: null,
       expectedResponse: "BLOCK_OR_NULL",
@@ -2820,6 +2831,19 @@ export function generateLiveCallPlan(record: AuthorityBindingRecord): LiveCall[]
       codeCall(step++, "AUTHORITY_IMPLEMENTATION_CODE", "AUTHORITY_IMPLEMENTATION", "authority implementation code"),
     );
   }
+  plan.push({
+    step: step++,
+    callId: "AUTHORITY_HCU_PACKED_STORAGE",
+    method: "eth_getStorageAt",
+    targetRole: "AUTHORITY",
+    data: null,
+    purpose: "read the exact packed HCULimit uint48 storage fields",
+    boundToPinnedBlock: true,
+    params: [PLAN_TARGET_PLACEHOLDER, HCU_LIMIT_STORAGE_SLOT, PLAN_PINNED_BLOCK_PLACEHOLDER],
+    parameterCount: 3,
+    callObjectKeys: null,
+    expectedResponse: "STORAGE_WORD",
+  });
   plan.push(
     ethCall(
       step++,
@@ -3224,9 +3248,12 @@ export function parseJsonRpcResponse(input: {
   return { ok: true, result: body.result };
 }
 
-export function createCommittedEndpointTransport(): ReadOnlyTransport {
-  const endpoint = new URL(LIVE_RPC_ENDPOINT);
-  if (endpoint.protocol !== "https:") throw new Error("the committed RPC endpoint must be https");
+export function createCommittedEndpointTransport(
+  endpointOverride = process.env[LIVE_RPC_ENDPOINT_ENV],
+): ReadOnlyTransport {
+  const endpoint = new URL(endpointOverride || LIVE_RPC_ENDPOINT);
+  if (endpoint.protocol !== "https:") throw new Error("the read-only RPC endpoint must be https");
+  if (endpoint.username !== "" || endpoint.password !== "") throw new Error("RPC URL userinfo is forbidden");
   /* Unique and monotonically increasing, so a response can only satisfy its own request. */
   let nextId = 0;
   return {
@@ -3242,7 +3269,7 @@ export function createCommittedEndpointTransport(): ReadOnlyTransport {
             protocol: endpoint.protocol,
             hostname: endpoint.hostname,
             port: endpoint.port || 443,
-            path: endpoint.pathname,
+            path: `${endpoint.pathname}${endpoint.search}`,
             method: "POST",
             headers: { "content-type": "application/json", "content-length": Buffer.byteLength(payload) },
             timeout: 30_000,
@@ -3322,6 +3349,9 @@ export type AuthorityBindingRecord = {
   enforcementProof?: Record<string, unknown>;
   schema: string;
   recordVersion: number;
+  integrity: Record<string, unknown>;
+  snapshot: Record<string, unknown>;
+  stateEvidence: Record<string, unknown>;
   lineage: Record<string, unknown>;
   authorityResolution: Record<string, unknown>;
   provenance: { reverificationStatus: string; entries: Record<string, unknown>[] };
@@ -3341,9 +3371,27 @@ const HEX64 = /^[0-9a-f]{64}$/u;
 const DECIMAL = /^[0-9]+$/u;
 const SELECTOR = /^0x[0-9a-f]{8}$/u;
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/u;
+const HEX_WORD = /^0x[0-9a-fA-F]{64}$/u;
+const HEX_CODE = /^0x(?:[0-9a-fA-F]{2})+$/u;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/* The binding authenticates its own canonical content without predicting the Git object that will
+ * eventually contain it. The digest is computed with only this digest field replaced by null;
+ * every other byte-level fact, including A2 and the pinned snapshot, remains covered. */
+export function authorityBindingCanonicalSha256(record: unknown): string | null {
+  if (!isObject(record) || !isObject(record.integrity)) return null;
+  const canonicalRecord = {
+    ...record,
+    integrity: { ...record.integrity, canonicalSha256: null },
+  };
+  try {
+    return sha256(canonicalJson(canonicalRecord));
+  } catch {
+    return null;
+  }
 }
 
 /* Checks a section is present, an object, and carries exactly its declared field set. */
@@ -5759,6 +5807,175 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
   if (value.schema !== BINDING_RECORD_SCHEMA) errors.push("binding record schema mismatch");
   if (value.recordVersion !== BINDING_RECORD_VERSION) errors.push("binding record version mismatch");
 
+  /* ----- non-self-referential content integrity ----- */
+  const integrity = checkSection(value, "integrity", errors);
+  if (integrity) {
+    if (integrity.canonicalization !== "CANONICAL_JSON_SHA256_WITH_DIGEST_FIELD_NULL") {
+      errors.push("binding record integrity canonicalization mismatch");
+    }
+    const recomputed = authorityBindingCanonicalSha256(value);
+    if (typeof integrity.canonicalSha256 !== "string" || !HEX64.test(integrity.canonicalSha256)) {
+      errors.push("binding record canonical digest must be 64 lowercase hex");
+    } else if (recomputed !== integrity.canonicalSha256) {
+      errors.push("binding record canonical digest mismatch");
+    }
+  }
+
+  /* ----- complete, single-state Sepolia snapshot ----- */
+  const snapshot = checkSection(value, "snapshot", errors);
+  if (snapshot) {
+    if (snapshot.network !== "sepolia") errors.push("binding record snapshot network must be sepolia");
+    if (snapshot.chainId !== SEPOLIA_CHAIN_ID.toString(10)) errors.push("binding record snapshot chainId mismatch");
+    if (snapshot.finalityMode !== "finalized") errors.push("binding record snapshot finalityMode mismatch");
+    if (typeof snapshot.blockNumberDecimal !== "string" || !DECIMAL.test(snapshot.blockNumberDecimal)) {
+      errors.push("binding record snapshot decimal block number is invalid");
+    }
+    if (typeof snapshot.blockNumberHex !== "string" || !/^0x[0-9a-f]+$/u.test(snapshot.blockNumberHex)) {
+      errors.push("binding record snapshot hex block number is invalid");
+    } else if (
+      typeof snapshot.blockNumberDecimal === "string" &&
+      DECIMAL.test(snapshot.blockNumberDecimal) &&
+      BigInt(snapshot.blockNumberHex) !== BigInt(snapshot.blockNumberDecimal)
+    ) {
+      errors.push("binding record snapshot block number representations disagree");
+    }
+    if (typeof snapshot.blockHash !== "string" || !HEX_WORD.test(snapshot.blockHash)) {
+      errors.push("binding record snapshot block hash is invalid");
+    }
+    if (typeof snapshot.stateRoot !== "string" || !HEX_WORD.test(snapshot.stateRoot)) {
+      errors.push("binding record snapshot state root is invalid");
+    }
+    if (typeof snapshot.blockTimestamp !== "string" || !DECIMAL.test(snapshot.blockTimestamp)) {
+      errors.push("binding record snapshot block timestamp is invalid");
+    }
+    if (typeof snapshot.capturedAt !== "string" || Number.isNaN(Date.parse(snapshot.capturedAt))) {
+      errors.push("binding record snapshot capture timestamp is invalid");
+    }
+    if (snapshot.durabilityModel !== "PINNED_BLOCK_RPC_REPLAY" && snapshot.durabilityModel !== "STATE_ROOT_PROOF") {
+      errors.push("binding record snapshot durability model is invalid");
+    }
+    if (
+      !Array.isArray(snapshot.rpcMethods) ||
+      snapshot.rpcMethods.length === 0 ||
+      snapshot.rpcMethods.some((method) => typeof method !== "string" || !LIVE_RPC_ALLOWED_METHODS.includes(method))
+    ) {
+      errors.push("binding record snapshot RPC methods are not a non-empty read-only allow-listed set");
+    }
+    const addresses = snapshot.contractAddresses;
+    if (!isObject(addresses) || Object.keys(addresses).sort().join(",") !== "executor,hcuLimit") {
+      errors.push("binding record snapshot contractAddresses must contain exactly executor and hcuLimit");
+    } else {
+      if (String(addresses.executor).toLowerCase() !== SEPOLIA_EXECUTOR_ADDRESS.toLowerCase()) {
+        errors.push("binding record snapshot executor address mismatch");
+      }
+      if (typeof addresses.hcuLimit !== "string" || !ADDRESS.test(addresses.hcuLimit)) {
+        errors.push("binding record snapshot HCULimit address is invalid");
+      }
+    }
+  }
+
+  /* ----- captured state at that snapshot ----- */
+  const stateEvidence = checkSection(value, "stateEvidence", errors);
+  if (stateEvidence) {
+    const deploymentFields = [
+      "address",
+      "proxyRuntimeBytecode",
+      "proxyRuntimeSha256",
+      "implementationSlotWord",
+      "implementationAddress",
+      "implementationRuntimeBytecode",
+      "implementationRuntimeSha256",
+      "normalizedImplementationRuntimeSha256",
+      "version",
+      "reciprocalAddress",
+    ];
+    for (const role of ["executor", "authority"] as const) {
+      const evidence = stateEvidence[role];
+      if (!isObject(evidence)) {
+        errors.push(`binding record stateEvidence.${role} must be an object`);
+        continue;
+      }
+      for (const field of deploymentFields)
+        if (!(field in evidence)) errors.push(`binding record stateEvidence.${role} is missing ${field}`);
+      for (const key of Object.keys(evidence))
+        if (!deploymentFields.includes(key))
+          errors.push(`binding record stateEvidence.${role} has an unpermitted field ${key}`);
+      for (const field of ["address", "implementationAddress", "reciprocalAddress"]) {
+        if (typeof evidence[field] !== "string" || !ADDRESS.test(evidence[field]))
+          errors.push(`binding record stateEvidence.${role}.${field} is invalid`);
+      }
+      for (const field of ["proxyRuntimeBytecode", "implementationRuntimeBytecode"]) {
+        if (typeof evidence[field] !== "string" || !HEX_CODE.test(evidence[field]))
+          errors.push(`binding record stateEvidence.${role}.${field} is invalid`);
+      }
+      for (const field of [
+        "proxyRuntimeSha256",
+        "implementationRuntimeSha256",
+        "normalizedImplementationRuntimeSha256",
+      ]) {
+        if (typeof evidence[field] !== "string" || !HEX64.test(evidence[field]))
+          errors.push(`binding record stateEvidence.${role}.${field} is invalid`);
+      }
+      if (typeof evidence.implementationSlotWord !== "string" || !HEX_WORD.test(evidence.implementationSlotWord)) {
+        errors.push(`binding record stateEvidence.${role}.implementationSlotWord is invalid`);
+      }
+      if (typeof evidence.version !== "string" || evidence.version.length === 0)
+        errors.push(`binding record stateEvidence.${role}.version is invalid`);
+      if (
+        typeof evidence.proxyRuntimeBytecode === "string" &&
+        HEX_CODE.test(evidence.proxyRuntimeBytecode) &&
+        sha256(Buffer.from(evidence.proxyRuntimeBytecode.slice(2), "hex")) !== evidence.proxyRuntimeSha256
+      ) {
+        errors.push(`binding record stateEvidence.${role} proxy runtime digest mismatch`);
+      }
+      if (
+        typeof evidence.implementationRuntimeBytecode === "string" &&
+        HEX_CODE.test(evidence.implementationRuntimeBytecode) &&
+        sha256(Buffer.from(evidence.implementationRuntimeBytecode.slice(2), "hex")) !==
+          evidence.implementationRuntimeSha256
+      ) {
+        errors.push(`binding record stateEvidence.${role} implementation runtime digest mismatch`);
+      }
+    }
+    const hcu = stateEvidence.hcuStorage;
+    const hcuFields = [
+      "storageSlot",
+      "rawWord",
+      "fieldOrderLeastToMostSignificant",
+      "fieldWidthBits",
+      "byteOrder",
+      "decodedFields",
+      "getterValues",
+    ];
+    if (!isObject(hcu)) errors.push("binding record stateEvidence.hcuStorage must be an object");
+    else {
+      for (const field of hcuFields)
+        if (!(field in hcu)) errors.push(`binding record stateEvidence.hcuStorage is missing ${field}`);
+      for (const key of Object.keys(hcu))
+        if (!hcuFields.includes(key))
+          errors.push(`binding record stateEvidence.hcuStorage has an unpermitted field ${key}`);
+      if (hcu.storageSlot !== HCU_LIMIT_STORAGE_SLOT) errors.push("binding record HCU storage slot mismatch");
+      if (typeof hcu.rawWord !== "string" || !HEX_WORD.test(hcu.rawWord))
+        errors.push("binding record HCU raw storage word is invalid");
+      if (hcu.fieldWidthBits !== 48 || hcu.byteOrder !== "BIG_ENDIAN_WORD_LSB_FIRST_PACKED_FIELDS")
+        errors.push("binding record HCU packing semantics mismatch");
+      const expectedOrder = [
+        "globalHCUCapPerBlock",
+        "usedBlockHCU",
+        "lastSeenBlockNumber",
+        "maxHCUDepthPerTx",
+        "maxHCUPerTx",
+      ];
+      if (
+        !Array.isArray(hcu.fieldOrderLeastToMostSignificant) ||
+        hcu.fieldOrderLeastToMostSignificant.join(",") !== expectedOrder.join(",")
+      )
+        errors.push("binding record HCU packed field order mismatch");
+      if (!isObject(hcu.decodedFields) || !isObject(hcu.getterValues))
+        errors.push("binding record HCU decoded/getter values must be objects");
+    }
+  }
+
   /* sourceMaterial is a closed subject map. It is the authenticated byte source for both
    * authority and executor derivations, so unknown, missing, renamed or cross-wired subjects must
    * be rejected before either provenance path can consume it. */
@@ -7535,6 +7752,48 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
     }
   }
 
+  if (stateEvidence) {
+    const executorEvidence = stateEvidence.executor;
+    const authorityEvidence = stateEvidence.authority;
+    const hcuEvidence = stateEvidence.hcuStorage;
+    if (isObject(executorEvidence) && isObject(value.executor)) {
+      if (String(executorEvidence.address).toLowerCase() !== String(value.executor.address).toLowerCase())
+        errors.push("binding record executor evidence address mismatch");
+      if (
+        executorEvidence.normalizedImplementationRuntimeSha256 !==
+        value.executor.expectedImplementationNormalizedRuntimeSha256
+      )
+        errors.push("binding record executor evidence normalized runtime mismatch");
+      if (executorEvidence.version !== value.executor.expectedVersion)
+        errors.push("binding record executor evidence version mismatch");
+    }
+    if (isObject(authorityEvidence) && isObject(value.authority)) {
+      if (
+        authorityEvidence.normalizedImplementationRuntimeSha256 !==
+        value.authority.expectedImplementationNormalizedRuntimeSha256
+      )
+        errors.push("binding record authority evidence normalized runtime mismatch");
+      if (authorityEvidence.version !== value.authority.expectedImplementationVersion)
+        errors.push("binding record authority evidence version mismatch");
+    }
+    if (isObject(hcuEvidence) && typeof hcuEvidence.rawWord === "string") {
+      const decoded = decodePackedHcuStorageWord(hcuEvidence.rawWord);
+      const canonicalDecoded =
+        decoded === null
+          ? null
+          : Object.fromEntries(Object.entries(decoded).map(([name, field]) => [name, field.toString(10)]));
+      if (decoded === null || canonicalJson(canonicalDecoded) !== canonicalJson(hcuEvidence.decodedFields)) {
+        errors.push("binding record HCU decoded fields do not match the strict packed-word decoding");
+      }
+      if (isObject(hcuEvidence.getterValues) && canonicalDecoded !== null) {
+        for (const field of ["globalHCUCapPerBlock", "maxHCUDepthPerTx", "maxHCUPerTx"]) {
+          if (hcuEvidence.getterValues[field] !== canonicalDecoded[field])
+            errors.push(`binding record HCU getter/storage mismatch for ${field}`);
+        }
+      }
+    }
+  }
+
   return [...new Set(errors)].sort();
 }
 
@@ -7548,7 +7807,10 @@ export function validateBindingRecord(record: unknown): string[] {
 export type LineageProbe = {
   branch(): string;
   worktreeClean(): boolean;
+  trackedWorktreeClean?(): boolean;
   indexClean(): boolean;
+  untrackedPaths?(): string[];
+  bindingTracked?(): boolean;
   revParse(rev: string): string;
   /* Number of parents of a commit. A binding commit must have exactly one; a merge commit whose
    * first parent happens to be A would otherwise satisfy the HEAD^ check. */
@@ -7562,7 +7824,15 @@ export function createGitLineageProbe(): LineageProbe {
   return {
     branch: () => gitValue("branch", "--show-current"),
     worktreeClean: () => gitValue("status", "--porcelain") === "",
+    trackedWorktreeClean: () => gitValue("diff", "--name-only") === "",
     indexClean: () => gitValue("diff", "--cached", "--name-only") === "",
+    untrackedPaths: () =>
+      gitValue("ls-files", "--others", "--exclude-standard")
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .sort(),
+    bindingTracked: () => gitValue("ls-files", "--", BINDING_RECORD_PATH) === BINDING_RECORD_PATH,
     revParse: (rev) => gitValue("rev-parse", rev),
     parentCount: (rev) => {
       const parents = gitValue("rev-list", "--parents", "-n", "1", rev);
@@ -7598,9 +7868,22 @@ export type LineageResult = {
   record: AuthorityBindingRecord | null;
 };
 
+export type VerificationMode = "CANDIDATE" | "POST_COMMIT";
+
+/* Preparation is a first-class state, not a failed candidate state. A clean A2 with no binding is
+ * exactly the state from which generation is authorized. */
+export function checkPreparationState(probe: LineageProbe): LineageResult {
+  const blockers: string[] = [];
+  if (probe.branch() !== PREPARATION_LINEAGE_MODEL.branchRequired) blockers.push("BRANCH_IS_NOT_MAIN");
+  if (!probe.worktreeClean()) blockers.push("WORKTREE_IS_NOT_CLEAN");
+  if (!probe.indexClean()) blockers.push("INDEX_IS_NOT_CLEAN");
+  if (probe.readBindingRecord() !== null) blockers.push("PREPARATION_BINDING_RECORD_MUST_BE_ABSENT");
+  return { result: blockers.length === 0 ? "VERIFIED" : "BROKEN", blockers: blockers.sort(), record: null };
+}
+
 /* Verifies the A -> B lineage at clean HEAD B. Fail-closed: anything that cannot be established
  * yields a blocker, and any contradiction yields BROKEN. */
-export function checkPreparationLineage(probe: LineageProbe): LineageResult {
+export function checkPreparationLineage(probe: LineageProbe, mode: VerificationMode = "POST_COMMIT"): LineageResult {
   const blockers: string[] = [];
   let broken = false;
   const fail = (reason: string): void => {
@@ -7609,7 +7892,10 @@ export function checkPreparationLineage(probe: LineageProbe): LineageResult {
   };
 
   if (probe.branch() !== PREPARATION_LINEAGE_MODEL.branchRequired) blockers.push("BRANCH_IS_NOT_MAIN");
-  if (!probe.worktreeClean()) blockers.push("WORKTREE_IS_NOT_CLEAN");
+  if (mode === "POST_COMMIT" && !probe.worktreeClean()) blockers.push("WORKTREE_IS_NOT_CLEAN");
+  if (mode === "CANDIDATE" && !(probe.trackedWorktreeClean?.() ?? probe.worktreeClean())) {
+    blockers.push("TRACKED_WORKTREE_IS_NOT_CLEAN");
+  }
   if (!probe.indexClean()) blockers.push("INDEX_IS_NOT_CLEAN");
 
   const record = probe.readBindingRecord();
@@ -7630,6 +7916,22 @@ export function checkPreparationLineage(probe: LineageProbe): LineageResult {
 
   const headCommit = probe.revParse("HEAD");
   const headTree = probe.revParse("HEAD^{tree}");
+
+  if (mode === "CANDIDATE") {
+    const untracked = probe.untrackedPaths?.() ?? [];
+    if (probe.bindingTracked?.() ?? false) fail("CANDIDATE_BINDING_MUST_BE_UNTRACKED");
+    if (untracked.length !== 1 || untracked[0] !== BINDING_RECORD_PATH) {
+      fail(`CANDIDATE_UNTRACKED_SET_INVALID:${untracked.join(",") || "nothing"}`);
+    }
+    if (headCommit !== binding.implementationCommit) fail("CANDIDATE_HEAD_IS_NOT_IMPLEMENTATION_COMMIT");
+    if (headTree !== binding.implementationTree) fail("CANDIDATE_HEAD_TREE_MISMATCH");
+    const implementationTree = probe.revParse(`${binding.implementationCommit}^{tree}`);
+    if (implementationTree !== binding.implementationTree) fail("RECORDED_IMPLEMENTATION_TREE_MISMATCH");
+    if (broken) return { result: "BROKEN", blockers: blockers.sort(), record: null };
+    if (blockers.length > 0) return { result: "UNRESOLVED", blockers: blockers.sort(), record: null };
+    return { result: "VERIFIED", blockers: [], record: record as AuthorityBindingRecord };
+  }
+
   const parentCommit = probe.revParse("HEAD^");
 
   /* B must be an ordinary single-parent commit. A merge whose first parent is A would otherwise
@@ -7714,6 +8016,15 @@ export function decodeUint48(returnData: unknown): bigint | null {
   return decoded;
 }
 
+export function decodePackedHcuStorageWord(returnData: unknown): Record<string, bigint> | null {
+  if (typeof returnData !== "string" || !HEX_WORD.test(returnData)) return null;
+  const word = BigInt(returnData);
+  if (word >> 240n !== 0n) return null;
+  const mask = (1n << 48n) - 1n;
+  const names = ["globalHCUCapPerBlock", "usedBlockHCU", "lastSeenBlockNumber", "maxHCUDepthPerTx", "maxHCUPerTx"];
+  return Object.fromEntries(names.map((name, index) => [name, (word >> BigInt(index * 48)) & mask]));
+}
+
 export function decodeAbiString(returnData: unknown): string | null {
   if (typeof returnData !== "string") return null;
   const hex = returnData.replace(/^0x/u, "");
@@ -7770,6 +8081,7 @@ export type LiveVerificationOptions = {
   transport?: ReadOnlyTransport;
   /* Test seam only: supply a lineage probe instead of shelling out to git. */
   lineageProbe?: LineageProbe;
+  verificationMode?: VerificationMode;
 };
 
 export type AuthorityResult = Record<string, unknown>;
@@ -7900,7 +8212,8 @@ export async function runLiveAuthorityVerification(
    * A run that cannot bind to the reviewed preparation can never pass, so the committed-endpoint
    * transport is not even constructed for it: the network is left alone rather than queried for a
    * result that is already blocked. An injected transport is a test fake and is always used. */
-  const lineage = checkPreparationLineage(options.lineageProbe ?? createGitLineageProbe());
+  const verificationMode = options.verificationMode ?? "POST_COMMIT";
+  const lineage = checkPreparationLineage(options.lineageProbe ?? createGitLineageProbe(), verificationMode);
   const bindingBlockers = lineage.blockers;
   blockers.push(...bindingBlockers);
   if (lineage.result === "BROKEN") failures.push(`PREPARATION_LINEAGE_BROKEN:${lineage.blockers.join("|")}`);
@@ -7986,6 +8299,10 @@ export async function runLiveAuthorityVerification(
   const bindingLimits = (binding?.limits ?? {}) as Record<string, unknown>;
   const bindingBlockOrBatch = (binding?.blockOrBatch ?? {}) as Record<string, unknown>;
   const bindingInterface = (binding?.onChainInterface ?? {}) as Record<string, unknown>;
+  const bindingStateEvidence = (binding?.stateEvidence ?? {}) as Record<string, unknown>;
+  const bindingExecutorEvidence = (bindingStateEvidence.executor ?? {}) as Record<string, unknown>;
+  const bindingAuthorityEvidence = (bindingStateEvidence.authority ?? {}) as Record<string, unknown>;
+  const bindingHcuEvidence = (bindingStateEvidence.hcuStorage ?? {}) as Record<string, unknown>;
   /* INVARIANTS B/C/D — the live path consumes DERIVED values. The record's own fields are never
    * read for an authoritative fact; they were already compared against these during validation. */
   const derivation =
@@ -8057,6 +8374,8 @@ export async function runLiveAuthorityVerification(
   /* Result fields default to the explicit "did not complete" spelling. */
   let pinnedBlockNumber = "UNRESOLVED";
   let pinnedBlockHash = "UNRESOLVED";
+  let pinnedStateRoot = "UNRESOLVED";
+  let pinnedBlockTimestamp = "UNRESOLVED";
   let pinnedBlockFinality: "FINALIZED" | "UNRESOLVED" = "UNRESOLVED";
   let executorCodeHash = "UNRESOLVED";
   let executorProxyCodeHash = "UNRESOLVED";
@@ -8072,7 +8391,7 @@ export async function runLiveAuthorityVerification(
   let executorImplementationCodeIdentityResult: "VERIFIED" | "MISMATCH" | "UNRESOLVED" = "UNRESOLVED";
   let executorAuthorityDerivationResult: "VERIFIED" | "MISMATCH" | "UNRESOLVED" = "UNRESOLVED";
   let executorVersion = "UNRESOLVED";
-  let executorExpectedVersion =
+  const executorExpectedVersion =
     typeof bindingExecutor.expectedVersion === "string" ? bindingExecutor.expectedVersion : REPRODUCED_EXECUTOR_VERSION;
   let executorCodeIdentityResult: "VERIFIED" | "MISMATCH" | "UNRESOLVED" = "UNRESOLVED";
   let executorVersionResult: "MATCHES_BINDING_RECORD" | "MISMATCH" | "UNRESOLVED" = "UNRESOLVED";
@@ -8098,6 +8417,8 @@ export async function runLiveAuthorityVerification(
   let totalHcuOnChainReading = emptyReading();
   let depthHcuOnChainReading = emptyReading();
   let blockOrBatchOnChainReading = emptyReading();
+  let hcuStorageWord = "UNRESOLVED";
+  let hcuStorageDecoded: Record<string, string> = {};
 
   /* F40 — calldata for a critical call, taken from the record's declared interface manifest.
    * The manifest was validated against its canonical spec, so this cannot call something else. */
@@ -8216,19 +8537,40 @@ export async function runLiveAuthorityVerification(
       throw new Error("chain identity did not match; no further call is meaningful");
     }
 
-    /* Step 2 — pin exactly one FINALIZED block. A reorg-eligible head makes the result
-     * unreproducible, so there is no fallback to "latest". */
+    /* Step 2 — replay exactly the finalized block already bound by the candidate. Generation is
+     * the only phase that resolves the `finalized` tag; verification never substitutes a newer
+     * head for the bound snapshot. */
+    const bindingSnapshot = binding?.snapshot as Record<string, unknown> | undefined;
     const block = (await guarded.send({
       method: "eth_getBlockByNumber",
-      params: [PINNED_BLOCK_FINALITY_POLICY.blockTag, false],
-    })) as { number?: string; hash?: string } | null;
-    if (!block || typeof block.number !== "string" || typeof block.hash !== "string") {
-      blockers.push("FINALIZED_BLOCK_NOT_AVAILABLE");
-      throw new Error("no finalized block could be pinned");
+      params: [bindingSnapshot?.blockNumberHex, false],
+    })) as { number?: string; hash?: string; stateRoot?: string; timestamp?: string } | null;
+    if (
+      !block ||
+      typeof block.number !== "string" ||
+      typeof block.hash !== "string" ||
+      typeof block.stateRoot !== "string" ||
+      typeof block.timestamp !== "string"
+    ) {
+      blockers.push("BOUND_SNAPSHOT_BLOCK_NOT_AVAILABLE");
+      throw new Error("the bound finalized block header could not be replayed");
     }
     const pinnedHex = block.number;
     pinnedBlockNumber = BigInt(pinnedHex).toString(10);
     pinnedBlockHash = block.hash.toLowerCase();
+    pinnedStateRoot = block.stateRoot.toLowerCase();
+    pinnedBlockTimestamp = BigInt(block.timestamp).toString(10);
+    if (
+      bindingSnapshot === undefined ||
+      pinnedHex.toLowerCase() !== String(bindingSnapshot.blockNumberHex).toLowerCase() ||
+      pinnedBlockNumber !== bindingSnapshot.blockNumberDecimal ||
+      pinnedBlockHash !== String(bindingSnapshot.blockHash).toLowerCase() ||
+      pinnedStateRoot !== String(bindingSnapshot.stateRoot).toLowerCase() ||
+      pinnedBlockTimestamp !== bindingSnapshot.blockTimestamp
+    ) {
+      failures.push("BOUND_SNAPSHOT_HEADER_MISMATCH");
+      throw new Error("the replayed block header does not equal the binding snapshot");
+    }
     pinnedBlockFinality = "FINALIZED";
     guarded.bindToPinnedBlock(pinnedHex);
 
@@ -8242,6 +8584,12 @@ export async function runLiveAuthorityVerification(
       throw new Error("configured executor carries no code at the pinned block");
     }
     executorCodeHash = sha256(executorCode);
+    if (
+      bindingExecutorEvidence.proxyRuntimeSha256 !== executorCodeHash ||
+      String(bindingExecutorEvidence.proxyRuntimeBytecode).toLowerCase() !== `0x${executorCode.toString("hex")}`
+    ) {
+      failures.push("EXECUTOR_SNAPSHOT_PROXY_EVIDENCE_MISMATCH");
+    }
     let executorImplementationCode: Buffer | null = null;
     if (executorDeploymentModel === "ERC1967_PROXY") {
       executorProxyCodeHash = executorCodeHash;
@@ -8261,6 +8609,12 @@ export async function runLiveAuthorityVerification(
         method: "eth_getStorageAt",
         params: [SEPOLIA_EXECUTOR_ADDRESS, ERC1967_IMPLEMENTATION_SLOT, pinnedHex],
       });
+      if (
+        String(implementationWord).toLowerCase() !==
+        String(bindingExecutorEvidence.implementationSlotWord).toLowerCase()
+      ) {
+        failures.push("EXECUTOR_SNAPSHOT_IMPLEMENTATION_SLOT_MISMATCH");
+      }
       const implementation = decodeAddressWord(implementationWord);
       if (!implementation) {
         blockers.push("EXECUTOR_ERC1967_IMPLEMENTATION_SLOT_EMPTY_OR_MALFORMED");
@@ -8298,6 +8652,13 @@ export async function runLiveAuthorityVerification(
       throw new Error("executor implementation carries no code at the pinned block");
     }
     executorImplementationCodeHash = sha256(executorImplementationCode);
+    if (
+      bindingExecutorEvidence.implementationRuntimeSha256 !== executorImplementationCodeHash ||
+      String(bindingExecutorEvidence.implementationRuntimeBytecode).toLowerCase() !==
+        `0x${executorImplementationCode.toString("hex")}`
+    ) {
+      failures.push("EXECUTOR_SNAPSHOT_IMPLEMENTATION_EVIDENCE_MISMATCH");
+    }
 
     /* The implementation artifact is independently reproduced and authenticated from executor
      * source/build material. No proxy-record hash can substitute for this comparison. */
@@ -8364,6 +8725,7 @@ export async function runLiveAuthorityVerification(
           params: [{ to: SEPOLIA_EXECUTOR_ADDRESS, data: declaredCalldata("EXECUTOR_VERSION") }, pinnedHex],
         }),
       ) ?? "UNRESOLVED";
+    if (executorVersion !== bindingExecutorEvidence.version) failures.push("EXECUTOR_SNAPSHOT_VERSION_MISMATCH");
     if (executorVersion === "UNRESOLVED") blockers.push("EXECUTOR_VERSION_NOT_RESOLVED");
     if (typeof bindingExecutor.expectedVersion !== "string") {
       executorVersionResult = "UNRESOLVED";
@@ -8398,6 +8760,9 @@ export async function runLiveAuthorityVerification(
      * source-origin guard enforces; it is not forbidden as a value. Whether this derived address is
      * the right authority is decided below, by code identity, version and reciprocal linkage. */
     authorityAddress = derived;
+    if (authorityAddress !== String(bindingExecutorEvidence.reciprocalAddress).toLowerCase()) {
+      failures.push("EXECUTOR_SNAPSHOT_AUTHORITY_GETTER_MISMATCH");
+    }
     roleAddresses.AUTHORITY = derived;
 
     /* Step 6 — authority code identity at the derived address. */
@@ -8409,6 +8774,12 @@ export async function runLiveAuthorityVerification(
       throw new Error("authority carries no code at the pinned block");
     }
     authorityCodeHash = sha256(authorityCode);
+    if (
+      bindingAuthorityEvidence.proxyRuntimeSha256 !== authorityCodeHash ||
+      String(bindingAuthorityEvidence.proxyRuntimeBytecode).toLowerCase() !== `0x${authorityCode.toString("hex")}`
+    ) {
+      failures.push("AUTHORITY_SNAPSHOT_PROXY_EVIDENCE_MISMATCH");
+    }
 
     /* Step 7 — implementation resolution strictly under the reviewed deployment model. ERC-1967 is
      * never assumed; a direct deployment is handled as a direct deployment. */
@@ -8430,6 +8801,12 @@ export async function runLiveAuthorityVerification(
         method: "eth_getStorageAt",
         params: [authorityAddress, ERC1967_IMPLEMENTATION_SLOT, pinnedHex],
       });
+      if (
+        String(implementationWord).toLowerCase() !==
+        String(bindingAuthorityEvidence.implementationSlotWord).toLowerCase()
+      ) {
+        failures.push("AUTHORITY_SNAPSHOT_IMPLEMENTATION_SLOT_MISMATCH");
+      }
       const implementation = decodeAddressWord(implementationWord);
       if (!implementation) {
         blockers.push("ERC1967_IMPLEMENTATION_SLOT_EMPTY_OR_MALFORMED");
@@ -8488,6 +8865,14 @@ export async function runLiveAuthorityVerification(
       failures.push("AUTHORITY_IMPLEMENTATION_HAS_NO_CODE");
       throw new Error("authority implementation carries no code at the pinned block");
     }
+    const authorityImplementationRawSha256 = sha256(implementationCode);
+    if (
+      bindingAuthorityEvidence.implementationRuntimeSha256 !== authorityImplementationRawSha256 ||
+      String(bindingAuthorityEvidence.implementationRuntimeBytecode).toLowerCase() !==
+        `0x${implementationCode.toString("hex")}`
+    ) {
+      failures.push("AUTHORITY_SNAPSHOT_IMPLEMENTATION_EVIDENCE_MISMATCH");
+    }
     /* The authoritative manifest and expected digest are RECOMPUTED here, from the authenticated
      * build-info, against the implementation address the chain just resolved. Nothing is read from
      * the record, and nothing could have been computed earlier: the digest depends on that address.
@@ -8515,6 +8900,9 @@ export async function runLiveAuthorityVerification(
       implementationAddress: authorityImplementationAddress,
     });
     normalizedImplementationHash = normalization.normalizedSha256;
+    if (normalizedImplementationHash !== bindingAuthorityEvidence.normalizedImplementationRuntimeSha256) {
+      failures.push("AUTHORITY_SNAPSHOT_NORMALIZED_RUNTIME_MISMATCH");
+    }
     codeIdentityResult = classifyCodeIdentity({
       normalizedSha256: normalization.normalizedSha256,
       normalizationOk: normalization.ok,
@@ -8538,6 +8926,35 @@ export async function runLiveAuthorityVerification(
       throw new Error("authority implementation identity is not verified; the derivation chain stops here");
     }
 
+    hcuStorageWord = String(
+      await guarded.send({
+        method: "eth_getStorageAt",
+        params: [authorityAddress, HCU_LIMIT_STORAGE_SLOT, pinnedHex],
+      }),
+    ).toLowerCase();
+    const decodedStorage = decodePackedHcuStorageWord(hcuStorageWord);
+    if (decodedStorage === null) {
+      failures.push("HCU_PACKED_STORAGE_WORD_MALFORMED");
+      throw new Error("HCULimit packed storage is not a strict five-uint48 word");
+    }
+    hcuStorageDecoded = Object.fromEntries(
+      Object.entries(decodedStorage).map(([name, field]) => [name, field.toString(10)]),
+    );
+    if (
+      hcuStorageWord !== String(bindingHcuEvidence.rawWord).toLowerCase() ||
+      canonicalJson(hcuStorageDecoded) !== canonicalJson(bindingHcuEvidence.decodedFields)
+    ) {
+      failures.push("HCU_PACKED_STORAGE_EVIDENCE_MISMATCH");
+      throw new Error("HCULimit packed storage differs from the bound snapshot evidence");
+    }
+    if (
+      hcuStorageDecoded.globalHCUCapPerBlock !== "281474976710655" ||
+      hcuStorageDecoded.maxHCUDepthPerTx !== "5000000" ||
+      hcuStorageDecoded.maxHCUPerTx !== "20000000"
+    ) {
+      failures.push("HCU_PACKED_STORAGE_LIMIT_MISMATCH");
+    }
+
     /* Step 9 — reciprocal linkage. */
     const reciprocal = decodeAddressWord(
       await guarded.send({
@@ -8550,6 +8967,9 @@ export async function runLiveAuthorityVerification(
       reciprocalLinkageResult = "BROKEN";
       failures.push("RECIPROCAL_LINKAGE_BROKEN");
     } else reciprocalLinkageResult = "VERIFIED";
+    if (reciprocal !== String(bindingAuthorityEvidence.reciprocalAddress).toLowerCase()) {
+      failures.push("AUTHORITY_SNAPSHOT_RECIPROCAL_GETTER_MISMATCH");
+    }
     if (reciprocalLinkageResult === "UNRESOLVED") blockers.push("RECIPROCAL_LINKAGE_NOT_RESOLVED");
 
     /* Step 10 — authority version coherence against the binding record. */
@@ -8560,6 +8980,7 @@ export async function runLiveAuthorityVerification(
           params: [{ to: authorityAddress, data: declaredCalldata("AUTHORITY_VERSION") }, pinnedHex],
         }),
       ) ?? "UNRESOLVED";
+    if (authorityVersion !== bindingAuthorityEvidence.version) failures.push("AUTHORITY_SNAPSHOT_VERSION_MISMATCH");
     if (authorityVersion === "UNRESOLVED") blockers.push("AUTHORITY_VERSION_NOT_RESOLVED");
     if (typeof bindingAuthority.expectedImplementationVersion !== "string") {
       authorityVersionResult = "UNRESOLVED";
@@ -8587,6 +9008,22 @@ export async function runLiveAuthorityVerification(
       typeof bindingBlockOrBatch.value === "string" ? bindingBlockOrBatch.value : null,
       pinnedHex,
     );
+    const getterValues = {
+      globalHCUCapPerBlock:
+        blockOrBatchOnChainReading.result === "MATCHES_BINDING_RECORD_ON_CHAIN"
+          ? String(blockOrBatchOnChainReading.onChainValue)
+          : String((bindingHcuEvidence.getterValues as Record<string, unknown>).globalHCUCapPerBlock),
+      maxHCUDepthPerTx: String(depthHcuOnChainReading.onChainValue),
+      maxHCUPerTx: String(totalHcuOnChainReading.onChainValue),
+    };
+    if (
+      canonicalJson(getterValues) !== canonicalJson(bindingHcuEvidence.getterValues) ||
+      getterValues.globalHCUCapPerBlock !== hcuStorageDecoded.globalHCUCapPerBlock ||
+      getterValues.maxHCUDepthPerTx !== hcuStorageDecoded.maxHCUDepthPerTx ||
+      getterValues.maxHCUPerTx !== hcuStorageDecoded.maxHCUPerTx
+    ) {
+      failures.push("HCU_GETTER_STORAGE_MISMATCH");
+    }
 
     /* Step 14 — caller applicability, resolved for EVERY SG-4 subject from its declared
      * specification. Calldata is encoded from the declared ABI argument types and values, and only
@@ -9061,7 +9498,11 @@ export async function runLiveAuthorityVerification(
     executorReproducedBuildResult,
     executorVersion,
     executorVersionResult,
-    erc1967SlotReadCount: actualLog.filter((call) => call.method === "eth_getStorageAt").length,
+    erc1967SlotReadCount: actualLog.filter(
+      (call) =>
+        call.method === "eth_getStorageAt" &&
+        String(call.params[1]).toLowerCase() === ERC1967_IMPLEMENTATION_SLOT.toLowerCase(),
+    ).length,
     expectedDeployedNormalizedHash: expectedDeployedNormalizedHash ?? "UNRESOLVED",
     facetArtifactBinding,
     finalVerdict,
@@ -9821,13 +10262,14 @@ export const AUTHORITY_VERIFIER_METADATA = {
 } as const;
 
 if (require.main === module) {
-  if (process.argv[2] === "live") {
-    /* Implemented, acknowledgement-gated, and currently unable to reach a network: the verifier
-     * withholds the committed-endpoint transport until the preparation commit and tree are
-     * recorded. It writes no evidence in this phase. */
-    void runLiveAuthorityVerification(process.env.SG4_AUTHORITY_LIVE_ACK)
+  if (process.argv[2] === "candidate" || process.argv[2] === "post-commit") {
+    const verificationMode: VerificationMode = process.argv[2] === "candidate" ? "CANDIDATE" : "POST_COMMIT";
+    void runLiveAuthorityVerification(process.env.SG4_AUTHORITY_LIVE_ACK, { verificationMode })
       .then((result) => {
         process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        if (result.finalVerdict === "PASS") {
+          process.stdout.write(`${verificationMode === "CANDIDATE" ? "CANDIDATE_VERIFIED" : "POST_COMMIT_VERIFIED"}\n`);
+        }
         if (result.finalVerdict !== "PASS") process.exitCode = 1;
       })
       .catch((error: unknown) => {
