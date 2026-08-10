@@ -116,7 +116,7 @@ test.describe("SG-5 browser capability", () => {
       const clean = { cookies: initialState.cookies.length, origins: initialState.origins.length };
       expect(clean).toEqual({ cookies: 0, origins: 0 });
       await page.goto("/");
-      await page.goto("/__sg5__");
+      await page.goto("/sg5-probe");
       await expect(page.getByTestId("sg5-result")).toBeVisible({ timeout: 600_000 });
       const result = attachHarnessObservations(await readResult(page), observed.networkObservations, observed.errors);
       expect(result.status).toBe("CAPABILITY_COMPLETE"); expect(result.observedChainId).toBe("11155111"); expect(result.transactionStatus).toBe("SUCCESS"); expect(result.authorizedPlaintextMatched).toBe(true); expect(result.unauthorizedDecryptionRejected).toBe(true);
@@ -128,7 +128,7 @@ test.describe("SG-5 browser capability", () => {
   });
 
   test("SG5-04 wrong network refuses before FHE work", async ({ browser }) => {
-    const context = await browser.newContext({ serviceWorkers: "block" }); const page = await context.newPage(); await installProvider(context, 1); const observed = await observeContext(context, page); await page.goto("/__sg5__"); await expect(page.getByTestId("sg5-wrong-network-refused")).toBeVisible(); await expect(page.getByTestId("sg5-no-transaction")).toBeVisible(); expect(observed.errors.forbiddenNetwork).toBe(0); expect(observed.networkObservations.some((entry) => entry.requestCategory !== "LOCAL_FRONTEND_ASSET")).toBe(false); scenarioResults["SG5-04_WRONG_NETWORK"] = true; await context.close();
+    const context = await browser.newContext({ serviceWorkers: "block" }); const page = await context.newPage(); await installProvider(context, 1); const observed = await observeContext(context, page); await page.goto("/sg5-probe"); await expect(page.getByTestId("sg5-wrong-network-refused")).toBeVisible(); await expect(page.getByTestId("sg5-no-transaction")).toBeVisible(); expect(observed.errors.forbiddenNetwork).toBe(0); expect(observed.networkObservations.some((entry) => entry.requestCategory !== "LOCAL_FRONTEND_ASSET")).toBe(false); scenarioResults["SG5-04_WRONG_NETWORK"] = true; await context.close();
   });
 
   test.afterAll(() => {
