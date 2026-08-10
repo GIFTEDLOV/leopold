@@ -3485,7 +3485,8 @@ export function authenticateSourceMaterial(record: AuthorityBindingRecord, subje
  * ------------------------------------------------------------------------------------------- */
 
 export type ExtractedPriceVariant = {
-  canonicalName: string;
+  sourceOperationName: string;
+  canonicalOperationName: string;
   operandMode: string;
   costKeyType: string;
   cost: number;
@@ -3508,6 +3509,7 @@ export type ExtractedPriceSchedule = {
   extractorVersion: number;
   sourceContentSha256: string;
   operations: string[];
+  canonicalOperations: string[];
   variants: ExtractedPriceVariant[];
   bucketedVariants: ExtractedPriceBucketVariant[];
   operatorMetadata: Record<string, ExtractedPriceOperator>;
@@ -3627,6 +3629,7 @@ export function extractPriceSchedule(material: AuthenticatedMaterial): Extracted
   const lines = material.bytes.toString("utf8").split(/\r?\n/u);
 
   let operation: string | null = null;
+  let canonicalOperationName: string | null = null;
   let group: string | null = null;
   let nestedType: string | null = null;
   let seenFields = new Set<string>();
@@ -3637,6 +3640,7 @@ export function extractPriceSchedule(material: AuthenticatedMaterial): Extracted
 
   const resetOperation = (): void => {
     operation = null;
+    canonicalOperationName = null;
     group = null;
     nestedType = null;
     seenFields = new Set<string>();
@@ -3674,6 +3678,14 @@ export function extractPriceSchedule(material: AuthenticatedMaterial): Extracted
       const match = PRICE_OPERATION_BLOCK.exec(line);
       if (match) {
         operation = match[1];
+        try {
+          canonicalOperationName = canonicalizePriceOperationName(operation);
+        } catch (error) {
+          failures.push(
+            `${error instanceof Error ? error.message : `UNKNOWN_SOURCE_OPERATION:${operation}`}:line${index + 1}`,
+          );
+          canonicalOperationName = null;
+        }
         if (operations.includes(operation)) failures.push(`DUPLICATE_OPERATION:${operation}:line${index + 1}`);
         operations.push(operation);
         seenFields = new Set<string>();
@@ -3703,7 +3715,8 @@ export function extractPriceSchedule(material: AuthenticatedMaterial): Extracted
         }
         bucketNames[nestedType].push(entry[1]);
         bucketedVariants.push({
-          canonicalName: operation,
+          sourceOperationName: operation,
+          canonicalOperationName: canonicalOperationName ?? "UNRESOLVED",
           operandMode: "nBucketed",
           costKeyType: nestedType,
           bucketName: entry[1],
@@ -3761,7 +3774,8 @@ export function extractPriceSchedule(material: AuthenticatedMaterial): Extracted
             }
             bucketNames[inline[1]].push(bucket[1]);
             bucketedVariants.push({
-              canonicalName: operation,
+              sourceOperationName: operation,
+              canonicalOperationName: canonicalOperationName ?? "UNRESOLVED",
               operandMode: "nBucketed",
               costKeyType: inline[1],
               bucketName: bucket[1],
@@ -3810,7 +3824,13 @@ export function extractPriceSchedule(material: AuthenticatedMaterial): Extracted
           failures.push(`DUPLICATE_PRICE_TYPE:${operation}.${group}.${entry[1]}:line${index + 1}`);
         }
         typedKeys[group].push(entry[1]);
-        variants.push({ canonicalName: operation, operandMode: group, costKeyType: entry[1], cost });
+        variants.push({
+          sourceOperationName: operation,
+          canonicalOperationName: canonicalOperationName ?? "UNRESOLVED",
+          operandMode: group,
+          costKeyType: entry[1],
+          cost,
+        });
         continue;
       }
       if (PRICE_CLOSE.test(line)) {
@@ -3864,14 +3884,17 @@ export function extractPriceSchedule(material: AuthenticatedMaterial): Extracted
   }
   if (variants.length === 0) failures.push("EMPTY_SCHEDULE");
 
+  const identities = derivePriceOperationIdentities(operations);
+  failures.push(...identities.failures);
+
   variants.sort((left, right) =>
-    `${left.canonicalName}.${left.operandMode}.${left.costKeyType}`.localeCompare(
-      `${right.canonicalName}.${right.operandMode}.${right.costKeyType}`,
+    `${left.canonicalOperationName}.${left.operandMode}.${left.costKeyType}`.localeCompare(
+      `${right.canonicalOperationName}.${right.operandMode}.${right.costKeyType}`,
     ),
   );
   bucketedVariants.sort((left, right) =>
-    `${left.canonicalName}.${left.costKeyType}.${left.bucketName}`.localeCompare(
-      `${right.canonicalName}.${right.costKeyType}.${right.bucketName}`,
+    `${left.canonicalOperationName}.${left.costKeyType}.${left.bucketName}`.localeCompare(
+      `${right.canonicalOperationName}.${right.costKeyType}.${right.bucketName}`,
     ),
   );
   return {
@@ -3879,6 +3902,7 @@ export function extractPriceSchedule(material: AuthenticatedMaterial): Extracted
     extractorVersion: PRICE_SCHEDULE_EXTRACTOR.version,
     sourceContentSha256: material.contentSha256,
     operations: [...operations].sort(),
+    canonicalOperations: identities.identities.map((identity) => identity.canonicalOperationName).sort(),
     variants,
     bucketedVariants,
     operatorMetadata,
@@ -4016,6 +4040,111 @@ const KNOWN_HCU_OPERATION_FUNCTIONS = new Set([
   "checkHCUForIfThenElse",
   "checkHCUForTrivialEncrypt",
 ]);
+
+/* The official operatorsPrices identifiers are lower-camel source names. Their HCULimit
+ * counterparts are created by the upstream generator with exactly this transformation: uppercase
+ * the first ASCII character and preserve the remainder byte-for-byte. The accepted source and
+ * canonical sets are derived from the authenticated HCULimit function grammar; they are not a
+ * hand-maintained translation table. */
+const PRICE_SOURCE_OPERATION_NAME = /^[a-z][A-Za-z0-9_]*$/u;
+const HCU_OPERATION_FUNCTION_PREFIX = "checkHCUFor";
+
+export const HCU_OPERATION_CANONICAL_NAMES: readonly string[] = [
+  ...new Set(
+    [...KNOWN_HCU_OPERATION_FUNCTIONS]
+      .filter((functionName) => functionName.startsWith(HCU_OPERATION_FUNCTION_PREFIX))
+      .map((functionName) => functionName.slice(HCU_OPERATION_FUNCTION_PREFIX.length)),
+  ),
+].sort();
+
+const HCU_OPERATION_CANONICAL_NAME_SET = new Set(HCU_OPERATION_CANONICAL_NAMES);
+const PRICE_SOURCE_OPERATION_NAMES = new Set(
+  HCU_OPERATION_CANONICAL_NAMES.map((canonicalName) => canonicalName.charAt(0).toLowerCase() + canonicalName.slice(1)),
+);
+
+export type PriceOperationIdentity = {
+  sourceOperationName: string;
+  canonicalOperationName: string;
+};
+
+/** Derive the exact official HCULimit spelling from an authenticated PriceData key. */
+export function canonicalizePriceOperationName(sourceOperationName: string): string {
+  if (
+    !PRICE_SOURCE_OPERATION_NAME.test(sourceOperationName) ||
+    !PRICE_SOURCE_OPERATION_NAMES.has(sourceOperationName)
+  ) {
+    throw new Error(`UNKNOWN_SOURCE_OPERATION:${sourceOperationName}`);
+  }
+  const canonicalOperationName = sourceOperationName.charAt(0).toUpperCase() + sourceOperationName.slice(1);
+  if (!HCU_OPERATION_CANONICAL_NAME_SET.has(canonicalOperationName)) {
+    throw new Error(`UNKNOWN_CANONICAL_OPERATION:${canonicalOperationName}`);
+  }
+  return canonicalOperationName;
+}
+
+/** Return the only HCULimit function name permitted for a derived canonical operation. */
+export function hcuFunctionNameForCanonicalOperation(canonicalOperationName: string): string {
+  if (!HCU_OPERATION_CANONICAL_NAME_SET.has(canonicalOperationName)) {
+    throw new Error(`UNKNOWN_CANONICAL_OPERATION:${canonicalOperationName}`);
+  }
+  return `${HCU_OPERATION_FUNCTION_PREFIX}${canonicalOperationName}`;
+}
+
+/** Map an HCULimit canonical identity to the existing SG4 calculator identity at the comparison boundary. */
+export function sg4CanonicalOperationName(canonicalOperationName: string): string {
+  if (!HCU_OPERATION_CANONICAL_NAME_SET.has(canonicalOperationName)) {
+    throw new Error(`UNKNOWN_CANONICAL_OPERATION:${canonicalOperationName}`);
+  }
+  return OPERATION_NAME_TRANSLATIONS[canonicalOperationName] ?? canonicalOperationName;
+}
+
+/** Derive all operation identities and reject duplicate source or canonical identities. */
+export function derivePriceOperationIdentities(sourceOperationNames: readonly string[]): {
+  identities: PriceOperationIdentity[];
+  failures: string[];
+} {
+  const identities: PriceOperationIdentity[] = [];
+  const failures: string[] = [];
+  const seenSources = new Set<string>();
+  const seenCanonicals = new Map<string, string>();
+  for (const sourceOperationName of sourceOperationNames) {
+    if (seenSources.has(sourceOperationName)) {
+      failures.push(`DUPLICATE_SOURCE_OPERATION:${sourceOperationName}`);
+      continue;
+    }
+    seenSources.add(sourceOperationName);
+    let canonicalOperationName: string;
+    try {
+      canonicalOperationName = canonicalizePriceOperationName(sourceOperationName);
+    } catch (error) {
+      failures.push(error instanceof Error ? error.message : `UNKNOWN_SOURCE_OPERATION:${sourceOperationName}`);
+      continue;
+    }
+    const previousSource = seenCanonicals.get(canonicalOperationName);
+    if (previousSource !== undefined && previousSource !== sourceOperationName) {
+      failures.push(
+        `CANONICAL_OPERATION_COLLISION:${previousSource},${sourceOperationName}->${canonicalOperationName}`,
+      );
+      continue;
+    }
+    seenCanonicals.set(canonicalOperationName, sourceOperationName);
+    identities.push({ sourceOperationName, canonicalOperationName });
+  }
+  if (sourceOperationNames.length !== HCU_OPERATION_CANONICAL_NAMES.length) {
+    failures.push(`OPERATION_CARDINALITY:${sourceOperationNames.length}!=${HCU_OPERATION_CANONICAL_NAMES.length}`);
+  }
+  if (identities.length !== HCU_OPERATION_CANONICAL_NAMES.length) {
+    failures.push(`CANONICAL_OPERATION_CARDINALITY:${identities.length}!=${HCU_OPERATION_CANONICAL_NAMES.length}`);
+  }
+  if (
+    JSON.stringify(identities.map((identity) => identity.canonicalOperationName).sort()) !==
+    JSON.stringify(HCU_OPERATION_CANONICAL_NAMES)
+  ) {
+    failures.push("CANONICAL_OPERATION_CLOSURE_MISMATCH");
+  }
+  return { identities, failures: [...new Set(failures)].sort() };
+}
+
 const PRICING_RELEVANT_HINT =
   /\b(?:opHCU|scalarByte|resultType|valueType|FheType|_adjustAndCheck|_updateAndVerify|HCUTransaction|_setHCU|_getHCU|maxInputDepth|inputDepth|totalHCU|values\.length|caller|[A-Za-z_][A-Za-z0-9_]*HCU[A-Za-z0-9_]*)\b/u;
 
@@ -5224,6 +5353,49 @@ export function deriveExecutorAuthorityAddressFromSourceMaterial(record: Authori
   return { address: matches[0][1].toLowerCase(), blockers };
 }
 
+/**
+ * Prove the authenticated PriceData -> generated HCULimit function relationship. Source keys stay
+ * lower-camel; only their derived canonical identities participate in this cross-link.
+ */
+export function validatePriceOperationFunctionCrossLinks(
+  schedule: Pick<ExtractedPriceSchedule, "operations" | "variants">,
+  authority: Pick<ParsedAuthoritySource, "pricingOperationNames">,
+): string[] {
+  const failures: string[] = [];
+  const identities = derivePriceOperationIdentities(schedule.operations);
+  failures.push(...identities.failures);
+  const functionNames = new Set(authority.pricingOperationNames);
+  for (const identity of identities.identities) {
+    const functionName = hcuFunctionNameForCanonicalOperation(identity.canonicalOperationName);
+    if (!functionNames.has(functionName)) {
+      failures.push(
+        `MISSING_HCU_OPERATION_FUNCTION:${identity.sourceOperationName}->${identity.canonicalOperationName}->${functionName}`,
+      );
+    }
+  }
+  for (const variant of schedule.variants) {
+    let expectedCanonical: string;
+    try {
+      expectedCanonical = canonicalizePriceOperationName(variant.sourceOperationName);
+    } catch (error) {
+      failures.push(error instanceof Error ? error.message : `UNKNOWN_SOURCE_OPERATION:${variant.sourceOperationName}`);
+      continue;
+    }
+    if (variant.canonicalOperationName !== expectedCanonical) {
+      failures.push(
+        `CANONICAL_OPERATION_NOT_DERIVED:${variant.sourceOperationName}->${variant.canonicalOperationName};expected:${expectedCanonical}`,
+      );
+    }
+    const functionName = hcuFunctionNameForCanonicalOperation(expectedCanonical);
+    if (!functionNames.has(functionName)) {
+      failures.push(
+        `MISSING_HCU_OPERATION_FUNCTION:${variant.sourceOperationName}->${expectedCanonical}->${functionName}`,
+      );
+    }
+  }
+  return [...new Set(failures)].sort();
+}
+
 /* The record's reviewed CLAIMS, compared field by field against what the extractors derived. */
 export function compareClaimsAgainstDerivation(record: AuthorityBindingRecord, derived: DerivedAuthority): string[] {
   const errors: string[] = [];
@@ -5232,6 +5404,16 @@ export function compareClaimsAgainstDerivation(record: AuthorityBindingRecord, d
   const enumeration = (record.authorityEnumeration ?? {}) as Record<string, unknown>;
   const enforcement = (record.enforcementProof ?? {}) as Record<string, unknown>;
   const blockOrBatch = (record.blockOrBatch ?? {}) as Record<string, unknown>;
+
+  if (
+    derived.priceSchedule !== null &&
+    derived.authoritySource !== null &&
+    derived.authoritySource.pricingOperationNames.length > 0
+  ) {
+    for (const failure of validatePriceOperationFunctionCrossLinks(derived.priceSchedule, derived.authoritySource)) {
+      errors.push(`binding record operation identity ${failure}`);
+    }
+  }
 
   /* ----- INVARIANT B: the pricing claim must BE the extracted full schedule ----- */
   if (derived.priceSchedule !== null) {
@@ -5244,9 +5426,12 @@ export function compareClaimsAgainstDerivation(record: AuthorityBindingRecord, d
     } else {
       const claimedIds = claimed
         .filter(isObject)
-        .map((entry) => `${String(entry.canonicalName)}.${String(entry.operandMode)}.${String(entry.costKeyType)}`);
+        .map(
+          (entry) =>
+            `${String(entry.enforcementName ?? entry.canonicalName)}.${String(entry.operandMode)}.${String(entry.costKeyType)}`,
+        );
       const extractedIds = extracted.variants.map(
-        (variant) => `${variant.canonicalName}.${variant.operandMode}.${variant.costKeyType}`,
+        (variant) => `${variant.canonicalOperationName}.${variant.operandMode}.${variant.costKeyType}`,
       );
       /* Completeness: a record carrying only the SG-4 subset is not the schedule. */
       const missing = extractedIds.filter((id) => !claimedIds.includes(id));
@@ -5263,7 +5448,7 @@ export function compareClaimsAgainstDerivation(record: AuthorityBindingRecord, d
       }
       const costByVariant = new Map(extractedIds.map((id, index) => [id, extracted.variants[index].cost]));
       for (const entry of claimed.filter(isObject)) {
-        const id = `${String(entry.canonicalName)}.${String(entry.operandMode)}.${String(entry.costKeyType)}`;
+        const id = `${String(entry.enforcementName ?? entry.canonicalName)}.${String(entry.operandMode)}.${String(entry.costKeyType)}`;
         const extractedCost = costByVariant.get(id);
         if (extractedCost !== undefined && entry.cost !== extractedCost) {
           errors.push(`binding record pricing entry ${id} cost disagrees with the extracted schedule`);

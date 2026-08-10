@@ -62,12 +62,14 @@ import {
   checkStaleAddressUsage,
   classifyBlockOrBatchControl,
   classifyCodeIdentity,
+  canonicalizePriceOperationName,
   compareClaimsAgainstDerivation,
   compareOperationTables,
   createGuardedTransport,
   decodeUint48,
   decodeUint256,
   enumerateAuthoritySurface,
+  derivePriceOperationIdentities,
   enumerateLimitConstants,
   extractLimits,
   inspectMetadataTrailer,
@@ -80,6 +82,8 @@ import {
   extractArtifactBuild,
   extractExecutorArtifactBuild,
   extractPriceSchedule,
+  HCU_OPERATION_CANONICAL_NAMES,
+  hcuFunctionNameForCanonicalOperation,
   parseAuthoritySource,
   verifyMeasurementToolchainRoot,
   crossLinkImmutableReferences,
@@ -109,9 +113,11 @@ import {
   parseInstalledCostTable,
   readInstalledRuntimeBytecode,
   runLiveAuthorityVerification,
+  sg4CanonicalOperationName,
   runOfflinePreflight,
   sha256,
   validateAuthorityBindingRecord,
+  validatePriceOperationFunctionCrossLinks,
   validateAuthorityResult as validateAuthorityResultRaw,
   validateResultAgainstSchema,
   type CostTable,
@@ -575,7 +581,9 @@ function priceScheduleTextForTest(): string {
   const lines: string[] = ["export const operatorsPrices = {"];
   const operations = [...installed.keys()].sort();
   for (const operation of operations) {
-    lines.push(`  ${operation}: {`);
+    const sourceOperation =
+      operation === "FheIfThenElse" ? "ifThenElse" : operation.charAt(0).toLowerCase() + operation.slice(1);
+    lines.push(`  ${sourceOperation}: {`);
     const groups = installed.get(operation);
     const supportsScalar = groups?.has("scalar") === true;
     const numberInputs = groups?.has("types") === true ? 1 : 2;
@@ -592,8 +600,9 @@ function priceScheduleTextForTest(): string {
   }
   /* The two operations the current official schedule prices and SG-4 never uses. */
   for (const operation of [...CURRENT_OFFICIAL_EXPECTED_ADDITIONAL_OPERATIONS].sort()) {
+    const sourceOperation = operation.charAt(0).toLowerCase() + operation.slice(1);
     lines.push(
-      `  ${operation}: {`,
+      `  ${sourceOperation}: {`,
       "    supportScalar: false,",
       "    numberInputs: 2,",
       "    nonScalar: {",
@@ -978,9 +987,20 @@ function pricingManifestFixture(overrides: Record<string, unknown> = {}): Record
   /* INVARIANT B — one entry per variant, taken from the schedule the extractor recomputed from the
    * authenticated bytes. The FULL schedule, including the variants SG-4 never uses. */
   const schedule = DERIVED.priceSchedule as NonNullable<typeof DERIVED.priceSchedule>;
-  const entries = schedule.variants.map((variant) =>
-    pricingVariantEntry(variant.canonicalName, variant.operandMode, variant.costKeyType, variant.cost),
-  );
+  const entries = schedule.variants
+    .map((variant) =>
+      pricingVariantEntry(
+        sg4CanonicalOperationName(variant.canonicalOperationName),
+        variant.operandMode,
+        variant.costKeyType,
+        variant.cost,
+      ),
+    )
+    .sort((left, right) =>
+      `${String(left.canonicalName)}.${String(left.operandMode)}.${String(left.costKeyType)}`.localeCompare(
+        `${String(right.canonicalName)}.${String(right.operandMode)}.${String(right.costKeyType)}`,
+      ),
+    );
   return {
     schema: "zama-szn4.sg4-authoritative-pricing-manifest.v1",
     version: 1,
@@ -7346,11 +7366,13 @@ describe("SG-4 HCU authority: INVARIANT B — pricing extracted from authenticat
       }
     }
     const extracted = schedule.variants.map(
-      (variant) => `${variant.canonicalName}.${variant.operandMode}.${variant.costKeyType}`,
+      (variant) =>
+        `${sg4CanonicalOperationName(variant.canonicalOperationName)}.${variant.operandMode}.${variant.costKeyType}`,
     );
     expect(extracted).to.include.members(installedVariants.sort());
     for (const operation of CURRENT_OFFICIAL_EXPECTED_ADDITIONAL_OPERATIONS) {
-      expect(schedule.operations, operation).to.include(operation);
+      const sourceOperation = operation.charAt(0).toLowerCase() + operation.slice(1);
+      expect(schedule.operations, sourceOperation).to.include(sourceOperation);
     }
     /* Every SG-4 used variant is priced by the extracted schedule. */
     for (const id of SG4_PRICING_VARIANT_CLOSURE.map(variantId)) expect(extracted).to.include(id);
@@ -7406,7 +7428,7 @@ describe("SG-4 HCU authority: INVARIANT B — pricing extracted from authenticat
     /* An unrecognised line inside a priced block fails closed rather than being skipped: an
      * unparsed line could carry a price nobody compared. */
     const withResidue = Buffer.from(
-      priceScheduleTextForTest().replace("  FheAdd: {", "  FheAdd: {\n    surpriseDimension: 7,"),
+      priceScheduleTextForTest().replace("  fheAdd: {", "  fheAdd: {\n    surpriseDimension: 7,"),
       "utf8",
     );
     const parsed = extractPriceSchedule({
@@ -7551,6 +7573,76 @@ describe("SG-4 HCU authority: corrected official source extractors", function ()
     expect(parsed.operatorMetadata.fheSum.bucketNames.Uint8).to.deep.equal(["le10", "le100", "le30", "le60"]);
   });
 
+  it("derives the complete lower-camel to PascalCase identity closure fail-closed", function () {
+    const price = officialPrice();
+    const authority = officialAuthority();
+    const expectedExamples = {
+      fheAdd: "FheAdd",
+      cast: "Cast",
+      ifThenElse: "IfThenElse",
+      fheRandBounded: "FheRandBounded",
+      fheSum: "FheSum",
+      fheIsIn: "FheIsIn",
+      trivialEncrypt: "TrivialEncrypt",
+    } as const;
+    for (const [source, canonical] of Object.entries(expectedExamples)) {
+      expect(canonicalizePriceOperationName(source), source).to.equal(canonical);
+    }
+
+    const identities = derivePriceOperationIdentities(price.operations);
+    expect(price.operations).to.have.lengthOf(29);
+    expect(price.canonicalOperations).to.have.lengthOf(29);
+    expect(identities.failures).to.deep.equal([]);
+    expect(new Set(identities.identities.map((identity) => identity.canonicalOperationName)).size).to.equal(29);
+    expect(price.canonicalOperations).to.deep.equal([...HCU_OPERATION_CANONICAL_NAMES]);
+    expect(identities.identities).to.deep.equal(
+      price.operations.map((sourceOperationName) => ({
+        sourceOperationName,
+        canonicalOperationName: canonicalizePriceOperationName(sourceOperationName),
+      })),
+    );
+
+    expect(() => canonicalizePriceOperationName("FHEAdd")).to.throw(/UNKNOWN_SOURCE_OPERATION/u);
+    expect(() => canonicalizePriceOperationName("FheAdd")).to.throw(/UNKNOWN_SOURCE_OPERATION/u);
+    expect(() => canonicalizePriceOperationName("unknownOperation")).to.throw(/UNKNOWN_SOURCE_OPERATION/u);
+    expect(() => hcuFunctionNameForCanonicalOperation("FHEAdd")).to.throw(/UNKNOWN_CANONICAL_OPERATION/u);
+    expect(derivePriceOperationIdentities([...price.operations, "fheAdd"]).failures).to.include(
+      "DUPLICATE_SOURCE_OPERATION:fheAdd",
+    );
+
+    const substituted = {
+      ...price,
+      variants: price.variants.map((variant) =>
+        variant.sourceOperationName === "fheAdd" ? { ...variant, canonicalOperationName: "Cast" } : variant,
+      ),
+    };
+    expect(validatePriceOperationFunctionCrossLinks(substituted, authority)).to.include(
+      "CANONICAL_OPERATION_NOT_DERIVED:fheAdd->Cast;expected:FheAdd",
+    );
+    expect(validatePriceOperationFunctionCrossLinks(price, authority)).to.deep.equal([]);
+    for (const identity of identities.identities) {
+      expect(hcuFunctionNameForCanonicalOperation(identity.canonicalOperationName)).to.equal(
+        `checkHCUFor${identity.canonicalOperationName}`,
+      );
+    }
+
+    const sourceCosts = new Map(
+      price.variants.map(
+        (variant) =>
+          [`${variant.sourceOperationName}.${variant.operandMode}.${variant.costKeyType}`, variant.cost] as const,
+      ),
+    );
+    const canonicalCosts = new Map(
+      price.variants.map(
+        (variant) =>
+          [`${variant.canonicalOperationName}.${variant.operandMode}.${variant.costKeyType}`, variant.cost] as const,
+      ),
+    );
+    expect([...sourceCosts.values()].sort((a, b) => a - b)).to.deep.equal(
+      [...canonicalCosts.values()].sort((a, b) => a - b),
+    );
+  });
+
   it("fails closed on unknown operator properties, types, buckets, and changed costs", function () {
     const unknownProperty = Buffer.from(
       OFFICIAL_PRICE_SOURCE_TEXT.replace("    supportScalar: true,", "    surprise: true,\n    supportScalar: true,"),
@@ -7594,7 +7686,11 @@ describe("SG-4 HCU authority: corrected official source extractors", function ()
     expect(changed.failures).to.deep.equal([]);
     expect(
       changed.variants.find(
-        (entry) => entry.canonicalName === "fheAdd" && entry.operandMode === "scalar" && entry.costKeyType === "Uint8",
+        (entry) =>
+          entry.sourceOperationName === "fheAdd" &&
+          entry.canonicalOperationName === "FheAdd" &&
+          entry.operandMode === "scalar" &&
+          entry.costKeyType === "Uint8",
       )?.cost,
     ).to.equal(84001);
     expect(changed.variants).to.not.deep.equal(officialPrice().variants);
