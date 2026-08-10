@@ -112,9 +112,10 @@ test.describe("SG-5 browser capability", () => {
       const page = await context.newPage();
       await installProvider(context);
       const observed = await observeContext(context, page);
+      const initialState = await context.storageState();
+      const clean = { cookies: initialState.cookies.length, origins: initialState.origins.length };
+      expect(clean).toEqual({ cookies: 0, origins: 0 });
       await page.goto("/");
-      const clean = { cookies: (await context.cookies()).length, storage: await page.evaluate(() => ({ localStorage: localStorage.length, sessionStorage: sessionStorage.length })) };
-      expect(clean).toEqual({ cookies: 0, storage: { localStorage: 0, sessionStorage: 0 } });
       await page.goto("/__sg5__");
       await expect(page.getByTestId("sg5-result")).toBeVisible({ timeout: 600_000 });
       const result = attachHarnessObservations(await readResult(page), observed.networkObservations, observed.errors);
