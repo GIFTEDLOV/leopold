@@ -35,8 +35,10 @@ export function SG5ProbeClient({ mode }: Props) {
         if (active && error instanceof Error && error.message === "SG5_WRONG_NETWORK_REFUSED") setWrongNetwork(true);
         else if (active) {
           const name = error instanceof Error && /^[A-Za-z][A-Za-z0-9_]*Error$/u.test(error.name) ? error.name : "UNKNOWN";
-          setFailureClass(name);
-          console.info(`SG5_FAILURE_CLASS:${name}`);
+          const status = error && typeof error === "object" && "statusCode" in error && typeof error.statusCode === "number" ? `:${error.statusCode}` : "";
+          const diagnostic = `${name}${status}`;
+          setFailureClass(diagnostic);
+          console.info(`SG5_FAILURE_CLASS:${diagnostic}`);
           setFailure(true);
         }
       }
