@@ -103,6 +103,7 @@
     "sg5:live": "node scripts/sg5-live.cjs live",
     "sg5:protocol": "ts-node --transpile-only scripts/sg5-protocol.ts",
     "sg5:structural": "pnpm --filter @zama-szn4/frontend test:sg5",
+    "sg5:evidence:validate": "node scripts/validate-sg5-evidence.cjs",
     "test": "hardhat test",
     "test:sepolia": "hardhat test --network sepolia",
     "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain",

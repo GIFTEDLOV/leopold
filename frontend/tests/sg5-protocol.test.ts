@@ -30,14 +30,28 @@ describe("SG-5 v2 protocol", () => {
   });
 
   it("classifies only committed official origins", () => {
-    expect(classifyNetworkUrl(`${SG5_ORIGINS.relayer}/v2/keyurl`, SG5_ASSET_ORIGIN_AUTHORITY).requestCategory).toBe("RELAYER_KEYURL_METADATA");
-    expect(classifyNetworkUrl(`${SG5_ORIGINS.publicKeyAsset}/PUB-p1/PublicKey/example`, SG5_ASSET_ORIGIN_AUTHORITY).requestCategory).toBe("PUBLIC_KEY_ASSET");
-    expect(classifyNetworkUrl(`${SG5_ORIGINS.crsAsset}/PUB-p1/CRS/example`, SG5_ASSET_ORIGIN_AUTHORITY).requestCategory).toBe("CRS_ASSET");
+    expect(classifyNetworkUrl(`${SG5_ORIGINS.relayer}/v2/keyurl`, SG5_ASSET_ORIGIN_AUTHORITY).requestCategory).toBe(
+      "RELAYER_KEYURL_METADATA",
+    );
+    expect(classifyNetworkUrl(`${SG5_ORIGINS.relayer}/v2/public-key`, SG5_ASSET_ORIGIN_AUTHORITY).requestCategory).toBe(
+      "RELAYER_RUNTIME",
+    );
+    expect(
+      classifyNetworkUrl(`${SG5_ORIGINS.publicKeyAsset}/PUB-p1/PublicKey/example`, SG5_ASSET_ORIGIN_AUTHORITY)
+        .requestCategory,
+    ).toBe("PUBLIC_KEY_ASSET");
+    expect(
+      classifyNetworkUrl(`${SG5_ORIGINS.crsAsset}/PUB-p1/CRS/example`, SG5_ASSET_ORIGIN_AUTHORITY).requestCategory,
+    ).toBe("CRS_ASSET");
     expect(() => classifyNetworkUrl("https://evil.example/key", SG5_ASSET_ORIGIN_AUTHORITY)).toThrow();
   });
 
   it("cannot claim live capability in structural mode", () => {
-    const result = sanitizeObservation(controlledStructuralObservation(), "OFFLINE_STRUCTURAL", "Mozilla/5.0 Chrome/151.0");
+    const result = sanitizeObservation(
+      controlledStructuralObservation(),
+      "OFFLINE_STRUCTURAL",
+      "Mozilla/5.0 Chrome/151.0",
+    );
     assertSanitizedResult(result);
     expect(result.status).toBe("STRUCTURAL_PASS_NOT_LIVE");
     expect(result.finalVerdict).toBe("NOT_LIVE");
