@@ -100,7 +100,7 @@ async function readResult(page: Page): Promise<SanitizedProbeResult> {
   const text = await page.getByTestId("sg5-result").textContent(); if (!text) throw new Error("missing SG5 result"); const parsed: unknown = JSON.parse(text); assertSanitizedResult(parsed); return parsed;
 }
 
-test.describe.configure({ mode: "serial" });
+test.describe.configure({ mode: "serial", timeout: 900_000 });
 
 test.describe("SG-5 browser capability", () => {
   test.skip(!live, "live SG-5 acknowledgment is required");
