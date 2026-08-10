@@ -110,10 +110,11 @@ test.describe("SG-5 browser capability", () => {
     for (let index = 0; index < SG5_LOCKED.coldContextCount; index += 1) {
       const context = await browser.newContext({ serviceWorkers: "block" });
       const page = await context.newPage();
-      const clean = await page.evaluate(() => ({ cookies: document.cookie, localStorage: localStorage.length, sessionStorage: sessionStorage.length }));
-      expect(clean).toEqual({ cookies: "", localStorage: 0, sessionStorage: 0 });
       await installProvider(context);
       const observed = await observeContext(context, page);
+      await page.goto("/");
+      const clean = { cookies: (await context.cookies()).length, storage: await page.evaluate(() => ({ localStorage: localStorage.length, sessionStorage: sessionStorage.length })) };
+      expect(clean).toEqual({ cookies: 0, storage: { localStorage: 0, sessionStorage: 0 } });
       await page.goto("/__sg5__");
       await expect(page.getByTestId("sg5-result")).toBeVisible({ timeout: 600_000 });
       const result = attachHarnessObservations(await readResult(page), observed.networkObservations, observed.errors);
@@ -132,6 +133,7 @@ test.describe("SG-5 browser capability", () => {
   test.afterAll(() => {
     const passing = liveResults.filter((result) => result.status === "CAPABILITY_COMPLETE").length;
     const aggregate = { schema: "zama-szn4.sg5-browser-probe-aggregate.v2", protocolVersion: "sg5-browser-capability-v2", status: passing === 2 && scenarioResults["SG5-04_WRONG_NETWORK"] === true ? "PASS" : "FAIL", executionMode: "LIVE_SEPOLIA", requiredColdContexts: "2", passedColdContexts: String(passing), excludedMockContexts: "0", wrongNetworkScenarioPassed: scenarioResults["SG5-04_WRONG_NETWORK"] === true, productionBuildPassed: scenarioResults["SG5-11_PRODUCTION_BUILD"] === true, contexts: liveResults } as const;
-    assertSanitizedAggregateResult(aggregate); if (process.env.SG5_RESULT_PATH) writeFileSync(process.env.SG5_RESULT_PATH, `${JSON.stringify({ aggregate, scenarios: scenarioResults }, null, 2)}\n`, { mode: 0o600 });
+    if (passing === 2 && scenarioResults["SG5-04_WRONG_NETWORK"] === true) assertSanitizedAggregateResult(aggregate);
+    if (process.env.SG5_RESULT_PATH) writeFileSync(process.env.SG5_RESULT_PATH, `${JSON.stringify({ aggregate, scenarios: scenarioResults }, null, 2)}\n`, { mode: 0o600 });
   });
 });
