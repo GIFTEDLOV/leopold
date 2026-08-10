@@ -1,0 +1,73 @@
+{
+  "schema": "zama-szn4.cp0-version-currency.v1",
+  "capturedUtc": "2026-08-10T19:16:59Z",
+  "registry": "https://registry.npmjs.org",
+  "command": "pnpm view <package> version dist.integrity --json",
+  "policy": "HOLD_PIN",
+  "rationale": "SG-4 and SG-5 are closed against these exact interoperable pins. Upgrade only through a coordinated security/compatibility checkpoint that reruns their validators and live gates.",
+  "packages": [
+    {
+      "name": "@fhevm/solidity",
+      "installed": "0.11.1",
+      "lockIntegrity": "sha512-KBHCF0an1sOqoABJ30p5foldSHy14F3jaQmYX+BKogpUJ1OFhNMzYfRkmPkJkwetyDcYg/euXcYQncYgHRT9aQ==",
+      "registryCurrent": "0.13.2",
+      "registryIntegrity": "sha512-tF0X79BBiWAQj1VEiE+v0MHkAhtqYEmgmEPBM3PLGevJdbO0E2xR+kupQLhna6nG7qCZdNcxt4UqiI1RBfRfmQ==",
+      "decision": "HOLD_PIN"
+    },
+    {
+      "name": "@fhevm/hardhat-plugin",
+      "installed": "0.4.2",
+      "lockIntegrity": "sha512-fIMy09mN868vo7bLX+2BL03MaQ6DAu4Fra+uxj39MBt8WakBkHVoQC9z6pd3zcXk1hxXMno2ryzHwLVzfhCffw==",
+      "registryCurrent": "0.4.2",
+      "registryIntegrity": "sha512-fIMy09mN868vo7bLX+2BL03MaQ6DAu4Fra+uxj39MBt8WakBkHVoQC9z6pd3zcXk1hxXMno2ryzHwLVzfhCffw==",
+      "decision": "HOLD_PIN"
+    },
+    {
+      "name": "@fhevm/mock-utils",
+      "installed": "0.4.2",
+      "lockIntegrity": "sha512-Rojeqr5tC7Vie2JrSjhs4kl7y6K+wElme9z9W0h9yH0IcBX37ZzQxBuMwa5ogKEd4auBLBDXxDFIxsVj0HkGIg==",
+      "registryCurrent": "0.4.2",
+      "registryIntegrity": "sha512-Rojeqr5tC7Vie2JrSjhs4kl7y6K+wElme9z9W0h9yH0IcBX37ZzQxBuMwa5ogKEd4auBLBDXxDFIxsVj0HkGIg==",
+      "decision": "HOLD_PIN"
+    },
+    {
+      "name": "@zama-fhe/relayer-sdk",
+      "installed": "0.4.1",
+      "lockIntegrity": "sha512-bS7tVQbXnsPFgiqm5R4pJ8hbPMYZuRh/Pv89S+jxO60y0mD296F4qIKEO7dgiHjC87V5GFM9DqCLNejjCNVw2Q==",
+      "registryCurrent": "0.4.4",
+      "registryIntegrity": "sha512-N+ateFbi7Fu9JsxExapfn/SdU3Bye3tvCfIaZQsRNXsZ7ep39S0BUnmljh+JhalUKT11xlMoA4+1TKLx72amcw==",
+      "decision": "HOLD_PIN"
+    },
+    {
+      "name": "@zama-fhe/sdk",
+      "installed": "3.4.0",
+      "lockIntegrity": "sha512-LPguEdq9Doi9ReOHyclZeT8Td9/Mdizu6NaIqM9kVi7aCi5OIQxUF+J/exkR/qMg+ZUhC8KhoBkMSApFSonj8A==",
+      "registryCurrent": "3.4.0",
+      "registryIntegrity": "sha512-LPguEdq9Doi9ReOHyclZeT8Td9/Mdizu6NaIqM9kVi7aCi5OIQxUF+J/exkR/qMg+ZUhC8KhoBkMSApFSonj8A==",
+      "decision": "HOLD_PIN"
+    },
+    {
+      "name": "@zama-fhe/react-sdk",
+      "installed": "3.4.0",
+      "lockIntegrity": "sha512-b3NYXmaImN8xnEM89oYICLKeykuYxMpSgnPKkI1zpaWMUKQB9jhiS3Jj6wZ4iE6a3onQF5GFMn64KzKMCW/UWA==",
+      "registryCurrent": "3.4.0",
+      "registryIntegrity": "sha512-b3NYXmaImN8xnEM89oYICLKeykuYxMpSgnPKkI1zpaWMUKQB9jhiS3Jj6wZ4iE6a3onQF5GFMn64KzKMCW/UWA==",
+      "decision": "HOLD_PIN"
+    },
+    {
+      "name": "@openzeppelin/confidential-contracts",
+      "installed": "0.5.1",
+      "lockIntegrity": "sha512-H38NTW9sFrMU/Z68uvkLxj8lIq4UR5A0SXc5bugcbYzeSanXbF/L1UDon9adeFuiQq3yeYHZqhTczVlvs6QH9w==",
+      "registryCurrent": "0.5.3",
+      "registryIntegrity": "sha512-de4/+oM8IAaD3IaAOlexZYxupvo4U1rr/SxlfYQ+QveILVrmuyPvE/GlwDCeGdKRsxea22+6ay0CgchTjmlsCA==",
+      "decision": "HOLD_PIN"
+    }
+  ],
+  "reconsiderationTriggers": [
+    "security advisory affecting a reachable execution path",
+    "dependency or lockfile change",
+    "checkpoint transition",
+    "coordinated FHEVM/browser/relayer compatibility upgrade",
+    "pre-deployment security freeze"
+  ]
+}

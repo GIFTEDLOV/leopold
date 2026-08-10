@@ -1,0 +1,59 @@
+{
+  "schema": "zama-szn4.cp0-h7-cusdtmock.v1",
+  "capturedUtc": "2026-08-10T19:16:59Z",
+  "status": "CLOSED_BY_EVIDENCE",
+  "chainId": "11155111",
+  "officialSources": {
+    "protocolRegistry": {
+      "url": "https://github.com/zama-ai/protocol-registry.git",
+      "commit": "a11ff90f4ddea3f19ae3f94b3d0567830e5bd181",
+      "tree": "9d9cb4d07ac288967a49e1131df7b85b6ebd72da",
+      "path": "addresses/testnet.json"
+    },
+    "protocolApps": {
+      "url": "https://github.com/zama-ai/protocol-apps.git",
+      "commit": "aa77db0d11567dab81f52a2edbd4f39abc8bb104",
+      "tree": "4094ca30e464ee86891cf03bc50ee161ddae3a61",
+      "addressPath": "docs/addresses/testnet/sepolia.md",
+      "mintSourcePath": "contracts/confidential-token-wrappers-registry/contracts/mocks/ERC20Mock.sol"
+    }
+  },
+  "snapshot": {
+    "finality": "finalized",
+    "blockNumberHex": "0xaee1df",
+    "blockNumberDecimal": "11461087",
+    "blockHash": "0x448e292177c5104186e23500a3909ffaed67bb64b306160e09634367ff6946c2",
+    "stateRoot": "0xd6ce058cf721b6204c7797762aad0b2143c2faa4c23fdb3ddf503cb6e7ee3211",
+    "rpcMethods": ["eth_chainId", "eth_getBlockByNumber", "eth_getCode", "eth_call"]
+  },
+  "contracts": {
+    "cUSDTMock": {
+      "address": "0x4E7B06D78965594eB5EF5414c357ca21E1554491",
+      "codeBytes": 170,
+      "codeSha256": "c85d18dc1e49769e01f9f88981176e213b2bc24d2f14d33a81d54bc06579f6db",
+      "name": "Confidential USDT (Mock)",
+      "symbol": "cUSDTMock",
+      "decimals": 6,
+      "reportedUnderlying": "0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0"
+    },
+    "USDTMock": {
+      "address": "0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0",
+      "codeBytes": 2385,
+      "codeSha256": "d85463b11765294fbc94a46a92506ff8703ddb53855d0d71ccb11ff45e1ea5da",
+      "name": "Tether USD (Mock)",
+      "symbol": "USDTMock",
+      "decimals": 6,
+      "mintSelector": "0x40c10f19",
+      "readOnlyMintSimulation": "SUCCESS",
+      "simulationAmountBaseUnits": "1",
+      "officialPerCallLimitTokens": "1000000"
+    },
+    "wrapperRegistry": {
+      "address": "0x2f0750Bbb0A246059d80e94c454586a7F27a128e",
+      "codeBytes": 170,
+      "codeSha256": "c85d18dc1e49769e01f9f88981176e213b2bc24d2f14d33a81d54bc06579f6db"
+    }
+  },
+  "transactionSent": false,
+  "conclusion": "Official provenance, live code, wrapper-underlying linkage, metadata, and a state-free mint simulation establish evaluator asset onboarding feasibility."
+}

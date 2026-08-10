@@ -101,4 +101,30 @@ describe("FHECounter", function () {
 
     expect(clearCountAfterInc).to.eq(0);
   });
+
+  it("CP0 R-008 clears transient FHE composition state between transactions", async function () {
+    const encryptedOne = await fhevm
+      .createEncryptedInput(fheCounterContractAddress, signers.alice.address)
+      .add32(1)
+      .encrypt();
+
+    const first = await fheCounterContract
+      .connect(signers.alice)
+      .increment(encryptedOne.handles[0], encryptedOne.inputProof);
+    const firstReceipt = await first.wait();
+    const second = await fheCounterContract
+      .connect(signers.alice)
+      .decrement(encryptedOne.handles[0], encryptedOne.inputProof);
+    const secondReceipt = await second.wait();
+
+    expect(firstReceipt?.hash).not.to.equal(secondReceipt?.hash);
+    const encryptedCount = await fheCounterContract.getCount();
+    const clearCount = await fhevm.userDecryptEuint(
+      FhevmType.euint32,
+      encryptedCount,
+      fheCounterContractAddress,
+      signers.alice,
+    );
+    expect(clearCount).to.equal(0);
+  });
 });

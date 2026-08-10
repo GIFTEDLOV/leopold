@@ -1,0 +1,366 @@
+{
+  "schema": "zama-szn4.cp0-final-closure.v1",
+  "capturedUtc": "2026-08-10T19:16:59Z",
+  "repository": {
+    "path": "/home/dell/zama-szn4",
+    "branch": "main",
+    "auditedBaseCommit": "ec8d22b4273ef3a84ba27b3b6fecbc2caadea12c",
+    "auditedBaseTree": "b5731ebc8a30e68612e3970d343083f8f5870c2c",
+    "auditedBaseParent": "8e10f0526a623295f2228e4291119a5b52520ab5"
+  },
+  "source": {
+    "title": "CP0 — Independent Security and Engineering Review",
+    "originalDate": "2026-08-04",
+    "provenance": "Project-owner-supplied recovered transcription from ChatGPT project/file archive; not claimed byte-identical",
+    "path": "evidence/cp0/sources/CP0_INDEPENDENT_REVIEW_RECOVERED.md",
+    "sha256": "b7a7f708830a7ed154fd910dab06bd90ef97a0768c8d3481356a3ce35d9ba3f0"
+  },
+  "locks": {
+    "sg4Binding": {
+      "path": "scripts/sg4-hcu-authority-binding.json",
+      "sha256": "4fa8642b9f1be977d9e8ca41c6ea9abfbfdda0c8d5e7160150dd76bb6036265c",
+      "authorityProtocolDigest": "53fabb080c608c1224faa8435a1fbd548ca316806d554fcc8e92b730d8cfea2b"
+    },
+    "randomness": {
+      "path": "evidence/sg4/SG4_RANDOMNESS_BENCHMARK.json",
+      "sha256": "b7d55b6a7947ef961ef87942bfefe23d331df21e94835f3a0a6cd7917a4bf8f4",
+      "width": "euint128",
+      "protocolDigest": "88d6f8c1522a0668d769f34ddafaf3e71134cbc9434a1b9676f78d5bdeb0968e"
+    },
+    "sg5": {
+      "path": "evidence/cp0/SG5_BROWSER_CAPABILITY.json",
+      "sha256": "2ec2dec9c8eb974821b63848ce944c7fd7da3b389cdaf37f586d216e5194f6a3",
+      "protocolDigest": "acb020ee47549bd51bc6733aa2e7b2087aac64130c5ee5a4713c8a78b8f9fa2d"
+    }
+  },
+  "gates": [
+    {
+      "id": "CG-1",
+      "definition": "Exact manifest and dependency foundation",
+      "evidence": [
+        {
+          "path": "evidence/cp0/CG1_CG2_MANIFEST_AND_ALLOWLIST.txt",
+          "sha256": "c370145180ff3ec241b21da3d3d38b71960c89e343050b1d4ac8c56deecc91a1"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Dependency changes trigger a new full audit."
+    },
+    {
+      "id": "CG-2",
+      "definition": "Approved dependency build-script allow-list",
+      "evidence": [
+        {
+          "path": "evidence/cp0/CG1_CG2_MANIFEST_AND_ALLOWLIST.txt",
+          "sha256": "c370145180ff3ec241b21da3d3d38b71960c89e343050b1d4ac8c56deecc91a1"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "New install scripts require checkpoint review."
+    },
+    {
+      "id": "CG-3",
+      "definition": "Keeper credential isolation and funding ceiling",
+      "evidence": [
+        {
+          "path": "evidence/cp0/CG3_KEEPER_CREDENTIAL_ISOLATION.txt",
+          "sha256": "c49fa6ef75cd231bf014d240a48b37582f9095363d50cac007d903aedb07009d"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Production keeper deployment remains unimplemented."
+    },
+    {
+      "id": "CG-4",
+      "definition": "Stage 0.4 monorepo foundation gate",
+      "evidence": [
+        {
+          "path": "evidence/cp0/CG4_FOUNDATION_GATE.txt",
+          "sha256": "b692e1a2bf0e8578a20c1d916b46e5346db8c521f36a35e29e0473eec8c60791"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Historical foundation is superseded only where later evidence is stronger."
+    },
+    {
+      "id": "SG-1",
+      "definition": "Live Sepolia encrypted-state FHE feasibility",
+      "evidence": [
+        {
+          "path": "evidence/cp0/SG1_LIVE_SEPOLIA_CAPABILITY.txt",
+          "sha256": "40f9a9fdd2f49cc58e062f35ec1367a67f7a3ca297a813887543f1f9f7f131ea"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Production protocol is not implemented."
+    },
+    {
+      "id": "SG-2",
+      "definition": "Live public decryption and onchain proof verification",
+      "evidence": [
+        {
+          "path": "evidence/cp0/SG2_LIVE_SEPOLIA_PUBLIC_DECRYPTION.txt",
+          "sha256": "d93484d3f67d4a454c150dedca617a7dc8ad17245084c9931080de5220caf37e"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Production settlement must use the assigned keeper lineage."
+    },
+    {
+      "id": "SG-3",
+      "definition": "Exact TWAB and ticket-domain width feasibility",
+      "evidence": [
+        {
+          "path": "evidence/cp0/SG3_WEIGHT_DOMAIN_DERIVATION.json",
+          "sha256": "e80fc42a73e855d19d6f70562236b319fb45171067caee96334b6e5dac83298e"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Production must enforce the proven pool and round envelopes."
+    },
+    {
+      "id": "SG-4",
+      "definition": "Authenticated HCU authority and permanent randomness benchmark",
+      "evidence": [
+        {
+          "path": "scripts/sg4-hcu-authority-binding.json",
+          "sha256": "4fa8642b9f1be977d9e8ca41c6ea9abfbfdda0c8d5e7160150dd76bb6036265c"
+        },
+        {
+          "path": "evidence/sg4/SG4_RANDOMNESS_BENCHMARK.json",
+          "sha256": "b7d55b6a7947ef961ef87942bfefe23d331df21e94835f3a0a6cd7917a4bf8f4"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Reopen only on an objective authority/deployment contradiction."
+    },
+    {
+      "id": "SG-5",
+      "definition": "Clean-browser production-bundle FHE capability",
+      "evidence": [
+        {
+          "path": "evidence/cp0/SG5_BROWSER_CAPABILITY.json",
+          "sha256": "2ec2dec9c8eb974821b63848ce944c7fd7da3b389cdaf37f586d216e5194f6a3"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Production UI and contracts remain unimplemented."
+    },
+    {
+      "id": "M-1",
+      "definition": "Audit development dependencies as host-privileged code and define checkpoint reruns",
+      "evidence": [
+        {
+          "path": "evidence/cp0/CP0_FULL_DEPENDENCY_AUDIT.json",
+          "sha256": "c59812350a096383dbeac9d5eb6f8fe08c36c9fed4ed17c56617a0f4a8e8f06f"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "1 Critical, 57 High, 54 Moderate, and 12 Low advisories remain triaged, not hidden; reachable issues must be resolved before production freeze."
+    },
+    {
+      "id": "M-2",
+      "definition": "Replace circular risk assertions with evidence or honest Open status",
+      "evidence": [
+        {
+          "path": "docs/security/CP0_INDEPENDENT_REVIEW_REMEDIATION.md",
+          "sha256": "b8ada61de8fc4e679d00805e78f73c408c792f7a3d5d5aef5ae5ecc663c0d1ae"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "R-003/R-005/R-010/R-011/R-012/R-014 remain explicitly Open."
+    },
+    {
+      "id": "M-3",
+      "definition": "Corroborate Zama/FHEVM dependency pins against registry current versions",
+      "evidence": [
+        {
+          "path": "evidence/cp0/CP0_VERSION_CURRENCY.json",
+          "sha256": "9e241423766fed21f518ec1e4b583feb77febda4e3580b93c8a20b54976abcc8"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "HOLD_PIN requires coordinated revalidation on upgrade."
+    },
+    {
+      "id": "M-4",
+      "definition": "Assign unambiguous ownership across both Zama SDK lineages",
+      "evidence": [
+        {
+          "path": "docs/architecture/CP0_SDK_AND_CHAIN_OWNERSHIP.md",
+          "sha256": "5e7234eb52cc3150b51093c15e83c20120fb67bb3d2452e06a782f5331abec79"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Production must retain the sole keeper settlement path."
+    },
+    {
+      "id": "M-5",
+      "definition": "Verify official template repository provenance for the recorded commit",
+      "evidence": [
+        {
+          "path": "docs/architecture/CP0_SDK_AND_CHAIN_OWNERSHIP.md",
+          "sha256": "5e7234eb52cc3150b51093c15e83c20120fb67bb3d2452e06a782f5331abec79"
+        },
+        {
+          "path": "evidence/cp0/M5_TEMPLATE_PROVENANCE.json",
+          "sha256": "f8605ded8537a6401b4beeaa5524085d48bba08ceed691cbb6e804e3e64968c9"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Remote receipt is time-stamped and should be refreshed on template rebases."
+    },
+    {
+      "id": "M-6",
+      "definition": "Define AI-agent, deployer credential, workspace, and code-provenance policy",
+      "evidence": [
+        {
+          "path": "evidence/cp0/CP0_TRACKED_SECRET_SCAN.json",
+          "sha256": "890e6696b1ffc234b462690d0ebfeeedb9c408b5e6ccbd4504b5c9f649e27cc6"
+        },
+        {
+          "path": "docs/governance/AI_AGENT_CREDENTIAL_AND_PROVENANCE_POLICY.md",
+          "sha256": "ff1b4d0311d443948019116bbaa1329721c982ba9ae719bf31aaafe2d4d8c5b1"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Secret scanning is defense-in-depth and cannot prove secrets never existed outside Git."
+    },
+    {
+      "id": "M-7",
+      "definition": "Replace transient-storage intention with compiler evidence and a named regression",
+      "evidence": [
+        {
+          "path": "evidence/cp0/R008_TRANSIENT_STORAGE_CONTROL.json",
+          "sha256": "a8f1df906c309b504fbc349d5767e06653f4f7f0dbfd58e3766ac4f7093e29d5"
+        },
+        { "path": "test/FHECounter.ts", "sha256": "68384ffcbcb6577972c62a36c6295fbbb8f5658a2cdf1cf22c875129e89f8a88" }
+      ],
+      "status": "PASS",
+      "residualRisk": "Historical warning bytes were not recovered; current warning-free compile and behavioral test are authoritative."
+    },
+    {
+      "id": "M-8",
+      "definition": "Define and disclose reviewer independence levels",
+      "evidence": [
+        {
+          "path": "docs/governance/REVIEW_INDEPENDENCE_POLICY.md",
+          "sha256": "075a9cf4794f0042ad3e720e6d0d0001e189584fd75028a743f5d25e91dbacfa"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Final release still requires external independent review."
+    },
+    {
+      "id": "L-1",
+      "definition": "Qualify decision labels by gate/stage",
+      "evidence": [
+        {
+          "path": "docs/security/CP0_INDEPENDENT_REVIEW_REMEDIATION.md",
+          "sha256": "b8ada61de8fc4e679d00805e78f73c408c792f7a3d5d5aef5ae5ecc663c0d1ae"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Historical labels remain retained as historical."
+    },
+    {
+      "id": "L-2",
+      "definition": "Record deliberate GitHub/Git authorship identity mapping",
+      "evidence": [
+        {
+          "path": "docs/security/CP0_INDEPENDENT_REVIEW_REMEDIATION.md",
+          "sha256": "b8ada61de8fc4e679d00805e78f73c408c792f7a3d5d5aef5ae5ecc663c0d1ae"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "No history rewrite was performed."
+    },
+    {
+      "id": "L-3",
+      "definition": "Require checkpoint artifact paths and digests, not narrative alone",
+      "evidence": [
+        {
+          "path": "docs/governance/EVIDENCE_STANDARD.md",
+          "sha256": "39846d65831d68d0556fcc6fced224f4fb7b28b4f87dbae0005c9e94eb33cbbf"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Future checkpoints must enforce this template."
+    },
+    {
+      "id": "L-4",
+      "definition": "Record Solidity 0.8.27 and Cancun compatibility rationale",
+      "evidence": [
+        {
+          "path": "docs/architecture/CP0_SDK_AND_CHAIN_OWNERSHIP.md",
+          "sha256": "5e7234eb52cc3150b51093c15e83c20120fb67bb3d2452e06a782f5331abec79"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Pin changes require coordinated revalidation."
+    },
+    {
+      "id": "L-5",
+      "definition": "Record Sepolia preset/relayer provenance and ownership",
+      "evidence": [
+        {
+          "path": "docs/architecture/CP0_SDK_AND_CHAIN_OWNERSHIP.md",
+          "sha256": "5e7234eb52cc3150b51093c15e83c20120fb67bb3d2452e06a782f5331abec79"
+        },
+        {
+          "path": "evidence/cp0/SG5_BROWSER_CAPABILITY.json",
+          "sha256": "2ec2dec9c8eb974821b63848ce944c7fd7da3b389cdaf37f586d216e5194f6a3"
+        }
+      ],
+      "status": "PASS",
+      "residualRisk": "Production endpoint ownership and rotation remain deployment work."
+    }
+  ],
+  "additionalFindings": [
+    {
+      "id": "H-7",
+      "definition": "Verify cUSDTMock onboarding dependency",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "evidence/cp0/H7_CUSDTMOCK_PROVENANCE.json",
+          "sha256": "878d2708497781162472ef030740a3790e0b91a5bbbb8af6cbfecc62d8766cf7"
+        }
+      ],
+      "residualRisk": "Reverify code and registry at production deployment."
+    },
+    {
+      "id": "H-8",
+      "definition": "Replace schedule assertion with capacity evidence and cut order",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "docs/security/CP0_INDEPENDENT_REVIEW_REMEDIATION.md",
+          "sha256": "b8ada61de8fc4e679d00805e78f73c408c792f7a3d5d5aef5ae5ecc663c0d1ae"
+        }
+      ],
+      "residualRisk": "R-014 remains High/Open."
+    }
+  ],
+  "risks": [
+    { "id": "R-003", "rating": "HIGH", "status": "OPEN_NONBLOCKING_PRODUCTION_RISK" },
+    { "id": "R-005", "rating": "HIGH", "status": "OPEN_NONBLOCKING_PRODUCTION_RISK" },
+    { "id": "R-008", "rating": "MEDIUM", "status": "PASS" },
+    { "id": "R-010", "rating": "HIGH", "status": "OPEN_NONBLOCKING_PRODUCTION_RISK" },
+    { "id": "R-011", "rating": "HIGH", "status": "OPEN_NONBLOCKING_PRODUCTION_RISK" },
+    { "id": "R-012", "rating": "HIGH", "status": "OPEN_NONBLOCKING_PRODUCTION_RISK" },
+    { "id": "R-014", "rating": "HIGH", "status": "OPEN_NONBLOCKING_PRODUCTION_RISK" }
+  ],
+  "fullRegression": {
+    "status": "PASS",
+    "artifact": "evidence/cp0/CP0_FULL_REGRESSION.json",
+    "sha256": "623164252018163642f9a2d64555337a85fefbc7e408315fd6fdbd0fba4bde63",
+    "command": "pnpm check:all"
+  },
+  "review": {
+    "implementation": "Codex",
+    "classification": "SELF_REVIEW_WITH_SECOND_PASS_MECHANICAL_VALIDATION",
+    "externalReleaseAuditStillRequired": true
+  },
+  "decision": "STAGE 0 / CP0 CLOSED — GO TO PRODUCTION IMPLEMENTATION"
+}

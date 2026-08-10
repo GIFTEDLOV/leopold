@@ -1554,47 +1554,22 @@ describe("SG-4 local encrypted harness execution", function () {
   });
 });
 
-describe("SG-4 scope", function () {
-  /* Reviewed SG-4 HCU-authority preparation scope. Contracts are deliberately absent: the
-   * amendment changes no Solidity. */
-  it("changes only the reviewed SG-4 authority preparation paths", function () {
-    const status = spawnSync("git", ["status", "--short", "--untracked-files=all"], {
-      cwd: root,
-      encoding: "utf8",
-    });
-    const paths = status.stdout
-      .trimEnd()
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => line.slice(3));
-    const permitted = [
-      "package.json",
-      "pnpm-lock.yaml",
-      "docs/security/SG4_BENCHMARK_PROTOCOL.md",
-      "docs/security/SG4_HCU_AUTHORITY_PROTOCOL.md",
-      "scripts/sg4-protocol.ts",
-      "scripts/sg4-hcu-authority-binding-generator.ts",
-      "scripts/sg4-hcu-authority-launcher.cjs",
-      "scripts/sg4-hcu-authority-protocol.ts",
-      "scripts/sg4-hcu-authority.ts",
-      "test/SG4BenchmarkProtocol.ts",
-      "test/SG4HcuAuthority.ts",
-      "evidence/INDEX.md",
-      "docs/security/SG4_RANDOMNESS_WIDTH_DECISION.md",
-      "scripts/sg4-randomness-benchmark.ts",
-      "scripts/validate-sg4-randomness-evidence.ts",
-      "scripts/verify-sg4-randomness-receipts.ts",
-      "test/SG4RandomnessBenchmark.ts",
-      "evidence/sg4/SG4_RANDOMNESS_BENCHMARK.json",
-      "evidence/sg4/SG4_RANDOMNESS_BENCHMARK.json.sha256",
-      "scripts/validate-sg5-evidence.cjs",
-      "test/SG5Protocol.ts",
-      "evidence/cp0/SG5_BROWSER_CAPABILITY.json",
-      "evidence/cp0/SG5_BROWSER_CAPABILITY.json.sha256",
-      "test/fixtures/fhevm-v0.13.2-FHEVMExecutor-4d775fb2ba96328ce842168d97046c84.build-info.json.gz",
-      "test/fixtures/fhevm-v0.13.2-operatorsPrices.ts.txt",
-      "tsconfig.json",
-    ];
-    expect(paths.filter((path) => !permitted.includes(path))).to.deep.equal([]);
+describe("SG-4 closure lock", function () {
+  it("keeps closed SG-4 artifacts immutable during later gate work", function () {
+    const binding = readFileSync(resolve(root, "scripts/sg4-hcu-authority-binding.json"));
+    const benchmark = readFileSync(resolve(root, "evidence/sg4/SG4_RANDOMNESS_BENCHMARK.json"));
+    expect(createHash("sha256").update(binding).digest("hex")).to.equal(
+      "4fa8642b9f1be977d9e8ca41c6ea9abfbfdda0c8d5e7160150dd76bb6036265c",
+    );
+    expect(createHash("sha256").update(benchmark).digest("hex")).to.equal(
+      "b7d55b6a7947ef961ef87942bfefe23d331df21e94835f3a0a6cd7917a4bf8f4",
+    );
+
+    const lineage = spawnSync(
+      "git",
+      ["merge-base", "--is-ancestor", "e3f0c060fa00a43f82f35e70acb543008f9daa0c", "HEAD"],
+      { cwd: root, encoding: "utf8" },
+    );
+    expect(lineage.status, lineage.stderr).to.equal(0);
   });
 });

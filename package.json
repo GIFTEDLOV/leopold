@@ -67,6 +67,8 @@
   ],
   "scripts": {
     "audit:full": "pnpm audit",
+    "cp0:audit:capture": "node scripts/cp0-capture-audit.cjs",
+    "cp0:validate": "node scripts/validate-cp0-final-closure.cjs",
     "audit:prod": "pnpm audit --prod",
     "build:ts": "tsc --project tsconfig.json",
     "chain": "hardhat node --network hardhat --no-deploy",

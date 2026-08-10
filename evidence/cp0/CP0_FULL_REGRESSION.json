@@ -1,0 +1,64 @@
+{
+  "schema": "zama-szn4.cp0-full-regression.v1",
+  "capturedUtc": "2026-08-10T20:46:37Z",
+  "auditedBaseCommit": "ec8d22b4273ef3a84ba27b3b6fecbc2caadea12c",
+  "status": "PASS",
+  "results": [
+    {
+      "command": "pnpm check:all",
+      "status": "PASS",
+      "executionEnvironment": "UNSANDBOXED_LOCAL_PROCESS_FOR_TSX_UNIX_SOCKET",
+      "contractTests": { "passed": 496, "failed": 0, "pending": 1 },
+      "intentionalPending": "FHECounterSepolia local-network run",
+      "frontendTests": { "filesPassed": 2, "testsPassed": 5, "failed": 0 },
+      "frontendProductionBuild": "PASS_NEXT_16_3_0",
+      "keeperTests": { "filesPassed": 1, "testsPassed": 6, "failed": 0 },
+      "keeperBuild": "PASS",
+      "keeperRuntimeProbe": "PASS",
+      "solhint": "PASS_ZERO_WARNINGS",
+      "eslint": "PASS_ZERO_ERRORS_10_PREEXISTING_UNUSED_DISABLE_WARNINGS",
+      "prettier": "PASS",
+      "rootTypeScript": "PASS"
+    },
+    {
+      "command": "pnpm sg4:randomness:validate",
+      "status": "PASS",
+      "marker": "SG4_RANDOMNESS_EVIDENCE_VALID"
+    },
+    {
+      "command": "pnpm sg4:randomness:receipts",
+      "status": "PASS",
+      "marker": "SG4_RANDOMNESS_RECEIPT_REPLAY PASS samples=36",
+      "currentSepoliaBlock": "11461629"
+    },
+    {
+      "command": "pnpm sg5:evidence:validate",
+      "status": "PASS",
+      "marker": "SG5_EVIDENCE_VALID"
+    },
+    {
+      "command": "pnpm exec hardhat compile --force",
+      "status": "PASS",
+      "compiledSolidityFiles": 10,
+      "evmTarget": "cancun",
+      "warnings": 0
+    }
+  ],
+  "retainedFailedAttempts": [
+    {
+      "command": "pnpm check:all",
+      "failure": "Historical SG-4 worktree-scope test rejected all later-gate files",
+      "remediation": "Replaced the preparation-era worktree allow-list with immutable SG-4 artifact hashes and ancestry assertion; targeted lock test passed."
+    },
+    {
+      "command": "pnpm check:all",
+      "failure": "Sandbox denied tsx Unix socket /tmp/tsx-1000/981.pipe with EPERM after all semantic tests/builds passed",
+      "remediation": "Reran the exact command outside the sandbox; no source change was made for this environment artifact."
+    },
+    {
+      "command": "pnpm sg4:randomness:receipts",
+      "failure": "Sandbox DNS returned EAI_AGAIN for the configured Sepolia endpoint",
+      "remediation": "Reran the exact read-only receipt replay with network access; 36/36 receipts passed."
+    }
+  ]
+}

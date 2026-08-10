@@ -1,0 +1,19 @@
+{
+  "schema": "zama-szn4.cp0-r008-transient-storage.v1",
+  "capturedUtc": "2026-08-10T19:16:59Z",
+  "auditedBaseCommit": "ec8d22b4273ef3a84ba27b3b6fecbc2caadea12c",
+  "compilerCommand": "pnpm exec hardhat compile --force",
+  "compilerExitCode": 0,
+  "compilerOutput": [
+    "Generating typings for: 13 artifacts in dir: types for target: ethers-v6",
+    "Successfully generated 48 typings!",
+    "Compiled 10 Solidity files successfully (evm target: cancun)."
+  ],
+  "warningDisposition": "The historical warning text was not retained and did not reproduce. No warning was suppressed; the exact current forced-compile result is preserved.",
+  "compiler": "0.8.27",
+  "evmTarget": "cancun",
+  "namedRegressionTest": "CP0 R-008 clears transient FHE composition state between transactions",
+  "testPath": "test/FHECounter.ts",
+  "relatedAuthorityTest": "SG-4 HCU authority: applicable-limit state machine",
+  "control": "Two distinct encrypted state-changing transactions must compose to the expected decrypted result, while SG-4 verifies transaction-scoped tload/tstore accounting."
+}

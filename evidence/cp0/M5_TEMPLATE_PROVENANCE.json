@@ -1,0 +1,13 @@
+{
+  "schema": "zama-szn4.cp0-template-provenance.v1",
+  "capturedUtc": "2026-08-10T19:16:59Z",
+  "status": "PASS",
+  "repository": "https://github.com/zama-ai/fhevm-hardhat-template.git",
+  "command": "git ls-remote https://github.com/zama-ai/fhevm-hardhat-template.git",
+  "expectedCommit": "ec84e1aa1b0a3ef61d9795ef8bf367115b79272f",
+  "observedRefs": {
+    "HEAD": "ec84e1aa1b0a3ef61d9795ef8bf367115b79272f",
+    "refs/heads/main": "ec84e1aa1b0a3ef61d9795ef8bf367115b79272f"
+  },
+  "conclusion": "The recorded foundation commit belongs to the official Zama FHEVM Hardhat template and was the main branch tip at verification time."
+}

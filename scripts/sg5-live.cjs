@@ -96,7 +96,9 @@ function clearOwnedPort() {
   const deadline = Date.now() + 2500;
   while (Date.now() < deadline && portPids().length) {
     const end = Date.now() + 100;
-    while (Date.now() < end) {}
+    while (Date.now() < end) {
+      // Bounded synchronous wait while the owned listener releases port 3000.
+    }
   }
   for (const pid of owned) {
     if (portPids().includes(pid)) {
@@ -108,7 +110,9 @@ function clearOwnedPort() {
   const finalDeadline = Date.now() + 1500;
   while (Date.now() < finalDeadline && portPids().length) {
     const end = Date.now() + 100;
-    while (Date.now() < end) {}
+    while (Date.now() < end) {
+      // Bounded synchronous wait before the final owned-listener check.
+    }
   }
   if (portPids().length) throw new Error("SG5_PROJECT_FRONTEND_DID_NOT_RELEASE_PORT_3000");
 }

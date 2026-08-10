@@ -18,6 +18,22 @@ Each raw text artifact must contain:
 7. explicit PASS or FAIL conclusion;
 8. SHA-256 digest stored in a sibling `.sha256` file.
 
+Every material checkpoint record, including structured JSON records, must also provide the evidence artifact path,
+artifact digest, Git commit/tree or explicit pre-commit base, UTC timestamp where applicable, and exact command or test
+identifier. Narrative command and count summaries cannot substitute for those references.
+
+## Checkpoint template
+
+| Field                   | Required value                                                            |
+| ----------------------- | ------------------------------------------------------------------------- |
+| Gate ID and decision    | Gate-qualified `PASS`, `FAIL`, `BLOCKED`, or documented historical status |
+| Evidence path           | Repository-relative retained artifact path                                |
+| Evidence SHA-256        | Digest of the exact retained bytes                                        |
+| Git identity            | Commit and tree, or explicit audited pre-commit base                      |
+| Captured UTC            | ISO-8601 UTC timestamp for time-dependent evidence                        |
+| Command/test ID         | Exact command and named test/validator marker                             |
+| Reviewer classification | One classification from `REVIEW_INDEPENDENCE_POLICY.md`                   |
+
 ## File naming
 
 Use uppercase gate identifiers followed by a concise description:
