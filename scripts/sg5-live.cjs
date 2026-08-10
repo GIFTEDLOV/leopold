@@ -99,7 +99,7 @@ async function main() {
     if (status.code !== 0 || status.signal !== null) throw new Error("SG5_PLAYWRIGHT_SUITE_FAILED");
     if (!existsSync(resultPath)) throw new Error("SG5_PLAYWRIGHT_RESULT_MISSING");
     const run = JSON.parse(readFileSync(resultPath, "utf8")); writeEvidence(run, identity, digest); process.stdout.write("SG5_BROWSER_SUITE_PASS\nSG5_EVIDENCE_WRITTEN\n");
-  } finally { stop(frontend); await new Promise((resolvePromise) => setTimeout(resolvePromise, 750)); try { rmSync(runDirectory, { recursive: true, force: true }); } catch {} }
+  } finally { stop(frontend); await new Promise((resolvePromise) => setTimeout(resolvePromise, 750)); if (existsSync(resultPath)) { try { rmSync(runDirectory, { recursive: true, force: true }); } catch {} } else process.stderr.write(`SG5_FAILED_RUN_DIRECTORY_RETAINED:${runDirectory}\n`); }
 }
 
 main().catch((error) => fail(error instanceof Error ? error.message : "unknown SG5 launcher failure"));

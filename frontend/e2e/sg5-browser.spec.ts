@@ -86,7 +86,7 @@ async function observeContext(context: BrowserContext, page: Page) {
     try { classifyNetworkUrl(route.request().url(), SG5_ASSET_ORIGIN_AUTHORITY); await route.continue(); }
     catch { errors.forbiddenNetwork += 1; await route.abort("blockedbyclient"); }
   });
-  page.on("console", (message) => { if (message.type() === "error") errors.console += 1; });
+  page.on("console", (message) => { if (message.type() === "error") errors.console += 1; if (message.text().startsWith("SG5_STAGE:")) process.stdout.write(`${message.text()}\n`); });
   page.on("pageerror", () => { errors.page += 1; });
   page.on("request", (request) => { try { classifyNetworkUrl(request.url(), SG5_ASSET_ORIGIN_AUTHORITY); requestState.set(request, { started: performance.now() }); } catch { errors.forbiddenNetwork += 1; } });
   page.on("requestfailed", (request) => { const state = requestState.get(request); if (!state) return; try { networkObservations.push(buildNetworkFailureObservation(request.url(), Math.max(0, Math.round(performance.now() - state.started)), request.redirectedFrom()?.url(), SG5_ASSET_ORIGIN_AUTHORITY)); } catch { errors.forbiddenNetwork += 1; } });
