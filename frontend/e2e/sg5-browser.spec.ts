@@ -109,7 +109,7 @@ async function installProvider(context: BrowserContext, chainId: number = SG5_LO
       configurable: false,
       value: provider("__sg5UnauthorizedProviderRequest"),
     });
-    document.documentElement.dataset.sg5ExpectedChainId = String(requestedChainId);
+    if (document.documentElement) document.documentElement.dataset.sg5ExpectedChainId = String(requestedChainId);
   }, chainId);
 }
 
