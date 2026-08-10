@@ -40,12 +40,18 @@ function loadVars() {
 function portPids() { try { const value = execFileSync("bash", ["-lc", "fuser -n tcp 3000 2>/dev/null || true"], { encoding: "utf8" }); return value.trim().split(/\s+/u).filter((v) => /^[0-9]+$/u.test(v)).map(Number); } catch { return []; } }
 function processText(pid) { try { return { cwd: readFileSync(`/proc/${pid}/cwd`, "utf8"), cmdline: readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ") }; } catch { return null; } }
 function clearOwnedPort() {
+  const owned = [];
   for (const pid of portPids()) {
     const identity = processText(pid);
     if (!identity) continue;
-    if (identity.cwd.startsWith(FRONTEND) && identity.cmdline.includes("next")) { try { process.kill(pid, "SIGTERM"); } catch {} }
+    if (identity.cwd.startsWith(FRONTEND) && identity.cmdline.includes("next")) { owned.push(pid); try { process.kill(pid, "SIGTERM"); } catch {} }
     else throw new Error("SG5_PORT_3000_OCCUPIED_BY_UNRELATED_PROCESS");
   }
+  const deadline = Date.now() + 2500;
+  while (Date.now() < deadline && portPids().length) { const end = Date.now() + 100; while (Date.now() < end) {} }
+  for (const pid of owned) { if (portPids().includes(pid)) { try { process.kill(pid, "SIGKILL"); } catch {} } }
+  const finalDeadline = Date.now() + 1500;
+  while (Date.now() < finalDeadline && portPids().length) { const end = Date.now() + 100; while (Date.now() < end) {} }
   if (portPids().length) throw new Error("SG5_PROJECT_FRONTEND_DID_NOT_RELEASE_PORT_3000");
 }
 async function waitForHealth() {
