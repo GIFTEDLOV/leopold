@@ -1,0 +1,3541 @@
+{
+  "schema": "zama-szn4.sg5-browser-capability-evidence.v2",
+  "evidenceMarker": "SG5_EVIDENCE_VALID",
+  "protocol": {
+    "version": "sg5-browser-capability-v2",
+    "sha256": "acb020ee47549bd51bc6733aa2e7b2087aac64130c5ee5a4713c8a78b8f9fa2d"
+  },
+  "identity": {
+    "branch": "main",
+    "preparationCommit": "8e10f0526a623295f2228e4291119a5b52520ab5",
+    "preparationTree": "114a610e21429d7b4161333f6c135a31e8899ee8"
+  },
+  "environment": {
+    "chainId": "11155111",
+    "browser": "Chromium",
+    "productionBundle": true,
+    "walletModel": "TEST_AUTOMATION_WALLET_VIA_BROWSER_EIP1193_BRIDGE",
+    "frontendWalletModel": "PRODUCTION_WALLET_INTERFACE",
+    "secretsPersisted": false
+  },
+  "probeDeployment": {
+    "chainId": "11155111",
+    "contractAddress": "0xfc672ca5846896A7A135943E79dd11283c38FE78",
+    "deploymentTransactionHash": "0x44b8701193ca8b0efd32a081786056af1a722fa0efb2ef1c92550687562090d4",
+    "deploymentBlockNumber": "11459741",
+    "compiler": "0.8.27"
+  },
+  "scenarios": {
+    "SG5-10_FRESH_CONTEXT_REPEAT": true,
+    "SG5-01_CLEAN_LOAD": true,
+    "SG5-02_SDK_INITIALIZATION": true,
+    "SG5-03_SEPOLIA_PROVIDER": true,
+    "SG5-05_BROWSER_ENCRYPTION": true,
+    "SG5-06_LIVE_ENCRYPTED_TRANSACTION": true,
+    "SG5-07_RESULT_READBACK": true,
+    "SG5-08_AUTHORIZED_DECRYPTION": true,
+    "SG5-09_UNAUTHORIZED_ACCESS": true,
+    "SG5-11_PRODUCTION_BUILD": true,
+    "SG5-04_WRONG_NETWORK": true
+  },
+  "aggregate": {
+    "schema": "zama-szn4.sg5-browser-probe-aggregate.v2",
+    "protocolVersion": "sg5-browser-capability-v2",
+    "status": "PASS",
+    "executionMode": "LIVE_SEPOLIA",
+    "requiredColdContexts": "2",
+    "passedColdContexts": "2",
+    "excludedMockContexts": "0",
+    "wrongNetworkScenarioPassed": true,
+    "productionBuildPassed": true,
+    "contexts": [
+      {
+        "schema": "zama-szn4.sg5-browser-probe-result.v2",
+        "protocolVersion": "sg5-browser-capability-v2",
+        "status": "CAPABILITY_COMPLETE",
+        "executionMode": "LIVE_SEPOLIA",
+        "adapterClassification": "REAL_INSTALLED_SDK",
+        "blockerClassification": "NONE",
+        "failureClassification": "NONE",
+        "browserEngine": "CHROMIUM_FAMILY",
+        "browserVersion": "RECORDED_BY_PLAYWRIGHT",
+        "chainId": "11155111",
+        "observedChainId": "11155111",
+        "sdkPackage": "@zama-fhe/sdk",
+        "sdkVersion": "3.4.0",
+        "reactSdkPackage": "@zama-fhe/react-sdk",
+        "reactSdkVersion": "3.4.0",
+        "providerReady": true,
+        "walletConnected": true,
+        "wasmRuntimeInitialized": true,
+        "wasmProofMechanism": "ATTRIBUTED_SUCCESSFUL_WASM_INSTANTIATION_AND_REAL_SDK_ENCRYPTION",
+        "wasmInstantiationCount": "1",
+        "wasmCriticalSections": [
+          {
+            "criticalSectionClassification": "SDK_INITIALIZATION",
+            "successfulInstantiateCount": "0",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          },
+          {
+            "criticalSectionClassification": "SDK_ENCRYPTION",
+            "successfulInstantiateCount": "0",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          },
+          {
+            "criticalSectionClassification": "SDK_DECRYPTION",
+            "successfulInstantiateCount": "1",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          }
+        ],
+        "sdkInstanceCreated": true,
+        "publicKeyRetrieved": true,
+        "publicKeySourceClassification": "INSTALLED_SEPOLIA_RELAYER_CONFIGURATION",
+        "encryptedInputBuilderCreated": true,
+        "encryptedWidth": "euint64",
+        "plaintextClassification": "FIXED_TEST_VALUE_ONE",
+        "encryptionCompleted": true,
+        "encryptedPayloadCount": "1",
+        "encryptedPayloadNonempty": true,
+        "inputProofPresent": true,
+        "transactionSubmitted": true,
+        "transactionConfirmed": true,
+        "transactionStatus": "SUCCESS",
+        "transactionHash": "0xbe8be8ce8bf716f316f1ca07b6c62edb0761aa62430a4e133271a4f07791b87c",
+        "transactionBlockNumber": "11460396",
+        "resultHandleRead": true,
+        "authorizedDecryptionCompleted": true,
+        "authorizedPlaintextMatched": true,
+        "unauthorizedDecryptionAttempted": true,
+        "unauthorizedDecryptionRejected": true,
+        "forbiddenMaterialRetained": false,
+        "consoleErrorCount": "0",
+        "pageErrorCount": "0",
+        "unhandledRejectionCount": "0",
+        "forbiddenNetworkRequestCount": "0",
+        "durationMilliseconds": "74135",
+        "networkObservations": [
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "124",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "70",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "70",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "67",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "76",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "73",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "93",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "83",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "109",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "181",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "69",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "68",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "44",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "71",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "69",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "88",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "77",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "83",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "113",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "112",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "110",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "107",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "104",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "102",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "186",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "179",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "141",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "191",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "171",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "199",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "138",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "133",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "261",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "653",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "297",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "301",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_KEYURL_METADATA",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "818",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_PUBLIC_KEY_ASSET",
+            "requestCategory": "PUBLIC_KEY_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "772",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CRS_ASSET",
+            "requestCategory": "CRS_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "760",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "45",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "85",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "298",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "344",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "219",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "275",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "484",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "193",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "321",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "192",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "215",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "288",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "277",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "198",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "195",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "259",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "189",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "208",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "91",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "52",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "292",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "233",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "262",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "264",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "251",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "257",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "267",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "230",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "281",
+            "redirectClassification": "NONE",
+            "success": true
+          }
+        ],
+        "finalVerdict": "PASS_PENDING_HARNESS"
+      },
+      {
+        "schema": "zama-szn4.sg5-browser-probe-result.v2",
+        "protocolVersion": "sg5-browser-capability-v2",
+        "status": "CAPABILITY_COMPLETE",
+        "executionMode": "LIVE_SEPOLIA",
+        "adapterClassification": "REAL_INSTALLED_SDK",
+        "blockerClassification": "NONE",
+        "failureClassification": "NONE",
+        "browserEngine": "CHROMIUM_FAMILY",
+        "browserVersion": "RECORDED_BY_PLAYWRIGHT",
+        "chainId": "11155111",
+        "observedChainId": "11155111",
+        "sdkPackage": "@zama-fhe/sdk",
+        "sdkVersion": "3.4.0",
+        "reactSdkPackage": "@zama-fhe/react-sdk",
+        "reactSdkVersion": "3.4.0",
+        "providerReady": true,
+        "walletConnected": true,
+        "wasmRuntimeInitialized": true,
+        "wasmProofMechanism": "ATTRIBUTED_SUCCESSFUL_WASM_INSTANTIATION_AND_REAL_SDK_ENCRYPTION",
+        "wasmInstantiationCount": "1",
+        "wasmCriticalSections": [
+          {
+            "criticalSectionClassification": "SDK_INITIALIZATION",
+            "successfulInstantiateCount": "0",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          },
+          {
+            "criticalSectionClassification": "SDK_ENCRYPTION",
+            "successfulInstantiateCount": "0",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          },
+          {
+            "criticalSectionClassification": "SDK_DECRYPTION",
+            "successfulInstantiateCount": "1",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          }
+        ],
+        "sdkInstanceCreated": true,
+        "publicKeyRetrieved": true,
+        "publicKeySourceClassification": "INSTALLED_SEPOLIA_RELAYER_CONFIGURATION",
+        "encryptedInputBuilderCreated": true,
+        "encryptedWidth": "euint64",
+        "plaintextClassification": "FIXED_TEST_VALUE_ONE",
+        "encryptionCompleted": true,
+        "encryptedPayloadCount": "1",
+        "encryptedPayloadNonempty": true,
+        "inputProofPresent": true,
+        "transactionSubmitted": true,
+        "transactionConfirmed": true,
+        "transactionStatus": "SUCCESS",
+        "transactionHash": "0xf942631aec6481427a16e8c821f00472381309e706eea9588eaa25c7b05ad1ee",
+        "transactionBlockNumber": "11460410",
+        "resultHandleRead": true,
+        "authorizedDecryptionCompleted": true,
+        "authorizedPlaintextMatched": true,
+        "unauthorizedDecryptionAttempted": true,
+        "unauthorizedDecryptionRejected": true,
+        "forbiddenMaterialRetained": false,
+        "consoleErrorCount": "0",
+        "pageErrorCount": "0",
+        "unhandledRejectionCount": "0",
+        "forbiddenNetworkRequestCount": "0",
+        "durationMilliseconds": "77311",
+        "networkObservations": [
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "32",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "84",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "72",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "68",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "64",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "53",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "64",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "70",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "106",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "40",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "64",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "67",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "55",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "68",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "68",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "66",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "71",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "105",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "93",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "88",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "83",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "82",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "79",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "120",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "112",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "108",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "106",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "103",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "103",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "117",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "99",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "318",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "322",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "544",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "278",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "239",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_KEYURL_METADATA",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "557",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CRS_ASSET",
+            "requestCategory": "CRS_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "648",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_PUBLIC_KEY_ASSET",
+            "requestCategory": "PUBLIC_KEY_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "671",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "41",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "67",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "235",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "356",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "214",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "187",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "490",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "380",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "411",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "214",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "231",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "209",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "205",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "196",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "241",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "201",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "200",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "204",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "229",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "28",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "43",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "268",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "340",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "291",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "392",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "214",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "253",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "205",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "260",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "248",
+            "redirectClassification": "NONE",
+            "success": true
+          }
+        ],
+        "finalVerdict": "PASS_PENDING_HARNESS"
+      }
+    ],
+    "repeatContexts": [
+      {
+        "schema": "zama-szn4.sg5-browser-probe-result.v2",
+        "protocolVersion": "sg5-browser-capability-v2",
+        "status": "CAPABILITY_COMPLETE",
+        "executionMode": "LIVE_SEPOLIA",
+        "adapterClassification": "REAL_INSTALLED_SDK",
+        "blockerClassification": "NONE",
+        "failureClassification": "NONE",
+        "browserEngine": "CHROMIUM_FAMILY",
+        "browserVersion": "RECORDED_BY_PLAYWRIGHT",
+        "chainId": "11155111",
+        "observedChainId": "11155111",
+        "sdkPackage": "@zama-fhe/sdk",
+        "sdkVersion": "3.4.0",
+        "reactSdkPackage": "@zama-fhe/react-sdk",
+        "reactSdkVersion": "3.4.0",
+        "providerReady": true,
+        "walletConnected": true,
+        "wasmRuntimeInitialized": true,
+        "wasmProofMechanism": "ATTRIBUTED_SUCCESSFUL_WASM_INSTANTIATION_AND_REAL_SDK_ENCRYPTION",
+        "wasmInstantiationCount": "1",
+        "wasmCriticalSections": [
+          {
+            "criticalSectionClassification": "SDK_INITIALIZATION",
+            "successfulInstantiateCount": "0",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          },
+          {
+            "criticalSectionClassification": "SDK_ENCRYPTION",
+            "successfulInstantiateCount": "0",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          },
+          {
+            "criticalSectionClassification": "SDK_DECRYPTION",
+            "successfulInstantiateCount": "1",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          }
+        ],
+        "sdkInstanceCreated": true,
+        "publicKeyRetrieved": true,
+        "publicKeySourceClassification": "INSTALLED_SEPOLIA_RELAYER_CONFIGURATION",
+        "encryptedInputBuilderCreated": true,
+        "encryptedWidth": "euint64",
+        "plaintextClassification": "FIXED_TEST_VALUE_ONE",
+        "encryptionCompleted": true,
+        "encryptedPayloadCount": "1",
+        "encryptedPayloadNonempty": true,
+        "inputProofPresent": true,
+        "transactionSubmitted": true,
+        "transactionConfirmed": true,
+        "transactionStatus": "SUCCESS",
+        "transactionHash": "0xfcb0233d7b7c624f88a3d2914e35886b4a132f4646871741e962fab0836ccc16",
+        "transactionBlockNumber": "11460403",
+        "resultHandleRead": true,
+        "authorizedDecryptionCompleted": true,
+        "authorizedPlaintextMatched": true,
+        "unauthorizedDecryptionAttempted": true,
+        "unauthorizedDecryptionRejected": true,
+        "forbiddenMaterialRetained": false,
+        "consoleErrorCount": "0",
+        "pageErrorCount": "0",
+        "unhandledRejectionCount": "0",
+        "forbiddenNetworkRequestCount": "0",
+        "durationMilliseconds": "78217",
+        "networkObservations": [
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "124",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "70",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "70",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "67",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "76",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "73",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "93",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "83",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "109",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "181",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "69",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "68",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "44",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "71",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "69",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "88",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "77",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "83",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "113",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "112",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "110",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "107",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "104",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "102",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "186",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "179",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "141",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "191",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "171",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "199",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "138",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "133",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "261",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "653",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "297",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "301",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_KEYURL_METADATA",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "818",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_PUBLIC_KEY_ASSET",
+            "requestCategory": "PUBLIC_KEY_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "772",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CRS_ASSET",
+            "requestCategory": "CRS_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "760",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "45",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "85",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "298",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "344",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "219",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "275",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "484",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "193",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "321",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "192",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "215",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "288",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "277",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "198",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "195",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "259",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "189",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "208",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "91",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "52",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "292",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "233",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "262",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "264",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "251",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "257",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "267",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "230",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "281",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "58",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "59",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "53",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "66",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "78",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "68",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "66",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "75",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "92",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "102",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "97",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "95",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "100",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "100",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "96",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "107",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "102",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "122",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "181",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "174",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "177",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "171",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "213",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "196",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "262",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "461",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "192",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_KEYURL_METADATA",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "252",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CRS_ASSET",
+            "requestCategory": "CRS_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "609",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_PUBLIC_KEY_ASSET",
+            "requestCategory": "PUBLIC_KEY_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "628",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "23",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "35",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "142",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "690",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "209",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "226",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "252",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "418",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "217",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "213",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "207",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "289",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "185",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "202",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "190",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "280",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "219",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "323",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "268",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "289",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "376",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "304",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "71",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "51",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "190",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "227",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "354",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "267",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "204",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "186",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "197",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "199",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "268",
+            "redirectClassification": "NONE",
+            "success": true
+          }
+        ],
+        "finalVerdict": "PASS_PENDING_HARNESS"
+      },
+      {
+        "schema": "zama-szn4.sg5-browser-probe-result.v2",
+        "protocolVersion": "sg5-browser-capability-v2",
+        "status": "CAPABILITY_COMPLETE",
+        "executionMode": "LIVE_SEPOLIA",
+        "adapterClassification": "REAL_INSTALLED_SDK",
+        "blockerClassification": "NONE",
+        "failureClassification": "NONE",
+        "browserEngine": "CHROMIUM_FAMILY",
+        "browserVersion": "RECORDED_BY_PLAYWRIGHT",
+        "chainId": "11155111",
+        "observedChainId": "11155111",
+        "sdkPackage": "@zama-fhe/sdk",
+        "sdkVersion": "3.4.0",
+        "reactSdkPackage": "@zama-fhe/react-sdk",
+        "reactSdkVersion": "3.4.0",
+        "providerReady": true,
+        "walletConnected": true,
+        "wasmRuntimeInitialized": true,
+        "wasmProofMechanism": "ATTRIBUTED_SUCCESSFUL_WASM_INSTANTIATION_AND_REAL_SDK_ENCRYPTION",
+        "wasmInstantiationCount": "1",
+        "wasmCriticalSections": [
+          {
+            "criticalSectionClassification": "SDK_INITIALIZATION",
+            "successfulInstantiateCount": "0",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          },
+          {
+            "criticalSectionClassification": "SDK_ENCRYPTION",
+            "successfulInstantiateCount": "0",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          },
+          {
+            "criticalSectionClassification": "SDK_DECRYPTION",
+            "successfulInstantiateCount": "1",
+            "successfulInstantiateStreamingCount": "0",
+            "failedCallCount": "0"
+          }
+        ],
+        "sdkInstanceCreated": true,
+        "publicKeyRetrieved": true,
+        "publicKeySourceClassification": "INSTALLED_SEPOLIA_RELAYER_CONFIGURATION",
+        "encryptedInputBuilderCreated": true,
+        "encryptedWidth": "euint64",
+        "plaintextClassification": "FIXED_TEST_VALUE_ONE",
+        "encryptionCompleted": true,
+        "encryptedPayloadCount": "1",
+        "encryptedPayloadNonempty": true,
+        "inputProofPresent": true,
+        "transactionSubmitted": true,
+        "transactionConfirmed": true,
+        "transactionStatus": "SUCCESS",
+        "transactionHash": "0x26380bc4f3a4ba70861c00ca44cb3544a2feabff4073fa9bae618e8627fa857c",
+        "transactionBlockNumber": "11460417",
+        "resultHandleRead": true,
+        "authorizedDecryptionCompleted": true,
+        "authorizedPlaintextMatched": true,
+        "unauthorizedDecryptionAttempted": true,
+        "unauthorizedDecryptionRejected": true,
+        "forbiddenMaterialRetained": false,
+        "consoleErrorCount": "0",
+        "pageErrorCount": "0",
+        "unhandledRejectionCount": "0",
+        "forbiddenNetworkRequestCount": "0",
+        "durationMilliseconds": "77245",
+        "networkObservations": [
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "32",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "84",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "72",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "68",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "64",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "53",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "64",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "70",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "106",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "40",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "64",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "67",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "55",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "68",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "68",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "66",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "71",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "105",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "93",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "88",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "83",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "82",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "79",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "120",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "112",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "108",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "106",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "103",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "103",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "117",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "99",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "318",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "322",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "544",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "278",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "239",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_KEYURL_METADATA",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "557",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CRS_ASSET",
+            "requestCategory": "CRS_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "648",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_PUBLIC_KEY_ASSET",
+            "requestCategory": "PUBLIC_KEY_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "671",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "41",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "67",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "235",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "356",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "214",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "187",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "490",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "380",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "411",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "214",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "231",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "209",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "205",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "196",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "241",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "201",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "200",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "204",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "229",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "28",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "43",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "268",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "340",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "291",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "392",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "214",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "253",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "205",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "260",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "248",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "55",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "98",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "93",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "88",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "91",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "69",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "88",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "60",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "84",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "130",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "122",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "120",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "115",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "110",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "99",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "112",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "162",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "156",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "137",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "144",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "130",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "166",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "108",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "105",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "269",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "223",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "280",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_KEYURL_METADATA",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "225",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_PUBLIC_KEY_ASSET",
+            "requestCategory": "PUBLIC_KEY_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "515",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CRS_ASSET",
+            "requestCategory": "CRS_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "515",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "35",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "64",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "267",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "341",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "204",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "229",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "689",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "305",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "305",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "184",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "277",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "174",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "184",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "193",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "201",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "207",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "223",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "238",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "405",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "189",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "186",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "182",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "21",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "LOCALHOST",
+            "requestCategory": "LOCAL_FRONTEND_ASSET",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "36",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "251",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "267",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "189",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "208",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "176",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_RELAYER",
+            "requestCategory": "RELAYER_RUNTIME",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "258",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "188",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "263",
+            "redirectClassification": "NONE",
+            "success": true
+          },
+          {
+            "originClassification": "OFFICIAL_CHAIN_RPC",
+            "requestCategory": "SEPOLIA_RPC",
+            "statusCategory": "SUCCESS_2XX",
+            "durationMilliseconds": "187",
+            "redirectClassification": "NONE",
+            "success": true
+          }
+        ],
+        "finalVerdict": "PASS_PENDING_HARNESS"
+      }
+    ]
+  },
+  "verdict": "SG5 CLOSED — VERIFIED"
+}

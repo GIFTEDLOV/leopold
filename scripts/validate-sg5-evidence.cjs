@@ -112,7 +112,9 @@ function validate() {
     "SG5-11_PRODUCTION_BUILD",
   ];
   requireValue(value.scenarios && requiredScenarios.every((key) => value.scenarios[key] === true), "scenario matrix");
-  for (const context of [...value.aggregate.contexts, ...value.aggregate.repeatContexts]) {
+  const allContexts = [...value.aggregate.contexts, ...value.aggregate.repeatContexts];
+  const transactionHashes = new Set();
+  for (const context of allContexts) {
     requireValue(
       context.status === "CAPABILITY_COMPLETE" &&
         context.executionMode === "LIVE_SEPOLIA" &&
@@ -126,6 +128,7 @@ function validate() {
         DECIMAL.test(context.transactionBlockNumber),
       "context transaction",
     );
+    transactionHashes.add(context.transactionHash);
     requireValue(
       context.consoleErrorCount === "0" &&
         context.pageErrorCount === "0" &&
@@ -141,6 +144,7 @@ function validate() {
       "network observations",
     );
   }
+  requireValue(transactionHashes.size === 4, "duplicate transaction records");
   assertNoSecrets(value);
   process.stdout.write("SG5_EVIDENCE_VALID\n");
 }
