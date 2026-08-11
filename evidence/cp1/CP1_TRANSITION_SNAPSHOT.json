@@ -1,0 +1,61 @@
+{
+  "schema": "leopold.cp1-transition-snapshot.v1",
+  "capturedUtc": "2026-08-11T10:18:21.517Z",
+  "startingGit": {
+    "branch": "main",
+    "head": "601d3bdac1b6a059f3809c73d0b10c174f0b3ed8",
+    "tree": "777414ec9b1f433f24293972f52697f567b9b530",
+    "parent": "ec8d22b4273ef3a84ba27b3b6fecbc2caadea12c"
+  },
+  "cp0": {
+    "validator": "CP0_FINAL_CLOSURE_VALID",
+    "closureSha256": "11bfb0f836575e1b2e77c8b14c495ae3c3d9359e15a9b78f976c04ae88332c60",
+    "sg4Sha256": "b7d55b6a7947ef961ef87942bfefe23d331df21e94835f3a0a6cd7917a4bf8f4",
+    "sg5Sha256": "2ec2dec9c8eb974821b63848ce944c7fd7da3b389cdaf37f586d216e5194f6a3"
+  },
+  "audit": {
+    "command": "pnpm audit --json",
+    "exitCode": 1,
+    "scope": "complete workspace including dev dependencies",
+    "counts": {
+      "total": 124,
+      "critical": 1,
+      "high": 57,
+      "moderate": 54,
+      "low": 12
+    },
+    "dependencies": 1108,
+    "canonicalAdvisorySetSha256": "7bb2cf84efe386b35a9918c5fa0c66ee9540e01f056081ac5c6524fd9f5c42ad",
+    "comparisonToCp0": {
+      "added": 0,
+      "removed": 0,
+      "severityChanged": 0,
+      "pathsChanged": 0
+    },
+    "criticalDisposition": "UNCHANGED_DEV_ONLY_SOLIDITY_COVERAGE_SC_ISTANBUL_HANDLEBARS",
+    "cp1DependencyOrLockfileChanged": false,
+    "productionStopConditionTriggered": false
+  },
+  "officialAsset": {
+    "chainId": 11155111,
+    "finality": "finalized",
+    "blockNumber": 11465488,
+    "blockHash": "0x90c86799b2574b37c68beac7f431175a00104bef033de3fa11a3528517813c29",
+    "registry": "0x2f0750Bbb0A246059d80e94c454586a7F27a128e",
+    "wrapper": "0x4E7B06D78965594eB5EF5414c357ca21E1554491",
+    "underlying": "0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0",
+    "registryValid": true,
+    "bidirectionalAssociation": true,
+    "wrapperName": "Confidential USDT (Mock)",
+    "wrapperSymbol": "cUSDTMock",
+    "wrapperDecimals": 6,
+    "wrapperRate": 1,
+    "underlyingName": "Tether USD (Mock)",
+    "underlyingSymbol": "USDTMock",
+    "underlyingDecimals": 6,
+    "codePresent": true,
+    "transactionSent": false
+  },
+  "mandatoryReviewDeadline": "2026-08-26 contract/security freeze",
+  "openRisks": ["R-003", "R-005", "R-010", "R-011", "R-012", "R-014"]
+}
