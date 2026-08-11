@@ -34,5 +34,5 @@ sessions, and application identity links never enter these contracts.
 ## Launch differentiators and future compatibility
 
 Sponsored Prize Boosts and Auto-Save Winnings are launch locks. This foundation implements sponsor commitment accounting
-and the auto-save preference/state boundary. Full branchless settlement is a later slice. Gift Your Chance, advanced
-TWAB rewards, recurring savings, and referrals are future-compatible but not CP1-foundation critical.
+and privacy-preserving branchless settlement. Gift Your Chance, advanced TWAB rewards, recurring savings, and referrals
+are future-compatible but not CP1-foundation critical.

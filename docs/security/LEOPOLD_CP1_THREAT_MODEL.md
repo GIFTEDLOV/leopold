@@ -20,7 +20,11 @@ compiler stack are external trust assumptions inherited from CP0.
 | Stale input/replay/duplicate withdrawal                 | proof bound to contract+wallet; accounting uses actual transfer and replaces entitlement                         |
 | Candidate replacement/reroll                            | one candidate; only verified false validity permits retry; accepted ticket immutable/private                     |
 | Settlement reorder/grief/replay                         | deterministic append order/cursor/chunk design; full selector not yet enabled                                    |
-| Participant/HCU exhaustion                              | 10,000 hard cap and bounded transactions; Sybil admission and live HCU remain open                               |
+| Participant/HCU exhaustion                              | no permanent cap; O(1) snapshot, HCU-bounded cursors; linear Sybil work remains explicit                         |
+| Winner-position leakage through cursor/termination      | full close-time participant snapshot is processed; encrypted winner never terminates traversal early             |
+| Mutable auto-save preference / interruption             | public preference observations resolved at the winning round close                                               |
+| Aggregate/individual reconciliation failure             | encrypted cumulative equality and winner-count conjunction publicly proven; false result fails closed            |
+| Settlement after current round expiry                   | auto-save allocation requires an actually open active round before global/user TWAB mutation                     |
 | TWAB boundary/history corruption                        | cumulative checkpoints, same-time replace, exclusive close, randomized independent model                         |
 | Overflow                                                | pool/duration/aggregate caps; explicit euint128 widening before multiplication                                   |
 | Auto-save winner/log leakage                            | all-entry branchless update design; no winner field/event; implementation gated on HCU proof                     |

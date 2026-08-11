@@ -11,7 +11,7 @@ verified 20,000,000 transaction and 5,000,000 depth ceilings. CP1 does not rewri
 | random candidate             | rand128                                                                | measured 25,000 HCU in locked SG-4 evidence                    |
 | candidate validity           | lt128-scalar plus public-decrypt authorization                         | API compiled; live combined measurement required               |
 | modulo mapping               | rem128-public scalar                                                   | API compiled; live combined measurement required               |
-| participant selection step   | two boundary queries plus prefix add/comparisons/selects               | design only; benchmark before implementation acceptance        |
+| participant selection step   | two boundary queries plus prefix add/comparisons/encrypted count       | implemented; live benchmark evidence required                  |
 
 The next benchmark harness must use `hre.fhevm.computeTransactionHCU(receipt)`, authenticate the active price schedule
 and both ceilings as SG-4 did, cover worst-case observation lookup and selection chunk size, and retain the 75% internal

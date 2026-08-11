@@ -2,10 +2,13 @@ import { expect } from "chai";
 
 import {
   AccountingReferenceModel,
+  completePrivateDraw,
+  deterministicChunks,
   mapCandidate,
   ReferenceRoundState,
   rejectionParameters,
   RoundStateReferenceModel,
+  settlePrivateDraw,
   TwabReferenceModel,
   UINT128_DOMAIN,
 } from "../reference/leopoldModels";
@@ -137,6 +140,20 @@ describe("Leopold deterministic reference models", function () {
     expect(() => rejectionParameters(0n)).to.throw("outside source domain");
   });
 
+  it("covers every locked uint128 rejection-mapping edge", function () {
+    const maximum = 31_536_000_000_000_000_000_000n;
+    for (const total of [1n, 2n, 1n << 32n, (1n << 32n) - 1n, (1n << 32n) + 1n, maximum]) {
+      const { limit, acceptsAll } = rejectionParameters(total);
+      expect(mapCandidate(0n, total)).to.deep.equal({ accepted: true, ticket: 0n });
+      expect(mapCandidate(limit - 1n, total).accepted).to.equal(true);
+      if (!acceptsAll) {
+        expect(mapCandidate(limit, total)).to.deep.equal({ accepted: false });
+        expect(mapCandidate(UINT128_DOMAIN - 1n, total)).to.deep.equal({ accepted: false });
+      }
+    }
+    expect(() => mapCandidate(UINT128_DOMAIN, 2n)).to.throw("outside uint128");
+  });
+
   it("maps every accepted candidate uniformly for tractable source-domain analogues", function () {
     // The same quotient/limit proof is enumerated over 2^8 to avoid pretending 2^128 is enumerable.
     for (let total = 1; total <= 127; total += 1) {
@@ -159,5 +176,87 @@ describe("Leopold deterministic reference models", function () {
     model.candidate(true);
     expect(model.state).to.equal(ReferenceRoundState.ACCEPTED);
     expect(() => model.candidate(false)).to.throw("illegal candidate generation");
+  });
+
+  it("selects exactly one positive interval and conserves keep-available prizes", function () {
+    const participants = [
+      { account: "zero", weight: 0n, principal: 0n, winnings: 0n, autoSave: false },
+      { account: "alice", weight: 7n, principal: 10n, winnings: 1n, autoSave: false },
+      { account: "bob", weight: 3n, principal: 20n, winnings: 2n, autoSave: true },
+    ];
+    for (let ticket = 0n; ticket < 10n; ticket += 1n) {
+      const result = settlePrivateDraw(participants, ticket, 50n, 100n, 1_000n);
+      expect(result.participants.filter((participant) => participant.winner)).to.have.length(1);
+      expect(result.participants[0].winner).to.equal(false);
+      expect(result.finalCumulative).to.equal(result.totalWeight);
+      expect(result.principalAdded + result.winningsAdded).to.equal(50n);
+      expect(result.allocatedPrize).to.equal(50n);
+    }
+  });
+
+  it("auto-saves only at conversion time and falls back to private winnings at the principal cap", function () {
+    const auto = [{ account: "alice", weight: 1n, principal: 10n, winnings: 0n, autoSave: true }];
+    const saved = settlePrivateDraw(auto, 0n, 5n, 123n, 20n).participants[0];
+    expect(saved).to.include({ principal: 15n, winnings: 0n, autoSavedPrize: 5n, autoSaveTimestamp: 123n });
+    const capped = settlePrivateDraw(auto, 0n, 11n, 123n, 20n).participants[0];
+    expect(capped).to.include({ principal: 10n, winnings: 11n, autoSavedPrize: 0n });
+    expect(capped.autoSaveTimestamp).to.equal(undefined);
+  });
+
+  it("makes chunk size and interruption points outcome-independent", function () {
+    const participants = Array.from({ length: 37 }, (_, index) => ({
+      account: `p${index}`,
+      weight: BigInt(index % 5),
+      principal: BigInt(index),
+      winnings: 0n,
+      autoSave: index % 2 === 0,
+    }));
+    const baseline = settlePrivateDraw(participants, 41n, 99n, 500n, 10_000n);
+    for (const chunkSize of [1, 2, 3, 8, 32, 100]) {
+      expect(deterministicChunks(participants.length, chunkSize).flat()).to.deep.equal(
+        Array.from({ length: participants.length }, (_, index) => index),
+      );
+      expect(settlePrivateDraw(participants, 41n, 99n, 500n, 10_000n)).to.deep.equal(baseline);
+    }
+  });
+
+  it("fuzzes weights, preferences, prizes, tickets and chunking with a preserved seed", function () {
+    let seed = 0xc01df00d;
+    const random = (): number => (seed = (Math.imul(seed, 1_103_515_245) + 12_345) >>> 0);
+    for (let run = 0; run < 500; run += 1) {
+      const count = (random() % 80) + 1;
+      const participants = Array.from({ length: count }, (_, index) => ({
+        account: `p${index}`,
+        weight: BigInt(random() % 100),
+        principal: BigInt(random() % 10_000),
+        winnings: BigInt(random() % 1_000),
+        autoSave: (random() & 1) === 1,
+      }));
+      if (participants.every((participant) => participant.weight === 0n)) participants[0].weight = 1n;
+      const total = participants.reduce((sum, participant) => sum + participant.weight, 0n);
+      const ticket = BigInt(random()) % total;
+      const prize = BigInt((random() % 1_000) + 1);
+      const result = settlePrivateDraw(participants, ticket, prize, 777n, 1_000_000_000n);
+      expect(result.participants.filter((participant) => participant.winner)).to.have.length(1);
+      expect(
+        result.participants.filter((participant) => participant.weight === 0n && participant.winner),
+      ).to.have.length(0);
+      expect(result.principalAdded + result.winningsAdded).to.equal(prize);
+      expect(deterministicChunks(count, (random() % 20) + 1).flat()).to.have.length(count);
+    }
+  });
+
+  it("models candidate validity, accepted ticket, winner and settlement in one deterministic result", function () {
+    const participants = [
+      { account: "alice", weight: 4n, principal: 10n, winnings: 0n, autoSave: false },
+      { account: "bob", weight: 6n, principal: 20n, winnings: 0n, autoSave: true },
+    ];
+    const result = completePrivateDraw(participants, 17n, 8n, 55n, 1_000n);
+    expect(result.candidateValid).to.equal(true);
+    expect(result.acceptedTicket).to.equal(7n);
+    expect(result.participants[result.winnerIndex].account).to.equal("bob");
+    expect(result.principalAdded).to.equal(8n);
+    const { limit } = rejectionParameters(10n);
+    expect(() => completePrivateDraw(participants, limit, 8n, 55n, 1_000n)).to.throw("candidate objectively rejected");
   });
 });

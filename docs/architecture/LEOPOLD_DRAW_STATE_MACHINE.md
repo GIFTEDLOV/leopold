@@ -8,14 +8,16 @@ Per-round states are monotonic:
 
 or
 
-`OPEN -> AGGREGATE_PENDING -> AGGREGATE_FINALIZED -> CANDIDATE_VALIDITY_PENDING -> CANDIDATE_REJECTED -> ... -> TICKET_ACCEPTED -> WINNER_PROCESSING -> WINNINGS_ALLOCATED -> SETTLED`.
+`OPEN -> AGGREGATE_PENDING -> AGGREGATE_FINALIZED -> CANDIDATE_VALIDITY_PENDING -> CANDIDATE_REJECTED -> ... -> TICKET_ACCEPTED -> WINNER_PROCESSING -> RECONCILIATION_PENDING -> READY_TO_ALLOCATE -> ALLOCATION_PROCESSING -> WINNINGS_ALLOCATED -> SETTLED`.
+
+A false reconciliation result terminates at `RECONCILIATION_FAILED` and cannot allocate. `EMPTY` rolls the complete
+reserved prize into the current open round and settles without RNG.
 
 When a round closes, the next round opens immediately at the exact prior boundary while the old round progresses
 independently. One `closeRound` closes one round, so catching up after missed keeper activity is bounded and
 permissionless. Replay/phase mismatch reverts. No keeper role exists. Empty rounds never generate candidates.
 
-The foundation implements through `TICKET_ACCEPTED`; later states are typed but have no placeholder transition
-functions.
+All listed selection and settlement transitions are implemented with phase checks and contract-owned cursors.
 
 ## Unbiased mapping
 
@@ -29,14 +31,14 @@ regeneration. Accepted candidates/tickets are immutable. Candidate and ticket re
 registry owner, keeper, sponsor, frontend, or public ACL. Enumeration over an analogous 8-bit domain proves equal
 preimage counts, while 128-bit boundary/property tests cover maximum `T`, `L=N`, and the first rejected value.
 
-## Selection and private allocation design (next slice)
+## Selection and private allocation
 
 Process the append-only participant array by deterministic cursor and fixed maximum chunk size. For each address,
 compute exact closed-round weight, maintain an encrypted prefix, and branchlessly test membership in
 `[prefix,prefix+weight)`. Zero weight cannot match. Every processed entry receives a fresh encrypted
 selection/allocation update, and no winner address or winner-specific event is stored/emitted. Resume uses the same
-cursor/prefix and replayed chunks revert or no-op.
+cursor/prefix and completed/stale phase calls revert.
 
 For auto-save, process all participant entries in deterministic chunks. Each entry receives branchless winnings and
 principal updates—even encrypted zero—and an observation at that entry's actual processing timestamp. This avoids a
-unique winner transition and retroactive TWAB. Full HCU/storage proof is required before enabling these typed states.
+unique winner transition and retroactive TWAB. Live Sepolia measurements set both safe chunk limits to four.

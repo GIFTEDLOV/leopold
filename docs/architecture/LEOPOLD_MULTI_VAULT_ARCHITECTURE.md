@@ -31,7 +31,8 @@ exactly four.
 ## Participant registry
 
 Each vault has a contract-owned append-only address array. Registration order is transaction order; callers cannot
-choose selection order. `MAX_PARTICIPANTS = 10,000` bounds all later cursors and prevents an actually unbounded list.
+choose selection order. The registry has no permanent admission cap; round-close snapshots are O(1), while every
+selection/allocation transaction is bounded by an HCU-derived chunk limit. See the participant-admission analysis.
 Registration is explicit because encrypted positivity cannot safely drive public array insertion. A Sybil can still
 consume slots; the production admission/fee policy is a residual gate and must not reveal deposit amounts.
 

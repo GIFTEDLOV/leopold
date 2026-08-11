@@ -15,8 +15,10 @@
 | candidate-valid boolean             | vault                             | vault          | vault                        | none                      | public-decryption service             | yes                            | verified then terminal/retry               |
 | accepted ticket                     | vault                             | vault          | vault                        | none                      | none                                  | never                          | immutable                                  |
 | selection prefix/predicate          | vault                             | vault          | vault                        | none                      | none                                  | never                          | cursor-bound                               |
+| selection reconciliation boolean    | vault                             | vault          | vault                        | none                      | public-decryption service             | yes, objective result only     | verified true or failed closed             |
 | user winnings                       | vault                             | vault          | vault                        | that user only            | token on claim only                   | never                          | claim/auto-save                            |
 
 Registry ownership conveys no FHE ACL. `FHE.allowThis` is applied to every stored replacement. User grants are limited
 to their current principal, materialized personal weight, and future winnings. No API exposes candidate or ticket
-handles for decryption, and neither is ever marked publicly decryptable.
+handles for decryption, and neither is ever marked publicly decryptable. `ticketAclStatus` exposes only ACL booleans for
+mechanical auditing; it never returns the ticket handle or value.

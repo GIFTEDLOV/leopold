@@ -273,3 +273,125 @@ export class RoundStateReferenceModel {
     this.state = next;
   }
 }
+
+export type DrawParticipant = {
+  account: string;
+  weight: bigint;
+  principal: bigint;
+  winnings: bigint;
+  autoSave: boolean;
+};
+
+export type SettledParticipant = DrawParticipant & {
+  winner: boolean;
+  autoSavedPrize: bigint;
+  keptPrize: bigint;
+  autoSaveTimestamp?: bigint;
+};
+
+export type DrawSettlementResult = {
+  totalWeight: bigint;
+  winnerIndex: number;
+  finalCumulative: bigint;
+  allocatedPrize: bigint;
+  principalAdded: bigint;
+  winningsAdded: bigint;
+  participants: SettledParticipant[];
+};
+
+export type CompleteDrawResult = DrawSettlementResult & {
+  candidate: bigint;
+  candidateValid: boolean;
+  acceptedTicket: bigint;
+};
+
+/** Full-domain deterministic draw and private-settlement semantics used by encrypted implementation tests. */
+export function settlePrivateDraw(
+  participants: readonly DrawParticipant[],
+  ticket: bigint,
+  prize: bigint,
+  conversionTimestamp: bigint,
+  principalCap: bigint,
+): DrawSettlementResult {
+  if (prize < 0n) throw new Error("negative prize");
+  const totalWeight = participants.reduce((total, participant) => total + participant.weight, 0n);
+  if (totalWeight <= 0n) throw new Error("empty round");
+  if (ticket < 0n || ticket >= totalWeight) throw new Error("ticket outside aggregate");
+  if (participants.some((participant) => participant.weight < 0n)) throw new Error("negative weight");
+
+  let cumulative = 0n;
+  let winnerIndex = -1;
+  const winnerPredicates = participants.map((participant, index) => {
+    const start = cumulative;
+    cumulative += participant.weight;
+    const winner = participant.weight > 0n && ticket >= start && ticket < cumulative;
+    if (winner) winnerIndex = index;
+    return winner;
+  });
+  if (cumulative !== totalWeight || winnerPredicates.filter(Boolean).length !== 1 || winnerIndex < 0) {
+    throw new Error("winner reconciliation failed");
+  }
+
+  let totalPrincipal = participants.reduce((total, participant) => total + participant.principal, 0n);
+  let principalAdded = 0n;
+  let winningsAdded = 0n;
+  const settled = participants.map((participant, index): SettledParticipant => {
+    const won = winnerPredicates[index] ? prize : 0n;
+    const canAutoSave = participant.autoSave && totalPrincipal + won <= principalCap;
+    const autoSavedPrize = canAutoSave ? won : 0n;
+    const keptPrize = won - autoSavedPrize;
+    totalPrincipal += autoSavedPrize;
+    principalAdded += autoSavedPrize;
+    winningsAdded += keptPrize;
+    return {
+      ...participant,
+      winner: winnerPredicates[index],
+      principal: participant.principal + autoSavedPrize,
+      winnings: participant.winnings + keptPrize,
+      autoSavedPrize,
+      keptPrize,
+      ...(autoSavedPrize > 0n ? { autoSaveTimestamp: conversionTimestamp } : {}),
+    };
+  });
+  if (principalAdded + winningsAdded !== prize) throw new Error("prize conservation failed");
+  return {
+    totalWeight,
+    winnerIndex,
+    finalCumulative: cumulative,
+    allocatedPrize: prize,
+    principalAdded,
+    winningsAdded,
+    participants: settled,
+  };
+}
+
+/** Rejection mapping plus full settlement; rejected candidates never acquire a ticket or allocate. */
+export function completePrivateDraw(
+  participants: readonly DrawParticipant[],
+  candidate: bigint,
+  prize: bigint,
+  conversionTimestamp: bigint,
+  principalCap: bigint,
+): CompleteDrawResult {
+  const totalWeight = participants.reduce((total, participant) => total + participant.weight, 0n);
+  const mapped = mapCandidate(candidate, totalWeight);
+  if (!mapped.accepted || mapped.ticket === undefined) throw new Error("candidate objectively rejected");
+  return {
+    candidate,
+    candidateValid: true,
+    acceptedTicket: mapped.ticket,
+    ...settlePrivateDraw(participants, mapped.ticket, prize, conversionTimestamp, principalCap),
+  };
+}
+
+/** Cursor chunks affect transaction count, never deterministic ordering or winner outcome. */
+export function deterministicChunks(participantCount: number, requestedChunkSize: number): number[][] {
+  if (!Number.isSafeInteger(participantCount) || participantCount < 0) throw new Error("invalid participant count");
+  if (!Number.isSafeInteger(requestedChunkSize) || requestedChunkSize <= 0) throw new Error("invalid chunk size");
+  const chunks: number[][] = [];
+  for (let cursor = 0; cursor < participantCount; cursor += requestedChunkSize) {
+    const end = Math.min(cursor + requestedChunkSize, participantCount);
+    chunks.push(Array.from({ length: end - cursor }, (_, offset) => cursor + offset));
+  }
+  return chunks;
+}

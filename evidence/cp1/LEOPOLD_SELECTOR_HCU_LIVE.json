@@ -1,0 +1,179 @@
+{
+  "schema": "leopold.cp1-selector-live-hcu.v1",
+  "capturedUtc": "2026-08-11T12:46:37.576Z",
+  "network": {
+    "name": "sepolia",
+    "chainId": "11155111"
+  },
+  "sourceBaseCommit": "27e7ef20cb241dc3f2a3f3c91ce19d3d0c3e48f5",
+  "sourcePath": "contracts/benchmarks/LeopoldSelectorHcuHarness.sol",
+  "sourceSha256": "8a606c3b2dd216275fbf6641692927ed6b3b5e80cbf7acd3beba16f6433eaf9c",
+  "artifactPath": "artifacts/contracts/benchmarks/LeopoldSelectorHcuHarness.sol/LeopoldSelectorHcuHarness.json",
+  "artifactSha256": "a73299d068a97c241c1916caef11d891094eb16c913f9e139af043b2fa49c224",
+  "compiler": "solc-0.8.27-optimizer-800-cancun-bytecodeHash-none",
+  "hcuSource": "hre.fhevm.computeTransactionHCU(receipt)",
+  "limits": {
+    "transactionTotalHCU": 20000000,
+    "transactionDepthHCU": 5000000,
+    "safetyFraction": "0.75"
+  },
+  "operator": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+  "contract": "0x50599142900e81871db569481a46040646FBcD50",
+  "deployment": {
+    "transactionHash": "0x5607c1a27c5588e4be96ce218ecc11a9d8c7c677af1aaba3bbf96a98818b6164",
+    "blockNumber": 11466267,
+    "blockHash": "0x8cc6a518deed8aebf53318c878ee5e022102a67e3b1bcc956495cdbb6f2582f2",
+    "gasUsed": "2774372",
+    "status": 1
+  },
+  "publicDecryption": {
+    "aggregateVerified": true,
+    "booleanVerified": true,
+    "acceptedTicketPubliclyDecrypted": false,
+    "individualTwabPubliclyDecrypted": false,
+    "winnerPubliclyDecrypted": false,
+    "winningsPubliclyDecrypted": false
+  },
+  "measurements": [
+    {
+      "circuit": "USER_TWAB_QUERY",
+      "transactionHash": "0x7a6c51882f4840ae762ba9be5fdfdfd7c7d8709d146165c4d4cb230d8aa90d7d",
+      "blockNumber": 11466268,
+      "blockHash": "0xafb46a2b0cd27b02027097e6a6ede8af3c195f265dcd4e7c5cdc2587ad0f698c",
+      "status": 1,
+      "gasUsed": "393745",
+      "globalHCU": 2170096,
+      "maxHCUDepth": 1215032
+    },
+    {
+      "circuit": "GLOBAL_CLOSE_ACCRUAL",
+      "transactionHash": "0x19c98f751026387bee31651f503d581e3047cf813f7b986f885c43d219b4b64b",
+      "blockNumber": 11466269,
+      "blockHash": "0x8e31c69f282e3200758f7111f264f8180be7d5eb0362e637559bec8daf3696d6",
+      "status": 1,
+      "gasUsed": "348498",
+      "globalHCU": 1215096,
+      "maxHCUDepth": 1215032
+    },
+    {
+      "circuit": "CANDIDATE_GENERATION",
+      "transactionHash": "0x3bddf27ed7e42573090bf08515917f23d7172ec03b4c2d30bcc0adf6b859a07d",
+      "blockNumber": 11466270,
+      "blockHash": "0xd99df9d9e0f9a0ebf45d0e25598f2693daa81d6c3f101f1a7ecbe2a2f64863cc",
+      "status": 1,
+      "gasUsed": "306659",
+      "globalHCU": 25064,
+      "maxHCUDepth": 25000
+    },
+    {
+      "circuit": "CANDIDATE_VALIDITY",
+      "transactionHash": "0x09bf074a7bae5e56891a26f77a55426359992b31a46fffd845fea653c1ed998d",
+      "blockNumber": 11466271,
+      "blockHash": "0x4542f9514624e3e36f1fbaee9c027b1f8f18ce4ebade79e63a190f935c4ae1ed",
+      "status": 1,
+      "gasUsed": "291836",
+      "globalHCU": 149032,
+      "maxHCUDepth": 149000
+    },
+    {
+      "circuit": "ACCEPTED_TICKET_MODULO",
+      "transactionHash": "0x049ff83f82fc9cb2cb2abd0b740b2680bb7060bce53c0faabe881bf63af12319",
+      "blockNumber": 11466272,
+      "blockHash": "0x3ca6161a79fd4fdc5d8f9531355cb21f802327fac669ee73ed4767572cdfaa0b",
+      "status": 1,
+      "gasUsed": "274934",
+      "globalHCU": 1943032,
+      "maxHCUDepth": 1943000
+    },
+    {
+      "circuit": "PARTICIPANT_SELECTION_STEP",
+      "transactionHash": "0x68668041524c404fc266b6ba5cedea1bc9030b7931e2e32763411180e79b7940",
+      "blockNumber": 11466273,
+      "blockHash": "0x97f42d57e46fe3db8265a77a3a6cd98040b8895bd242ac78823468886b7ab005",
+      "status": 1,
+      "gasUsed": "514460",
+      "globalHCU": 3216096,
+      "maxHCUDepth": 1901064
+    },
+    {
+      "circuit": "PARTICIPANT_SELECTION_CHUNK_4",
+      "transactionHash": "0x5417db7127cd8596bbf0b4f0957c45118809decf89819baef184397e6918c6eb",
+      "blockNumber": 11466274,
+      "blockHash": "0x645deba4a5f17d5ae88ceb3f7900f7d2a91bd894748d558a8aaeb644902dbc7e",
+      "status": 1,
+      "gasUsed": "1125673",
+      "globalHCU": 12864288,
+      "maxHCUDepth": 2678064
+    },
+    {
+      "circuit": "WINNINGS_ALLOCATION_STEP",
+      "transactionHash": "0x097671e676f88292cb0e97783de8f8697c21357e37bc420c1a15bcacc82338be",
+      "blockNumber": 11466275,
+      "blockHash": "0x78b26e02941edb6fad27b60122691b2ee69f63bd65380405113e46f9e1e8f5ee",
+      "status": 1,
+      "gasUsed": "386494",
+      "globalHCU": 541064,
+      "maxHCUDepth": 217032
+    },
+    {
+      "circuit": "AUTO_SAVE_ALLOCATION_STEP",
+      "transactionHash": "0xb4bf4c60376f7d52385dc461ed79ff43de624343a221a9e9ebbfa8a1da91dcb0",
+      "blockNumber": 11466276,
+      "blockHash": "0x1fc320989a598bca3946ef55a5b17ec318497ffaf2ab1bf34a251ac58b164297",
+      "status": 1,
+      "gasUsed": "692655",
+      "globalHCU": 2854128,
+      "maxHCUDepth": 955032
+    },
+    {
+      "circuit": "AUTO_SAVE_ALLOCATION_CHUNK_4",
+      "transactionHash": "0x62c10dfc8517bf0e41b04dfd947b31c0597f6c872c6dd073c38feaa6e3eb0143",
+      "blockNumber": 11466277,
+      "blockHash": "0x01b13ed90e546327708c560291f0e5ae6ea4a661617ac15e5990154c2c22dd34",
+      "status": 1,
+      "gasUsed": "1575298",
+      "globalHCU": 11416416,
+      "maxHCUDepth": 2579064
+    },
+    {
+      "circuit": "PUBLIC_AGGREGATE_AUTHORIZE",
+      "transactionHash": "0xfd9f5d6041082123e5a74372f0c07024236ccfda3711d9e1d51458f713bbdaae",
+      "blockNumber": 11466278,
+      "blockHash": "0x1c286b9d444e7985b5bbd7b7cc364b08cbc55da36313f2b90a886fa0bce92bb3",
+      "status": 1,
+      "gasUsed": "301889",
+      "globalHCU": 172000,
+      "maxHCUDepth": 172000
+    },
+    {
+      "circuit": "PUBLIC_AGGREGATE_VERIFY",
+      "transactionHash": "0x30e46553be4fbb67b5c5c1a0cdd5ed562371c737dffc5d42558eeee94109c0e3",
+      "blockNumber": 11466279,
+      "blockHash": "0x1afd0f5440f4f85222d064e057e92d6b89479e8e23d1cb4b63b2eb0a7f5f6588",
+      "status": 1,
+      "gasUsed": "373222",
+      "globalHCU": 0,
+      "maxHCUDepth": 0
+    },
+    {
+      "circuit": "PUBLIC_BOOLEAN_AUTHORIZE",
+      "transactionHash": "0x516445e7c68fc685dae0d5439bab36bfdaa9553d76fa910a9c41ba8351181ff8",
+      "blockNumber": 11466280,
+      "blockHash": "0x82dd0621b9c05f822bc9255f6493f105f33f336c935bd44539aaa2815be6dce0",
+      "status": 1,
+      "gasUsed": "287533",
+      "globalHCU": 120000,
+      "maxHCUDepth": 120000
+    },
+    {
+      "circuit": "PUBLIC_BOOLEAN_VERIFY",
+      "transactionHash": "0xeaebb00eef795de09a4ca39843cf3b7575618817a089f0f3d5758734a9091249",
+      "blockNumber": 11466281,
+      "blockHash": "0x678581339dbcd3ec5302c51be14d0f3d5350e2b7b48196b5145af695bc07ac9d",
+      "status": 1,
+      "gasUsed": "356166",
+      "globalHCU": 0,
+      "maxHCUDepth": 0
+    }
+  ]
+}

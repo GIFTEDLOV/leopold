@@ -14,14 +14,16 @@ import {IERC7984Receiver} from "@openzeppelin/confidential-contracts/interfaces/
 
 /// @title Leopold confidential prize-savings vault
 /// @notice One non-upgradeable implementation deployed independently for each official vault.
-/// @dev Winner traversal/allocation and adapter integration are deliberately later slices.
+/// @dev Bounded private draw settlement is integrated; live yield-adapter integration is a later slice.
 contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984Receiver {
     using SafeERC20 for IERC20;
 
     uint64 public constant MAX_POOL_BASE_UNITS = 1_000_000_000_000_000;
     uint64 public constant MAX_ROUND_DURATION = 31_536_000;
     uint128 public constant MAX_AGGREGATE_TWAB = 31_536_000_000_000_000_000_000;
-    uint32 public constant MAX_PARTICIPANTS = 10_000;
+    /// @dev Temporary conservative bound; finalized from the live HCU evidence for this implementation.
+    uint256 public constant MAX_SELECTION_CHUNK = 4;
+    uint256 public constant MAX_ALLOCATION_CHUNK = 4;
 
     enum VaultType {
         DAILY,
@@ -41,7 +43,11 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         TICKET_ACCEPTED,
         WINNER_PROCESSING,
         WINNINGS_ALLOCATED,
-        SETTLED
+        SETTLED,
+        RECONCILIATION_PENDING,
+        RECONCILIATION_FAILED,
+        READY_TO_ALLOCATE,
+        ALLOCATION_PROCESSING
     }
 
     enum AutoSavePreference {
@@ -55,6 +61,11 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         euint128 cumulative;
     }
 
+    struct PreferenceObservation {
+        uint64 timestamp;
+        AutoSavePreference preference;
+    }
+
     struct Round {
         uint64 opensAt;
         uint64 closesAt;
@@ -66,8 +77,13 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         euint128 candidate;
         ebool candidateValid;
         euint128 acceptedTicket;
-        uint32 selectionCursor;
+        uint256 participantCountSnapshot;
+        uint256 selectionCursor;
+        uint256 allocationCursor;
         euint64 reservedPrize;
+        euint128 selectionCumulative;
+        euint64 encryptedWinnerCount;
+        ebool reconciliationValid;
     }
 
     uint8 public immutable VAULT_ID;
@@ -87,7 +103,9 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     mapping(address account => euint64) private _principal;
     mapping(address account => euint64) private _winnings;
     mapping(address account => AutoSavePreference) public autoSavePreference;
+    mapping(address account => PreferenceObservation[]) private _preferenceObservations;
     mapping(uint256 roundId => mapping(address account => euint128)) private _materializedWeight;
+    mapping(uint256 roundId => mapping(address account => ebool)) private _winnerPredicate;
 
     euint64 private _totalPrincipal;
     euint64 private _liquidPrincipal;
@@ -111,7 +129,6 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     error RoundNotOpen();
     error ParticipantAlreadyRegistered();
     error ParticipantNotRegistered();
-    error ParticipantLimitReached();
     error UnauthorizedAsset();
     error InvalidCallbackData();
     error InvalidSponsorRound();
@@ -120,8 +137,11 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     error InvalidCleartextEncoding();
     error CandidateNotPending();
     error WeightUnavailable();
+    error InvalidChunkSize();
+    error ReconciliationNotPending();
+    error SettlementNotReady();
 
-    event ParticipantRegistered(address indexed account, uint32 indexed participantIndex);
+    event ParticipantRegistered(address indexed account, uint256 indexed participantIndex);
     event DepositProcessed(address indexed account, uint256 indexed roundId);
     event WithdrawalProcessed(address indexed account, uint256 indexed roundId);
     event SponsorContributionCommitted(
@@ -134,6 +154,13 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     event RandomCandidateGenerated(uint256 indexed roundId, uint32 indexed attempt);
     event CandidateObjectivelyRejected(uint256 indexed roundId);
     event TicketAccepted(uint256 indexed roundId);
+    event SelectionProgress(uint256 indexed roundId, uint256 cursor, uint256 participantCountSnapshot);
+    event SelectionReconciliationRequested(uint256 indexed roundId);
+    event SelectionReconciled(uint256 indexed roundId);
+    event SelectionReconciliationFailed(uint256 indexed roundId);
+    event AllocationProgress(uint256 indexed roundId, uint256 cursor, uint256 participantCountSnapshot);
+    event RoundSettled(uint256 indexed roundId);
+    event WinningsWithdrawalProcessed(address indexed account);
     event AutoSavePreferenceSet(address indexed account, AutoSavePreference preference);
 
     mapping(uint256 roundId => uint32) public candidateAttempts;
@@ -190,10 +217,9 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     function registerParticipant() external {
         if (!_isActiveRoundOpen()) revert RoundNotOpen();
         if (isParticipant[msg.sender]) revert ParticipantAlreadyRegistered();
-        if (_participants.length >= MAX_PARTICIPANTS) revert ParticipantLimitReached();
         isParticipant[msg.sender] = true;
         _participants.push(msg.sender);
-        emit ParticipantRegistered(msg.sender, uint32(_participants.length - 1));
+        emit ParticipantRegistered(msg.sender, _participants.length - 1);
     }
 
     /// @inheritdoc IERC7984Receiver
@@ -293,6 +319,7 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         round.aggregateTwab = aggregate;
         round.publicPrize = publicSponsoredPrize[closingRoundId];
         round.reservedPrize = _sponsoredPrize[closingRoundId];
+        round.participantCountSnapshot = _participants.length;
         _reservedPrize = FHE.add(_reservedPrize, round.reservedPrize);
         round.state = RoundState.AGGREGATE_PENDING;
         FHE.allowThis(aggregate);
@@ -385,6 +412,148 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         emit TicketAccepted(roundId);
     }
 
+    /// @notice Processes the next deterministic participant slice without revealing the winning interval.
+    /// @dev Traversal always covers the complete round-close snapshot and never stops at the winner.
+    function processSelection(uint256 roundId, uint256 maxParticipants) external {
+        if (maxParticipants == 0 || maxParticipants > MAX_SELECTION_CHUNK) revert InvalidChunkSize();
+        Round storage round = _rounds[roundId];
+        if (round.state == RoundState.TICKET_ACCEPTED) {
+            round.state = RoundState.WINNER_PROCESSING;
+            round.selectionCumulative = FHE.asEuint128(0);
+            round.encryptedWinnerCount = FHE.asEuint64(0);
+            FHE.allowThis(round.selectionCumulative);
+            FHE.allowThis(round.encryptedWinnerCount);
+        } else if (round.state != RoundState.WINNER_PROCESSING) {
+            revert InvalidRoundState(round.state, RoundState.WINNER_PROCESSING);
+        }
+
+        uint256 cursor = round.selectionCursor;
+        uint256 endCursor = cursor + maxParticipants;
+        if (endCursor > round.participantCountSnapshot) endCursor = round.participantCountSnapshot;
+        for (; cursor < endCursor; ++cursor) {
+            address participant = _participants[cursor];
+            euint128 weight = _roundWeight(participant, round);
+            euint128 intervalEnd = FHE.add(round.selectionCumulative, weight);
+            ebool atOrAfterStart = FHE.ge(round.acceptedTicket, round.selectionCumulative);
+            ebool beforeEnd = FHE.lt(round.acceptedTicket, intervalEnd);
+            ebool positiveWeight = FHE.gt(weight, uint128(0));
+            ebool isWinner = FHE.and(FHE.and(atOrAfterStart, beforeEnd), positiveWeight);
+            _winnerPredicate[roundId][participant] = isWinner;
+            round.selectionCumulative = intervalEnd;
+            round.encryptedWinnerCount = FHE.add(round.encryptedWinnerCount, FHE.asEuint64(isWinner));
+            FHE.allowThis(isWinner);
+            FHE.allowThis(round.selectionCumulative);
+            FHE.allowThis(round.encryptedWinnerCount);
+        }
+        round.selectionCursor = cursor;
+        emit SelectionProgress(roundId, cursor, round.participantCountSnapshot);
+
+        if (cursor == round.participantCountSnapshot) {
+            ebool cumulativeMatches = FHE.eq(round.selectionCumulative, round.publicAggregateTwab);
+            ebool exactlyOne = FHE.eq(round.encryptedWinnerCount, uint64(1));
+            ebool reconciled = FHE.and(cumulativeMatches, exactlyOne);
+            round.reconciliationValid = reconciled;
+            round.state = RoundState.RECONCILIATION_PENDING;
+            FHE.allowThis(reconciled);
+            FHE.makePubliclyDecryptable(reconciled);
+            emit SelectionReconciliationRequested(roundId);
+        }
+    }
+
+    /// @notice Finalizes the minimal objective reconciliation boolean; any valid caller may submit the proof.
+    function finalizeSelectionReconciliation(
+        uint256 roundId,
+        bytes calldata abiEncodedCleartexts,
+        bytes calldata decryptionProof
+    ) external {
+        Round storage round = _rounds[roundId];
+        if (round.state != RoundState.RECONCILIATION_PENDING) revert ReconciliationNotPending();
+        if (abiEncodedCleartexts.length != 32) revert InvalidCleartextEncoding();
+        bool valid = abi.decode(abiEncodedCleartexts, (bool));
+        bytes32[] memory handles = new bytes32[](1);
+        handles[0] = FHE.toBytes32(round.reconciliationValid);
+        FHE.checkSignatures(handles, abiEncodedCleartexts, decryptionProof);
+        if (!valid) {
+            round.state = RoundState.RECONCILIATION_FAILED;
+            emit SelectionReconciliationFailed(roundId);
+            return;
+        }
+        round.state = RoundState.READY_TO_ALLOCATE;
+        emit SelectionReconciled(roundId);
+    }
+
+    /// @notice Uniformly allocates the prize or auto-saves it across the full snapshotted domain.
+    /// @dev Every participant receives the same encrypted operations, ACL calls and observation treatment.
+    function processAllocation(uint256 roundId, uint256 maxParticipants) external {
+        if (maxParticipants == 0 || maxParticipants > MAX_ALLOCATION_CHUNK) revert InvalidChunkSize();
+        if (!_isActiveRoundOpen()) revert RoundNotOpen();
+        Round storage round = _rounds[roundId];
+        if (round.state == RoundState.READY_TO_ALLOCATE) {
+            round.state = RoundState.ALLOCATION_PROCESSING;
+        } else if (round.state != RoundState.ALLOCATION_PROCESSING) {
+            revert SettlementNotReady();
+        }
+
+        _accrueGlobal(uint64(block.timestamp));
+        uint256 cursor = round.allocationCursor;
+        uint256 endCursor = cursor + maxParticipants;
+        if (endCursor > round.participantCountSnapshot) endCursor = round.participantCountSnapshot;
+        for (; cursor < endCursor; ++cursor) {
+            _allocateParticipant(roundId, round, _participants[cursor]);
+        }
+        round.allocationCursor = cursor;
+        emit AllocationProgress(roundId, cursor, round.participantCountSnapshot);
+        if (cursor == round.participantCountSnapshot) round.state = RoundState.WINNINGS_ALLOCATED;
+    }
+
+    function finalizeSettlement(uint256 roundId) external {
+        Round storage round = _rounds[roundId];
+        if (round.state != RoundState.WINNINGS_ALLOCATED) {
+            revert InvalidRoundState(round.state, RoundState.WINNINGS_ALLOCATED);
+        }
+        round.state = RoundState.SETTLED;
+        emit RoundSettled(roundId);
+    }
+
+    /// @notice Rolls an empty round's entire prize into the currently open round without generating randomness.
+    function settleEmptyRound(uint256 roundId) external {
+        Round storage round = _rounds[roundId];
+        if (round.state != RoundState.EMPTY) revert InvalidRoundState(round.state, RoundState.EMPTY);
+        uint256 destinationRoundId = activeRoundId;
+        _sponsoredPrize[destinationRoundId] = FHE.add(_sponsoredPrize[destinationRoundId], round.reservedPrize);
+        _reservedPrize = FHE.sub(_reservedPrize, round.reservedPrize);
+        round.reservedPrize = FHE.asEuint64(0);
+        publicSponsoredPrize[destinationRoundId] += round.publicPrize;
+        round.state = RoundState.SETTLED;
+        FHE.allowThis(_sponsoredPrize[destinationRoundId]);
+        FHE.allowThis(_reservedPrize);
+        FHE.allowThis(round.reservedPrize);
+        emit RoundSettled(roundId);
+    }
+
+    function withdrawWinnings(
+        externalEuint64 encryptedAmount,
+        bytes calldata inputProof
+    ) external nonReentrant returns (euint64) {
+        if (!isParticipant[msg.sender]) revert ParticipantNotRegistered();
+        euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
+        ebool entitled = FHE.le(requested, _winnings[msg.sender]);
+        ebool liquid = FHE.le(requested, _liquidPrizeAssets);
+        euint64 eligible = FHE.select(FHE.and(entitled, liquid), requested, FHE.asEuint64(0));
+        FHE.allowTransient(eligible, address(ASSET));
+        euint64 sent = ASSET.confidentialTransfer(msg.sender, eligible);
+        _winnings[msg.sender] = FHE.sub(_winnings[msg.sender], sent);
+        _winningsLiability = FHE.sub(_winningsLiability, sent);
+        _liquidPrizeAssets = FHE.sub(_liquidPrizeAssets, sent);
+        FHE.allowThis(_winnings[msg.sender]);
+        FHE.allow(_winnings[msg.sender], msg.sender);
+        FHE.allowThis(_winningsLiability);
+        FHE.allowThis(_liquidPrizeAssets);
+        FHE.allow(sent, msg.sender);
+        emit WinningsWithdrawalProcessed(msg.sender);
+        return sent;
+    }
+
     function materializeMyRoundWeight(uint256 roundId) external returns (euint128) {
         Round storage round = _rounds[roundId];
         if (round.state == RoundState.UNINITIALIZED || round.state == RoundState.OPEN) revert WeightUnavailable();
@@ -399,6 +568,13 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
 
     function setAutoSavePreference(AutoSavePreference preference) external {
         autoSavePreference[msg.sender] = preference;
+        PreferenceObservation[] storage observations = _preferenceObservations[msg.sender];
+        uint64 timestamp = uint64(block.timestamp);
+        if (observations.length != 0 && observations[observations.length - 1].timestamp == timestamp) {
+            observations[observations.length - 1].preference = preference;
+        } else {
+            observations.push(PreferenceObservation({timestamp: timestamp, preference: preference}));
+        }
         emit AutoSavePreferenceSet(msg.sender, preference);
     }
 
@@ -417,6 +593,10 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     function observationAt(address account, uint256 index) external view returns (uint64, euint64, euint128) {
         Observation storage observation = _observations[account][index];
         return (observation.timestamp, observation.balance, observation.cumulative);
+    }
+
+    function preferenceObservationCount(address account) external view returns (uint256) {
+        return _preferenceObservations[account].length;
     }
 
     function principalOf(address account) external view returns (euint64) {
@@ -443,7 +623,7 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         return _rounds[roundId].candidateValid;
     }
 
-    function roundInfo(uint256 roundId) external view returns (uint64, uint64, RoundState, uint128, uint64, uint32) {
+    function roundInfo(uint256 roundId) external view returns (uint64, uint64, RoundState, uint128, uint64, uint256) {
         Round storage round = _rounds[roundId];
         return (
             round.opensAt,
@@ -453,6 +633,20 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
             round.publicPrize,
             round.selectionCursor
         );
+    }
+
+    function roundProgress(uint256 roundId) external view returns (uint256, uint256, uint256) {
+        Round storage round = _rounds[roundId];
+        return (round.participantCountSnapshot, round.selectionCursor, round.allocationCursor);
+    }
+
+    function reconciliationHandle(uint256 roundId) external view returns (ebool) {
+        return _rounds[roundId].reconciliationValid;
+    }
+
+    function ticketAclStatus(uint256 roundId, address account) external view returns (bool, bool) {
+        euint128 ticket = _rounds[roundId].acceptedTicket;
+        return (FHE.isAllowed(ticket, account), FHE.isPubliclyDecryptable(ticket));
     }
 
     function encryptedAccounting()
@@ -539,6 +733,59 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         if (elapsed == 0) return observation.cumulative;
         euint128 widenedBalance = FHE.asEuint128(observation.balance);
         return FHE.add(observation.cumulative, FHE.mul(widenedBalance, uint128(elapsed)));
+    }
+
+    function _roundWeight(address account, Round storage round) private returns (euint128) {
+        return FHE.sub(_cumulativeAt(account, round.closesAt), _cumulativeAt(account, round.opensAt));
+    }
+
+    function _allocateParticipant(uint256 roundId, Round storage round, address participant) private {
+        ebool winner = _winnerPredicate[roundId][participant];
+        ebool wantsAutoSave = FHE.asEbool(_preferenceAt(participant, round.closesAt) == AutoSavePreference.AUTO_SAVE);
+        euint64 zero = FHE.asEuint64(0);
+        euint64 prize = FHE.select(winner, round.reservedPrize, zero);
+        ebool autoFits = FHE.le(FHE.add(_totalPrincipal, prize), MAX_POOL_BASE_UNITS);
+        ebool autoSaveWinner = FHE.and(FHE.and(winner, wantsAutoSave), autoFits);
+        euint64 autoSaved = FHE.select(autoSaveWinner, round.reservedPrize, zero);
+        euint64 kept = FHE.sub(prize, autoSaved);
+
+        euint64 newPrincipal = FHE.add(_principal[participant], autoSaved);
+        _checkpointUser(participant, newPrincipal, uint64(block.timestamp));
+        _principal[participant] = newPrincipal;
+        _winnings[participant] = FHE.add(_winnings[participant], kept);
+        _totalPrincipal = FHE.add(_totalPrincipal, autoSaved);
+        _liquidPrincipal = FHE.add(_liquidPrincipal, autoSaved);
+        _globalBalance = FHE.add(_globalBalance, autoSaved);
+        _winningsLiability = FHE.add(_winningsLiability, kept);
+        _liquidPrizeAssets = FHE.sub(_liquidPrizeAssets, autoSaved);
+        _reservedPrize = FHE.sub(_reservedPrize, prize);
+        round.reservedPrize = FHE.sub(round.reservedPrize, prize);
+
+        FHE.allowThis(_principal[participant]);
+        FHE.allow(_principal[participant], participant);
+        FHE.allowThis(_winnings[participant]);
+        FHE.allow(_winnings[participant], participant);
+        FHE.allowThis(_totalPrincipal);
+        FHE.allowThis(_liquidPrincipal);
+        FHE.allowThis(_globalBalance);
+        FHE.allowThis(_winningsLiability);
+        FHE.allowThis(_liquidPrizeAssets);
+        FHE.allowThis(_reservedPrize);
+        FHE.allowThis(round.reservedPrize);
+    }
+
+    function _preferenceAt(address account, uint64 timestamp) private view returns (AutoSavePreference) {
+        PreferenceObservation[] storage observations = _preferenceObservations[account];
+        uint256 length = observations.length;
+        if (length == 0 || timestamp <= observations[0].timestamp) return AutoSavePreference.KEEP_AVAILABLE;
+        uint256 low = 0;
+        uint256 high = length;
+        while (low + 1 < high) {
+            uint256 middle = low + (high - low) / 2;
+            if (observations[middle].timestamp < timestamp) low = middle;
+            else high = middle;
+        }
+        return observations[low].preference;
     }
 
     function _persistPrincipalState(address account) private {
