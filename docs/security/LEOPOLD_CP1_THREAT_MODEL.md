@@ -15,7 +15,7 @@ compiler stack are external trust assumptions inherited from CP0.
 | Balance/TWAB inference, cross-user decrypt, ACL leakage | user-scoped ACL; aggregate-only public reveal; ACL matrix and deny test                                          |
 | Cross-vault contamination/TWAB carry                    | independent deployments/storage/custody; movement is withdraw then timestamped deposit                           |
 | Sponsor manipulation/withdrawal/reroll                  | underlying transfer plus exact wrap; irrevocable success point; no outcome authority or withdrawal               |
-| Yield double counting/adapter loss                      | no live adapter; typed actual-amount interface; reconciliation and live-adapter gate                             |
+| Yield double counting/adapter loss                      | immutable direct-Comet adapter; unchanged public basis, actual deltas, surplus-only harvest, explicit shortfall  |
 | Liquidity shortfall                                     | immediate encrypted zero transfer unless both principal/liquid categories suffice; conservative buffer gate      |
 | Stale input/replay/duplicate withdrawal                 | proof bound to contract+wallet; accounting uses actual transfer and replaces entitlement                         |
 | Candidate replacement/reroll                            | one candidate; only verified false validity permits retry; accepted ticket immutable/private                     |

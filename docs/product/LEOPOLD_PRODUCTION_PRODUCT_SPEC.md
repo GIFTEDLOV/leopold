@@ -12,6 +12,13 @@
 
 No production UI or authentication provider is part of this foundation slice.
 
+The CP1 production asset is canonical Circle Ethereum Sepolia USDC wrapped by Leopold as `lcUSDC`. Consumer copy uses
+**Private USDC**. The normal path is Get Test USDC → Make Private → Choose Vault → Save → view private savings and
+eligibility → check private result → withdraw. Compound III, lcUSDC, aggregate proofs, and strategy epochs are
+infrastructure and do not appear in the ordinary savings workflow. The Weekly Vault is the recommended evaluator path.
+Historical CP0 cUSDT evidence remains immutable; the asset change corrects the absence of a genuine same-asset Sepolia
+yield route for that exact mock USDT and is not a CP0 reopening.
+
 ## Official launch vaults
 
 | ID  | Vault   | Exact protocol duration | Product behavior                                            |

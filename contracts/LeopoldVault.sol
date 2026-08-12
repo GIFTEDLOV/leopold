@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 
 /* solhint-disable use-natspec,max-states-count,gas-struct-packing,named-parameters-mapping */
-/* solhint-disable gas-indexed-events,gas-strict-inequalities */
+/* solhint-disable gas-indexed-events,gas-strict-inequalities,function-max-lines */
 
 import {FHE, ebool, euint64, euint128, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
@@ -11,10 +11,16 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {IERC7984ERC20Wrapper} from "@openzeppelin/confidential-contracts/interfaces/IERC7984ERC20Wrapper.sol";
 import {IERC7984Receiver} from "@openzeppelin/confidential-contracts/interfaces/IERC7984Receiver.sol";
+import {LeopoldCompoundAdapter} from "./LeopoldCompoundAdapter.sol";
+import {ICompoundComet} from "./interfaces/ICompoundComet.sol";
+
+interface ILeopoldWrapperUnwrap {
+    function unwrap(address from, address to, euint64 amount) external returns (bytes32);
+}
 
 /// @title Leopold confidential prize-savings vault
 /// @notice One non-upgradeable implementation deployed independently for each official vault.
-/// @dev Bounded private draw settlement is integrated; live yield-adapter integration is a later slice.
+/// @dev Bounded private draw settlement and isolated aggregate Compound strategy accounting are integrated.
 contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984Receiver {
     using SafeERC20 for IERC20;
 
@@ -24,6 +30,9 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     /// @dev Temporary conservative bound; finalized from the live HCU evidence for this implementation.
     uint256 public constant MAX_SELECTION_CHUNK = 4;
     uint256 public constant MAX_ALLOCATION_CHUNK = 4;
+    uint64 public constant LIQUIDITY_BUFFER_BPS = 7_500;
+    uint64 public constant BPS = 10_000;
+    uint64 public constant STRATEGY_PROOF_DEADLINE = 1 days;
 
     enum VaultType {
         DAILY,
@@ -53,6 +62,30 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     enum AutoSavePreference {
         KEEP_AVAILABLE,
         AUTO_SAVE
+    }
+
+    enum StrategyEpochKind {
+        NONE,
+        DEPLOY,
+        REPLENISH
+    }
+
+    enum StrategyEpochState {
+        NONE,
+        AGING,
+        AMOUNT_PENDING,
+        UNWRAP_PENDING,
+        COMPLETED,
+        CANCELLED
+    }
+
+    struct StrategyEpoch {
+        StrategyEpochKind kind;
+        StrategyEpochState state;
+        uint64 openedAt;
+        euint64 amount;
+        bytes32 unwrapRequestId;
+        uint64 publicAmount;
     }
 
     struct Observation {
@@ -93,6 +126,9 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     IERC7984ERC20Wrapper public immutable ASSET;
     address public immutable UNDERLYING;
     uint256 public immutable WRAP_RATE;
+    LeopoldCompoundAdapter public immutable STRATEGY;
+    address public immutable STRATEGY_GUARDIAN;
+    uint64 public immutable MINIMUM_STRATEGY_EPOCH_AGE;
 
     uint256 public activeRoundId;
     mapping(uint256 roundId => Round) private _rounds;
@@ -110,6 +146,8 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     euint64 private _totalPrincipal;
     euint64 private _liquidPrincipal;
     euint64 private _deployedPrincipal;
+    euint64 private _principalInTransition;
+    euint64 private _strategyShortfall;
     euint64 private _liquidPrizeAssets;
     euint64 private _realizedSurplus;
     euint64 private _reservedPrize;
@@ -120,6 +158,10 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
 
     mapping(uint256 roundId => euint64) private _sponsoredPrize;
     mapping(uint256 roundId => uint64) public publicSponsoredPrize;
+    euint64 private _uncommittedYield;
+    uint64 public publicUncommittedYield;
+    uint256 public activeStrategyEpochId;
+    mapping(uint256 epochId => StrategyEpoch) private _strategyEpochs;
 
     error InvalidAddress();
     error InvalidConfiguration();
@@ -140,6 +182,12 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     error InvalidChunkSize();
     error ReconciliationNotPending();
     error SettlementNotReady();
+    error StrategyDisabled();
+    error StrategyPaused();
+    error StrategyEpochPending();
+    error StrategyEpochNotReady();
+    error InvalidStrategyEpoch();
+    error StrategyAmountOutOfDomain();
 
     event ParticipantRegistered(address indexed account, uint256 indexed participantIndex);
     event DepositProcessed(address indexed account, uint256 indexed roundId);
@@ -162,6 +210,13 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
     event RoundSettled(uint256 indexed roundId);
     event WinningsWithdrawalProcessed(address indexed account);
     event AutoSavePreferenceSet(address indexed account, AutoSavePreference preference);
+    event StrategyEpochOpened(uint256 indexed epochId, StrategyEpochKind kind, uint64 eligibleAt);
+    event StrategyAmountRequested(uint256 indexed epochId, bytes32 indexed handle);
+    event StrategyUnwrapRequested(uint256 indexed epochId, bytes32 indexed requestId);
+    event StrategyEpochCompleted(uint256 indexed epochId, uint64 amount);
+    event StrategyEpochCancelled(uint256 indexed epochId);
+    event StrategyYieldHarvested(uint64 amount);
+    event StrategyEmergencyUnwound(uint64 recovered, uint64 shortfall);
 
     mapping(uint256 roundId => uint32) public candidateAttempts;
 
@@ -171,7 +226,10 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         bytes32 vaultName,
         uint64 roundDuration,
         IERC7984ERC20Wrapper asset,
-        uint64 firstRoundOpensAt
+        uint64 firstRoundOpensAt,
+        ICompoundComet compoundComet,
+        address strategyGuardian,
+        uint64 minimumStrategyEpochAge
     ) {
         if (address(asset) == address(0)) revert InvalidAddress();
         if (
@@ -194,18 +252,32 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         ASSET = asset;
         UNDERLYING = underlying;
         WRAP_RATE = rate;
+        if (address(compoundComet) == address(0)) {
+            if (strategyGuardian != address(0) || minimumStrategyEpochAge != 0) revert InvalidConfiguration();
+            STRATEGY = LeopoldCompoundAdapter(address(0));
+            STRATEGY_GUARDIAN = address(0);
+            MINIMUM_STRATEGY_EPOCH_AGE = 0;
+        } else {
+            if (strategyGuardian == address(0) || minimumStrategyEpochAge == 0) revert InvalidConfiguration();
+            STRATEGY = new LeopoldCompoundAdapter(underlying, compoundComet, strategyGuardian);
+            STRATEGY_GUARDIAN = strategyGuardian;
+            MINIMUM_STRATEGY_EPOCH_AGE = minimumStrategyEpochAge;
+        }
 
         euint64 zero64 = FHE.asEuint64(0);
         euint128 zero128 = FHE.asEuint128(0);
         _totalPrincipal = zero64;
         _liquidPrincipal = zero64;
         _deployedPrincipal = zero64;
+        _principalInTransition = zero64;
+        _strategyShortfall = zero64;
         _liquidPrizeAssets = zero64;
         _realizedSurplus = zero64;
         _reservedPrize = zero64;
         _winningsLiability = zero64;
         _globalBalance = zero64;
         _globalCumulative = zero128;
+        _uncommittedYield = zero64;
         FHE.allowThis(zero64);
         FHE.allowThis(zero128);
 
@@ -308,6 +380,226 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         emit SponsorContributionCommitted(msg.sender, roundId, confidentialAssetBaseUnits);
     }
 
+    /// @notice Opens a vault-level, aggregate strategy operation; user deposits remain complete and independent.
+    function openStrategyEpoch(StrategyEpochKind kind) external returns (uint256 epochId) {
+        _requireStrategy();
+        if (kind == StrategyEpochKind.NONE) revert InvalidStrategyEpoch();
+        if (STRATEGY.paused()) revert StrategyPaused();
+        StrategyEpoch storage current = _strategyEpochs[activeStrategyEpochId];
+        if (
+            current.state != StrategyEpochState.NONE &&
+            current.state != StrategyEpochState.COMPLETED &&
+            current.state != StrategyEpochState.CANCELLED
+        ) revert StrategyEpochPending();
+        epochId = ++activeStrategyEpochId;
+        StrategyEpoch storage epoch = _strategyEpochs[epochId];
+        epoch.kind = kind;
+        epoch.state = StrategyEpochState.AGING;
+        epoch.openedAt = uint64(block.timestamp);
+        emit StrategyEpochOpened(epochId, kind, uint64(block.timestamp) + MINIMUM_STRATEGY_EPOCH_AGE);
+    }
+
+    /// @notice Derives the objective encrypted aggregate after the epoch privacy delay.
+    function requestStrategyAmount(uint256 epochId) external nonReentrant {
+        StrategyEpoch storage epoch = _strategyEpoch(epochId, StrategyEpochState.AGING);
+        if (block.timestamp < uint256(epoch.openedAt) + MINIMUM_STRATEGY_EPOCH_AGE) revert StrategyEpochNotReady();
+
+        euint64 target = FHE.div(FHE.mul(_totalPrincipal, LIQUIDITY_BUFFER_BPS), BPS);
+        if (epoch.kind == StrategyEpochKind.DEPLOY) {
+            ebool hasExcess = FHE.gt(_liquidPrincipal, target);
+            euint64 excess = FHE.select(hasExcess, FHE.sub(_liquidPrincipal, target), FHE.asEuint64(0));
+            _liquidPrincipal = FHE.sub(_liquidPrincipal, excess);
+            _principalInTransition = FHE.add(_principalInTransition, excess);
+            epoch.amount = excess;
+            FHE.allowThis(excess);
+            FHE.allowTransient(excess, address(ASSET));
+            bytes32 requestId = ILeopoldWrapperUnwrap(address(ASSET)).unwrap(address(this), address(this), excess);
+            epoch.unwrapRequestId = requestId;
+            epoch.state = StrategyEpochState.UNWRAP_PENDING;
+            emit StrategyUnwrapRequested(epochId, requestId);
+        } else {
+            ebool belowTarget = FHE.lt(_liquidPrincipal, target);
+            euint64 deficit = FHE.select(belowTarget, FHE.sub(target, _liquidPrincipal), FHE.asEuint64(0));
+            uint256 publicBasis = STRATEGY.deployedPrincipalBasis() / WRAP_RATE;
+            if (publicBasis > type(uint64).max) revert StrategyAmountOutOfDomain();
+            ebool withinBasis = FHE.le(deficit, uint64(publicBasis));
+            deficit = FHE.select(withinBasis, deficit, FHE.asEuint64(uint64(publicBasis)));
+            epoch.amount = deficit;
+            epoch.state = StrategyEpochState.AMOUNT_PENDING;
+            FHE.allowThis(deficit);
+            FHE.makePubliclyDecryptable(deficit);
+            emit StrategyAmountRequested(epochId, FHE.toBytes32(deficit));
+        }
+        FHE.allowThis(_liquidPrincipal);
+        FHE.allowThis(_principalInTransition);
+    }
+
+    /// @notice Finalizes the wrapper-bound aggregate proof and deploys the resulting public USDC.
+    function finalizeStrategyDeployment(
+        uint256 epochId,
+        uint64 clearAmount,
+        bytes calldata decryptionProof
+    ) external nonReentrant {
+        StrategyEpoch storage epoch = _strategyEpoch(epochId, StrategyEpochState.UNWRAP_PENDING);
+        if (epoch.kind != StrategyEpochKind.DEPLOY || clearAmount > MAX_POOL_BASE_UNITS) {
+            revert StrategyAmountOutOfDomain();
+        }
+        ASSET.finalizeUnwrap(epoch.unwrapRequestId, clearAmount, decryptionProof);
+        uint256 underlyingAmount = uint256(clearAmount) * WRAP_RATE;
+        IERC20 underlying = IERC20(UNDERLYING);
+        underlying.forceApprove(address(STRATEGY), underlyingAmount);
+        uint256 deployed = STRATEGY.deployAssets(underlyingAmount);
+        underlying.forceApprove(address(STRATEGY), 0);
+        if (deployed != underlyingAmount) revert StrategyAmountOutOfDomain();
+
+        euint64 encryptedAmount = FHE.asEuint64(clearAmount);
+        _principalInTransition = FHE.sub(_principalInTransition, encryptedAmount);
+        _deployedPrincipal = FHE.add(_deployedPrincipal, encryptedAmount);
+        epoch.publicAmount = clearAmount;
+        epoch.state = StrategyEpochState.COMPLETED;
+        FHE.allowThis(_principalInTransition);
+        FHE.allowThis(_deployedPrincipal);
+        emit StrategyEpochCompleted(epochId, clearAmount);
+    }
+
+    /// @notice Finalizes the objective buffer deficit and restores aggregate liquid Private USDC.
+    function finalizeStrategyReplenishment(
+        uint256 epochId,
+        bytes calldata abiEncodedCleartexts,
+        bytes calldata decryptionProof
+    ) external nonReentrant {
+        StrategyEpoch storage epoch = _strategyEpoch(epochId, StrategyEpochState.AMOUNT_PENDING);
+        if (epoch.kind != StrategyEpochKind.REPLENISH || abiEncodedCleartexts.length != 32) {
+            revert InvalidStrategyEpoch();
+        }
+        uint256 decoded = abi.decode(abiEncodedCleartexts, (uint256));
+        if (decoded > MAX_POOL_BASE_UNITS || decoded * WRAP_RATE > STRATEGY.deployedPrincipalBasis()) {
+            revert StrategyAmountOutOfDomain();
+        }
+        bytes32[] memory handles = new bytes32[](1);
+        handles[0] = FHE.toBytes32(epoch.amount);
+        FHE.checkSignatures(handles, abiEncodedCleartexts, decryptionProof);
+        uint64 clearAmount = uint64(decoded);
+        uint256 recovered = STRATEGY.withdrawPrincipal(decoded * WRAP_RATE);
+        if (recovered != decoded * WRAP_RATE) revert StrategyAmountOutOfDomain();
+        IERC20 underlying = IERC20(UNDERLYING);
+        underlying.forceApprove(address(ASSET), recovered);
+        euint64 wrapped = ASSET.wrap(address(this), recovered);
+        underlying.forceApprove(address(ASSET), 0);
+        _deployedPrincipal = FHE.sub(_deployedPrincipal, FHE.asEuint64(clearAmount));
+        _liquidPrincipal = FHE.add(_liquidPrincipal, wrapped);
+        epoch.publicAmount = clearAmount;
+        epoch.state = StrategyEpochState.COMPLETED;
+        FHE.allowThis(_deployedPrincipal);
+        FHE.allowThis(_liquidPrincipal);
+        emit StrategyEpochCompleted(epochId, clearAmount);
+    }
+
+    /// @notice Realizes only Compound assets above the adapter's unchanged principal basis.
+    function harvestStrategyYield() external nonReentrant returns (uint64 harvested) {
+        _requireStrategy();
+        uint256 recovered = STRATEGY.harvest();
+        if (recovered == 0) return 0;
+        uint256 confidentialUnits = recovered / WRAP_RATE;
+        if (confidentialUnits > type(uint64).max || recovered % WRAP_RATE != 0) revert StrategyAmountOutOfDomain();
+        IERC20 underlying = IERC20(UNDERLYING);
+        underlying.forceApprove(address(ASSET), recovered);
+        euint64 wrapped = ASSET.wrap(address(this), recovered);
+        underlying.forceApprove(address(ASSET), 0);
+        harvested = uint64(confidentialUnits);
+        _uncommittedYield = FHE.add(_uncommittedYield, wrapped);
+        _realizedSurplus = FHE.add(_realizedSurplus, wrapped);
+        _liquidPrizeAssets = FHE.add(_liquidPrizeAssets, wrapped);
+        publicUncommittedYield += harvested;
+        FHE.allowThis(_uncommittedYield);
+        FHE.allowThis(_realizedSurplus);
+        FHE.allowThis(_liquidPrizeAssets);
+        emit StrategyYieldHarvested(harvested);
+    }
+
+    function setStrategyPaused(bool paused_) external {
+        _requireStrategy();
+        if (msg.sender != STRATEGY_GUARDIAN) revert InvalidAddress();
+        STRATEGY.setPaused(paused_);
+    }
+
+    /// @notice Unwinds to this vault; no guardian or caller ever receives principal custody.
+    function emergencyUnwindStrategy() external nonReentrant {
+        _requireStrategy();
+        if (!STRATEGY.paused()) revert StrategyPaused();
+        uint256 basisBefore = STRATEGY.deployedPrincipalBasis();
+        (uint256 recovered, uint256 shortfall) = STRATEGY.emergencyExit();
+        if (recovered % WRAP_RATE != 0 || shortfall % WRAP_RATE != 0) revert StrategyAmountOutOfDomain();
+        uint64 recoveredUnits = uint64(recovered / WRAP_RATE);
+        uint64 shortfallUnits = uint64(shortfall / WRAP_RATE);
+        if (recovered != 0) {
+            IERC20 underlying = IERC20(UNDERLYING);
+            underlying.forceApprove(address(ASSET), recovered);
+            ASSET.wrap(address(this), recovered);
+            underlying.forceApprove(address(ASSET), 0);
+        }
+        uint256 principalRecovered = recovered < basisBefore ? recovered : basisBefore;
+        uint256 surplusRecovered = recovered - principalRecovered;
+        _liquidPrincipal = FHE.add(_liquidPrincipal, FHE.asEuint64(uint64(principalRecovered / WRAP_RATE)));
+        if (surplusRecovered != 0) {
+            uint64 surplusUnits = uint64(surplusRecovered / WRAP_RATE);
+            euint64 encryptedSurplus = FHE.asEuint64(surplusUnits);
+            _uncommittedYield = FHE.add(_uncommittedYield, encryptedSurplus);
+            _realizedSurplus = FHE.add(_realizedSurplus, encryptedSurplus);
+            _liquidPrizeAssets = FHE.add(_liquidPrizeAssets, encryptedSurplus);
+            publicUncommittedYield += surplusUnits;
+            FHE.allowThis(_uncommittedYield);
+            FHE.allowThis(_realizedSurplus);
+            FHE.allowThis(_liquidPrizeAssets);
+        }
+        _deployedPrincipal = FHE.asEuint64(0);
+        _strategyShortfall = FHE.add(_strategyShortfall, FHE.asEuint64(shortfallUnits));
+        FHE.allowThis(_liquidPrincipal);
+        FHE.allowThis(_deployedPrincipal);
+        FHE.allowThis(_strategyShortfall);
+        emit StrategyEmergencyUnwound(recoveredUnits, shortfallUnits);
+    }
+
+    function cancelAgingStrategyEpoch(uint256 epochId) external {
+        StrategyEpoch storage epoch = _strategyEpoch(epochId, StrategyEpochState.AGING);
+        epoch.state = StrategyEpochState.CANCELLED;
+        emit StrategyEpochCancelled(epochId);
+    }
+
+    /// @notice Recovers an expired epoch. A burned confidential amount still requires its authentic public proof.
+    function cancelExpiredStrategyEpoch(
+        uint256 epochId,
+        uint64 clearAmount,
+        bytes calldata decryptionProof
+    ) external nonReentrant {
+        _requireStrategy();
+        if (epochId == 0 || epochId != activeStrategyEpochId) revert InvalidStrategyEpoch();
+        StrategyEpoch storage epoch = _strategyEpochs[epochId];
+        if (block.timestamp < uint256(epoch.openedAt) + MINIMUM_STRATEGY_EPOCH_AGE + STRATEGY_PROOF_DEADLINE) {
+            revert StrategyEpochNotReady();
+        }
+        if (epoch.state == StrategyEpochState.AMOUNT_PENDING) {
+            epoch.state = StrategyEpochState.CANCELLED;
+            emit StrategyEpochCancelled(epochId);
+            return;
+        }
+        if (epoch.state != StrategyEpochState.UNWRAP_PENDING || clearAmount > MAX_POOL_BASE_UNITS) {
+            revert InvalidStrategyEpoch();
+        }
+        ASSET.finalizeUnwrap(epoch.unwrapRequestId, clearAmount, decryptionProof);
+        uint256 underlyingAmount = uint256(clearAmount) * WRAP_RATE;
+        IERC20 underlying = IERC20(UNDERLYING);
+        underlying.forceApprove(address(ASSET), underlyingAmount);
+        euint64 wrapped = ASSET.wrap(address(this), underlyingAmount);
+        underlying.forceApprove(address(ASSET), 0);
+        _principalInTransition = FHE.sub(_principalInTransition, FHE.asEuint64(clearAmount));
+        _liquidPrincipal = FHE.add(_liquidPrincipal, wrapped);
+        epoch.state = StrategyEpochState.CANCELLED;
+        FHE.allowThis(_principalInTransition);
+        FHE.allowThis(_liquidPrincipal);
+        emit StrategyEpochCancelled(epochId);
+    }
+
     function closeRound() external {
         Round storage round = _rounds[activeRoundId];
         if (round.state != RoundState.OPEN) revert InvalidRoundState(round.state, RoundState.OPEN);
@@ -317,14 +609,19 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         _accrueGlobal(round.closesAt);
         euint128 aggregate = FHE.sub(_globalCumulative, round.startCumulative);
         round.aggregateTwab = aggregate;
-        round.publicPrize = publicSponsoredPrize[closingRoundId];
-        round.reservedPrize = _sponsoredPrize[closingRoundId];
+        round.publicPrize = publicSponsoredPrize[closingRoundId] + publicUncommittedYield;
+        round.reservedPrize = FHE.add(_sponsoredPrize[closingRoundId], _uncommittedYield);
         round.participantCountSnapshot = _participants.length;
         _reservedPrize = FHE.add(_reservedPrize, round.reservedPrize);
+        _realizedSurplus = FHE.sub(_realizedSurplus, _uncommittedYield);
+        _uncommittedYield = FHE.asEuint64(0);
+        publicUncommittedYield = 0;
         round.state = RoundState.AGGREGATE_PENDING;
         FHE.allowThis(aggregate);
         FHE.allowThis(round.reservedPrize);
         FHE.allowThis(_reservedPrize);
+        FHE.allowThis(_realizedSurplus);
+        FHE.allowThis(_uncommittedYield);
         FHE.makePubliclyDecryptable(aggregate);
 
         uint256 nextRoundId = closingRoundId + 1;
@@ -649,6 +946,14 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         return (FHE.isAllowed(ticket, account), FHE.isPubliclyDecryptable(ticket));
     }
 
+    function strategyUnwrapRequestId(uint256 epochId) external view returns (bytes32) {
+        return _strategyEpochs[epochId].unwrapRequestId;
+    }
+
+    function strategyAmountHandle(uint256 epochId) external view returns (euint64) {
+        return _strategyEpochs[epochId].amount;
+    }
+
     function encryptedAccounting()
         external
         view
@@ -794,5 +1099,19 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         FHE.allowThis(_totalPrincipal);
         FHE.allowThis(_liquidPrincipal);
         FHE.allowThis(_globalBalance);
+    }
+
+    function _requireStrategy() private view {
+        if (address(STRATEGY) == address(0)) revert StrategyDisabled();
+    }
+
+    function _strategyEpoch(
+        uint256 epochId,
+        StrategyEpochState expected
+    ) private view returns (StrategyEpoch storage epoch) {
+        _requireStrategy();
+        if (epochId == 0 || epochId != activeStrategyEpochId) revert InvalidStrategyEpoch();
+        epoch = _strategyEpochs[epochId];
+        if (epoch.state != expected) revert StrategyEpochNotReady();
     }
 }

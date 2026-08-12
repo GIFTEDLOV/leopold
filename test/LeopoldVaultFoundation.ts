@@ -38,6 +38,9 @@ async function deployFixture(vaultId = 1, vaultType = 0, duration = DAILY): Prom
     duration,
     await asset.getAddress(),
     firstRoundOpensAt,
+    ethers.ZeroAddress,
+    ethers.ZeroAddress,
+    0,
   )) as LeopoldVault;
   return { deployer, alice, bob, sponsor, underlying, asset, vault };
 }
@@ -238,6 +241,9 @@ describe("Leopold CP1 confidential vault foundation", function () {
       7 * DAILY,
       await first.asset.getAddress(),
       await time.latest(),
+      ethers.ZeroAddress,
+      ethers.ZeroAddress,
+      0,
     )) as LeopoldVault;
     const second = { ...first, vault: secondVault };
     await first.vault.connect(first.alice).registerParticipant();
@@ -259,6 +265,9 @@ describe("Leopold CP1 confidential vault foundation", function () {
         31_536_001,
         await fixture.asset.getAddress(),
         await time.latest(),
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        0,
       ),
     ).to.be.revertedWithCustomError(fixture.vault, "InvalidConfiguration");
     await expect(
@@ -293,6 +302,9 @@ describe("Leopold official four-vault registry", function () {
           duration,
           await fixture.asset.getAddress(),
           start,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          0,
         )) as LeopoldVault,
       );
     }

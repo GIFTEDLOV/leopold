@@ -231,16 +231,35 @@ const config: HardhatUserConfig = {
   },
 
   solidity: {
-    version: "0.8.27",
-    settings: {
-      metadata: {
-        bytecodeHash: "none",
+    compilers: [
+      {
+        version: "0.8.27",
+        settings: {
+          metadata: { bytecodeHash: "none" },
+          optimizer: { enabled: true, runs: 800 },
+          evmVersion: "cancun",
+        },
       },
-      optimizer: {
-        enabled: true,
-        runs: 800,
+    ],
+    overrides: {
+      "contracts/LeopoldVault.sol": {
+        version: "0.8.27",
+        settings: {
+          metadata: { bytecodeHash: "none" },
+          optimizer: { enabled: true, runs: 1 },
+          viaIR: true,
+          evmVersion: "cancun",
+        },
       },
-      evmVersion: "cancun",
+      "contracts/LeopoldVaultRegistry.sol": {
+        version: "0.8.27",
+        settings: {
+          metadata: { bytecodeHash: "none" },
+          optimizer: { enabled: true, runs: 1 },
+          viaIR: true,
+          evmVersion: "cancun",
+        },
+      },
     },
   },
 

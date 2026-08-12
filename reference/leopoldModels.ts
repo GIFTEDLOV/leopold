@@ -111,6 +111,8 @@ export type AccountingSnapshot = {
   principalLiability: bigint;
   liquidPrincipal: bigint;
   deployedPrincipal: bigint;
+  principalInTransition: bigint;
+  strategyShortfall: bigint;
   realizedSurplus: bigint;
   reservedPrize: bigint;
   sponsoredPrize: bigint;
@@ -123,6 +125,8 @@ export class AccountingReferenceModel {
     principalLiability: 0n,
     liquidPrincipal: 0n,
     deployedPrincipal: 0n,
+    principalInTransition: 0n,
+    strategyShortfall: 0n,
     realizedSurplus: 0n,
     reservedPrize: 0n,
     sponsoredPrize: 0n,
@@ -150,6 +154,38 @@ export class AccountingReferenceModel {
     if (amount > this.state.liquidPrincipal) throw new Error("insufficient liquid principal");
     this.state.liquidPrincipal -= amount;
     this.state.deployedPrincipal += amount;
+    this.assertInvariants();
+  }
+
+  beginAggregateDeployment(amount: bigint): void {
+    this.positive(amount);
+    if (amount > this.state.liquidPrincipal) throw new Error("insufficient liquid principal");
+    this.state.liquidPrincipal -= amount;
+    this.state.principalInTransition += amount;
+    this.assertInvariants();
+  }
+
+  completeAggregateDeployment(amount: bigint): void {
+    this.positive(amount);
+    if (amount > this.state.principalInTransition) throw new Error("excess deployment completion");
+    this.state.principalInTransition -= amount;
+    this.state.deployedPrincipal += amount;
+    this.assertInvariants();
+  }
+
+  cancelAggregateDeployment(amount: bigint): void {
+    this.positive(amount);
+    if (amount > this.state.principalInTransition) throw new Error("excess deployment cancellation");
+    this.state.principalInTransition -= amount;
+    this.state.liquidPrincipal += amount;
+    this.assertInvariants();
+  }
+
+  recognizeStrategyLoss(amount: bigint): void {
+    this.positive(amount);
+    if (amount > this.state.deployedPrincipal) throw new Error("loss exceeds deployed basis");
+    this.state.deployedPrincipal -= amount;
+    this.state.strategyShortfall += amount;
     this.assertInvariants();
   }
 
@@ -202,7 +238,13 @@ export class AccountingReferenceModel {
 
   assertInvariants(): void {
     for (const value of Object.values(this.state)) if (value < 0n) throw new Error("negative accounting category");
-    if (this.state.liquidPrincipal + this.state.deployedPrincipal !== this.state.principalLiability) {
+    if (
+      this.state.liquidPrincipal +
+        this.state.deployedPrincipal +
+        this.state.principalInTransition +
+        this.state.strategyShortfall !==
+      this.state.principalLiability
+    ) {
       throw new Error("principal reconciliation failed");
     }
   }

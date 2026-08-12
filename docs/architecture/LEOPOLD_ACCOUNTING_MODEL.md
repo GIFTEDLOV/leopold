@@ -3,12 +3,13 @@
 ## Per-vault categories
 
 The authoritative categories are encrypted `euint64` values: total principal liability, liquid principal, deployed
-principal, liquid prize assets, realized surplus, reserved prize, and winnings liability. Sponsor amounts are
-additionally public by product decision. Categories never reconcile across vaults.
+principal basis, principal in transition, strategy shortfall, liquid prize assets, realized surplus, reserved prize, and
+winnings liability. Sponsor amounts are additionally public by product decision. Categories never reconcile across
+vaults.
 
 Required equations and controls:
 
-1. `principal liability = liquid principal + deployed principal`.
+1. `principal liability = liquid principal + deployed principal basis + principal in transition + recognized shortfall`.
 2. A principal withdrawal is eligible only up to both the user's principal and liquid-principal category.
 3. Sponsor funding and realized surplus never increase principal.
 4. Reserving a prize consumes each source exactly once; keep-available allocation moves reserved prize to winnings
@@ -18,9 +19,10 @@ Required equations and controls:
 6. Token assets must cover principal, prize, and winnings categories independently; no category may mask another
    deficit.
 
-The plaintext `AccountingReferenceModel` enforces these equations after every action. Adapter deploy/return/harvest and
-adapter deploy/return/harvest transitions remain typed architecture; prize allocation, auto-save and winnings withdrawal
-are implemented encrypted value paths.
+The plaintext `AccountingReferenceModel` enforces these equations after every action. Aggregate deployment first moves
+value from liquid to in-transition, and only authentic unwrap finalization moves it to deployed basis. Cancellation
+returns it to liquid. Compound managed assets are measured independently by `Comet.balanceOf(adapter)`: value above
+basis is candidate genuine surplus; value below basis is explicit shortfall. Basis is never reduced to create yield.
 
 ## Sponsored prize commitment
 
@@ -46,6 +48,9 @@ prize assets, and all categories are reduced only by the ERC-7984 amount actuall
 
 ## Yield boundary
 
-`ILeopoldYieldAdapter` requires encrypted actual deployed/withdrawn/surplus amounts, controlled/liquid asset reports,
-pause, and emergency exit. No ERC-4626 compatibility is assumed. A live cUSDT route, loss semantics, ACL transfer
-review, and liquidity-buffer calibration are explicit later gates.
+`ILeopoldYieldAdapter` carries public vault-level actual amounts only. `LeopoldCompoundAdapter` is immutable to one
+vault, canonical Circle Sepolia USDC, and the verified direct Comet market. Exact approvals are reset to zero.
+Deployment adds actual USDC received to basis. Principal redemption cannot exceed both basis and managed assets. Harvest
+withdraws only `managedAssets - basis`. Emergency exit returns assets to the vault, records loss without deleting
+liability, and routes any value above basis to uncommitted prize yield. The launch buffer target is 75% liquid;
+withdrawals remain immediate when liquid Private USDC suffices and safely transfer zero otherwise.

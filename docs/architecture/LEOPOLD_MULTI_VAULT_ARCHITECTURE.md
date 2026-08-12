@@ -17,10 +17,13 @@ It cannot move funds, change vault configuration, close rounds, replace candidat
 | ----------------------------- | ---------------------------------------------------------------------------------------------- |
 | `LeopoldVault`                | Keep financial/FHE operations together; avoids cross-contract ACL churn and partial accounting |
 | `LeopoldVaultRegistry`        | Public official-address discovery and deprecation only; contains no user data                  |
-| `ILeopoldYieldAdapter`        | Narrow future strategy boundary; no live adapter is asserted                                   |
+| `LeopoldCompoundAdapter`      | One immutable direct-Comet account per vault; public aggregate USDC only                       |
+| `ILeopoldYieldAdapter`        | Narrow actual-amount strategy boundary; receives no user identity or FHE ACL                   |
 | Internal TWAB/draw components | Libraries/internal state are safer than FHE-bearing module contracts                           |
 
-The compiled vault runtime is 13,844 bytes and initcode is 16,298 bytes, below EVM size ceilings in this build.
+The integrated vault uses size-oriented optimizer settings (`runs: 1`, `viaIR`) and compiles to 24,496 runtime bytes, 80
+bytes below the 24,576-byte EIP-170 limit. This extremely narrow margin is a release gate: later slices must remeasure
+it and should prefer libraries or adjacent non-FHE boundaries over vault growth.
 
 ## Registry authority
 
@@ -45,3 +48,8 @@ metadata.
 Private: deposit/withdrawal amount, principal, balance, individual TWAB/odds, candidate/ticket, predicates, winner,
 winnings, and encrypted accounting totals. Address participation and timing/gas/transaction graph are unavoidable public
 metadata and are outside value confidentiality.
+
+Public strategy facts additionally include epoch lifecycle, aggregate amount after authorized declassification, Compound
+position, principal basis, managed assets, aggregate redemption, and harvested surplus. These never include a user
+identifier or individual amount. Each vault creates its own adapter, so even though all four use the same Comet market,
+their supplier accounts and books cannot subsidize one another.

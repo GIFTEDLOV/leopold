@@ -29,6 +29,7 @@
     "scripts/sg4-randomness-benchmark.ts",
     "scripts/leopold-selector-hcu-live.ts",
     "scripts/validate-leopold-selector-hcu-evidence.ts",
+    "scripts/validate-leopold-compound-evidence.ts",
     "scripts/deploy-sg5-browser-probe.ts",
     "scripts/sg5-protocol.ts",
     "scripts/validate-sg4-randomness-evidence.ts",

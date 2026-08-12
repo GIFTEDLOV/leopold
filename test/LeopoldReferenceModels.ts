@@ -117,12 +117,32 @@ describe("Leopold deterministic reference models", function () {
       principalLiability: 1_030n,
       liquidPrincipal: 530n,
       deployedPrincipal: 500n,
+      principalInTransition: 0n,
+      strategyShortfall: 0n,
       realizedSurplus: 0n,
       reservedPrize: 0n,
       sponsoredPrize: 0n,
       winningsLiability: 70n,
     });
     expect(() => accounting.withdrawPrincipal(531n)).to.throw("insufficient principal liquidity");
+  });
+
+  it("conserves principal through aggregate transitions and explicit Compound shortfall", function () {
+    const accounting = new AccountingReferenceModel();
+    accounting.depositPrincipal(1_000n);
+    accounting.beginAggregateDeployment(250n);
+    expect(accounting.state.principalInTransition).to.equal(250n);
+    accounting.cancelAggregateDeployment(50n);
+    accounting.completeAggregateDeployment(200n);
+    accounting.recognizeStrategyLoss(10n);
+    expect(accounting.state).to.include({
+      principalLiability: 1_000n,
+      liquidPrincipal: 800n,
+      deployedPrincipal: 190n,
+      principalInTransition: 0n,
+      strategyShortfall: 10n,
+    });
+    accounting.assertInvariants();
   });
 
   it("handles rejection-sampling boundaries without representing 2^128 in uint128", function () {

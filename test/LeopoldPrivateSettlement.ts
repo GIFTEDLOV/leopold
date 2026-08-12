@@ -36,6 +36,9 @@ async function fixture(): Promise<Fixture> {
     DAY,
     await asset.getAddress(),
     await time.latest(),
+    ethers.ZeroAddress,
+    ethers.ZeroAddress,
+    0,
   )) as LeopoldVault;
   return { deployer, alice, bob, carol, sponsor, underlying, asset, vault };
 }
@@ -371,6 +374,9 @@ describe("Leopold private selection and settlement", function () {
           duration,
           await state.asset.getAddress(),
           start,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          0,
         )) as LeopoldVault,
       );
     }

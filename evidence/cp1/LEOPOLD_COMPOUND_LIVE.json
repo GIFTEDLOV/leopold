@@ -1,0 +1,203 @@
+{
+  "schema": "leopold.cp1-compound-live.v1",
+  "capturedUtc": "2026-08-12T01:45:44Z",
+  "network": { "name": "ethereum-sepolia", "chainId": "11155111" },
+  "sourceBaseCommit": "a3a0e9de1838b8f768e01263bfa6f89d62aee809",
+  "probeAddress": "0xa13ac070ad999a159Ceb9F3E1aCfB7D8Af817166",
+  "contracts": {
+    "canonicalCircleUsdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+    "compoundFaucet": "0x68793eA49297eB75DFB4610B68e076D2A5c7646C",
+    "liveLcUsdc": "0x70caEB8C660AC5D5Ce52f1C2687843C7c5474209",
+    "liveWeeklyVault": "0x09A728052D15d38CFC3FC8484eF0F47E50a3cbDB",
+    "liveCompoundAdapter": "0x581392103a068c569cE0d8bbbe75ccc1C6A08707"
+  },
+  "liveCode": {
+    "canonicalCircleUsdc": {
+      "bytes": 1798,
+      "keccak256": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
+    },
+    "compoundCometProxy": {
+      "bytes": 1878,
+      "keccak256": "0x64952234eab8f3aed74355c49119f627965640b1efeb6b28430b5a31b0d3b192"
+    },
+    "compoundFaucet": {
+      "bytes": 652,
+      "keccak256": "0x30f62c790e6c64cd1b1d0313485d26818d1f240242d1d0f61497761bf1d1bb6e"
+    },
+    "liveLcUsdc": { "bytes": 10565, "keccak256": "0xd29d727225b6475fb2df5b3bf11c120663571fb52d1d1fc01d4e9664908732ff" },
+    "liveWeeklyVault": {
+      "bytes": 24360,
+      "keccak256": "0x6185fe70994a9b78f5341ef1d6723ff2f8ff668876b3c42d4ce54891bb991894"
+    },
+    "liveCompoundAdapter": {
+      "bytes": 4932,
+      "keccak256": "0xae883bec2942d7f38e2fafdd4ddaeb46c9514ff0261608981f698afc04db05dc"
+    }
+  },
+  "finalSource": {
+    "vaultSha256": "aaee1683f0bfcd922db6cb763e7c3f05e6d3ab7a9e53835761665d9ca4946e52",
+    "adapterSha256": "c34511346172d51add0edd56906c077bf40b317d7306fd18124c7e211333b794",
+    "wrapperSha256": "e3f715c6b32b48a7cd7786123bc280b4af494840bba1cd8ab3a342682b1bb0ae",
+    "vaultRuntimeBytes": 24496,
+    "postProbeHardening": [
+      "replenishment amount is encrypted-clamped to available public basis",
+      "multi-field strategy getter was narrowed to preserve EIP-170 headroom",
+      "official registry validates consistent strategy-enabled state and Comet market"
+    ]
+  },
+  "venueProbe": {
+    "faucet": {
+      "transactionHash": "0x63829c8633304e200a62bdd0af068374687b8163afc6673988fbe8f4426357da",
+      "block": 11469489,
+      "receivedBaseUnits": "2947337"
+    },
+    "approval": {
+      "transactionHash": "0xf3ca1da2d18261407083e3d18a0c11bd767c65eee58456e7ad5351195fbaf3f8",
+      "block": 11469504,
+      "allowance": "1000000"
+    },
+    "supply": {
+      "transactionHash": "0xcc2267b35ef0cf2f2038e760418e5dabfdb119549c951c7e7642eaf7216901f3",
+      "block": 11469508,
+      "gasUsed": "104953",
+      "principalBaseUnits": "1000000"
+    },
+    "observationA": {
+      "block": 11469508,
+      "timestamp": 1786492464,
+      "balance": "999999",
+      "signedPrincipal": "728967",
+      "storedBaseSupplyIndex": "1371804181015426"
+    },
+    "observationB": {
+      "block": 11469512,
+      "timestamp": 1786492512,
+      "balance": "1000000",
+      "signedPrincipal": "728967",
+      "effectiveBaseSupplyIndex": "1371804774854514",
+      "supplyRatePerSecond": "9018523086"
+    },
+    "withdrawAll": {
+      "transactionHash": "0x6c0ed7c9302d14a08245015d2e009583ffc62fa28b9a0655c91fcea1bb668e5b",
+      "block": 11469581,
+      "gasUsed": "90413",
+      "returnedBaseUnits": "1000007",
+      "finalCometBalance": "0",
+      "finalBorrow": "0",
+      "finalAllowance": "0"
+    }
+  },
+  "endToEnd": {
+    "wrapperDeployment": {
+      "transactionHash": "0xeb1a7891ab97a28ff1c9ffbb3e3853cf9f3489e05521bc261fdbe4813239b742",
+      "block": 11469915,
+      "gasUsed": "2491218"
+    },
+    "vaultDeployment": {
+      "transactionHash": "0xbcbb82f2b2910fab20b43f7b6f2f9b5d95dc2d0016fd4211b07ccad012f3ec61",
+      "block": 11469916,
+      "gasUsed": "7025013"
+    },
+    "wrap": {
+      "transactionHash": "0xd9e40b6b7d7792f07d55292cac0efc7540f6a15c2c5e822375f59481956073c7",
+      "block": 11469918,
+      "baseUnits": "2500000"
+    },
+    "privateDeposit": {
+      "transactionHash": "0x88240ef79ab2fb357765a284ad48d8fecc7440bee36301f11eb3ecf432b1fe6f",
+      "block": 11469923,
+      "gasUsed": "1301146",
+      "ownerDecryptVerified": true,
+      "crossUserDecryptDenied": true
+    },
+    "aggregateDeployment": {
+      "requestTransactionHash": "0x9d0266536b49c142bb3e275e9617999432d51165bb545af7c96364225a64fe5d",
+      "finalizeTransactionHash": "0xa2840cfd122491d14ad4c586d28de357639e5654364b1dbe0271e3b299dcfcbe",
+      "block": 11469931,
+      "baseUnits": "625000",
+      "principalBasis": "625000"
+    },
+    "genuineYieldHarvest": {
+      "transactionHash": "0xf496e76fecb5d64d654e5443fde0520595372749a9935cb691ebb3b24b54fb83",
+      "block": 11469966,
+      "gasUsed": "569553",
+      "managedBefore": "625001",
+      "basis": "625000",
+      "creditedPrizeBaseUnits": "1"
+    },
+    "immediateWithdrawal": {
+      "transactionHash": "0xf358ddef7b31413aa99cefdcb73e79234a54fcc0ad724b24704275127d2d50e3",
+      "block": 11469969,
+      "gasUsed": "971806",
+      "baseUnits": "1500000"
+    },
+    "aggregateReplenishment": {
+      "requestTransactionHash": "0x171290629b163c4020640719e51b94bb1c9796c023e283bffc92ffb72e8803c4",
+      "finalizeTransactionHash": "0x9910766cdbeb58f2855d7a61a867f9f966fdb39d2d330c434a3eb8a65afe83c5",
+      "block": 11469977,
+      "baseUnits": "375000"
+    },
+    "pause": {
+      "transactionHash": "0xafff2735e92781135e6b93a63c40040e5f24eb42b30b40c4cbfdd2f10025fdf1",
+      "block": 11469991
+    },
+    "emergencyUnwindAll": {
+      "transactionHash": "0x2e26effb787ce8a89fa8c88c48f56313729d1b73739ad91802155dd4c011a56b",
+      "block": 11469993,
+      "gasUsed": "608918",
+      "waitedForManagedAssetsAtLeastBasis": true
+    },
+    "finalPrivateWithdrawal": {
+      "transactionHash": "0xb82b782fe88499277c0bffaeb2395443738f67eafd8248d988a39f8198f65195",
+      "block": 11470001,
+      "gasUsed": "971794",
+      "principalAfter": "0"
+    },
+    "finalPublicUnwrap": {
+      "transactionHash": "0x5b8f6a87513abf973970e91b42e60e473c7b38aeda622f80649341b1b6b33ed8",
+      "block": 11470006,
+      "gasUsed": "377895"
+    }
+  },
+  "finalState": {
+    "userPrincipal": "0",
+    "publicUncommittedYield": "1",
+    "adapterBasis": "0",
+    "adapterManagedAssets": "0",
+    "adapterShortfall": "0",
+    "adapterPositionIntegrity": true,
+    "cometBalance": "0",
+    "cometBorrow": "0",
+    "cometCollateralAssetsIn": 0,
+    "cometAllowance": "0",
+    "wrapperAllowance": "0"
+  },
+  "liveHcu": {
+    "source": "pinned @fhevm/hardhat-plugin computeTransactionHCU(receipt)",
+    "privateDeposit": { "globalHCU": 3470256, "maxHCUDepth": 955032 },
+    "requestAggregateDeployment": { "globalHCU": 2359064, "maxHCUDepth": 1666000 },
+    "finalizeAggregateDeployment": { "globalHCU": 324032, "maxHCUDepth": 162032 },
+    "harvest": { "globalHCU": 1072064, "maxHCUDepth": 531032 },
+    "immediateWithdrawal": { "globalHCU": 3522128, "maxHCUDepth": 955032 },
+    "requestReplenishment": { "globalHCU": 1443032, "maxHCUDepth": 1297000 },
+    "finalizeReplenishment": { "globalHCU": 910096, "maxHCUDepth": 531032 },
+    "emergencyUnwind": { "globalHCU": 910160, "maxHCUDepth": 531032 },
+    "withinTransactionLimit": true,
+    "withinDepthLimit": true
+  },
+  "privacy": {
+    "individualPrincipalPubliclyDecrypted": false,
+    "individualTwabPubliclyDecrypted": false,
+    "winnerPubliclyDecrypted": false,
+    "winningsPubliclyDecrypted": false,
+    "aggregateStrategyAmountsPubliclyDecrypted": true,
+    "lowParticipationInferenceLimitationDocumented": true
+  },
+  "finality": {
+    "requiredThroughBlock": 11470006,
+    "verified": true,
+    "finalizedBlock": 11470010,
+    "finalizedBlockHash": "0xfd1e0b488cadb978aac3c7a61ac031d51c40ba276d338a78d20aff9c645d8201"
+  }
+}
