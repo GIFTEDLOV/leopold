@@ -28,6 +28,7 @@
     "scripts/sg4-hcu-authority-binding-generator.ts",
     "scripts/sg4-randomness-benchmark.ts",
     "scripts/leopold-selector-hcu-live.ts",
+    "scripts/leopold-bond-sepolia-smoke.ts",
     "scripts/validate-leopold-selector-hcu-evidence.ts",
     "scripts/validate-leopold-compound-evidence.ts",
     "scripts/deploy-sg5-browser-probe.ts",

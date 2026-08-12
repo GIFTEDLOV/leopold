@@ -113,10 +113,16 @@ export type AccountingSnapshot = {
   deployedPrincipal: bigint;
   principalInTransition: bigint;
   strategyShortfall: bigint;
+  liquidPrizeAssets: bigint;
   realizedSurplus: bigint;
   reservedPrize: bigint;
   sponsoredPrize: bigint;
   winningsLiability: bigint;
+  harvestedYield: bigint;
+  sponsorContributions: bigint;
+  allocatedWinnings: bigint;
+  withdrawnWinnings: bigint;
+  autoSavedWinnings: bigint;
 };
 
 /** Plaintext conservation model; every method checks category and solvency invariants. */
@@ -127,10 +133,16 @@ export class AccountingReferenceModel {
     deployedPrincipal: 0n,
     principalInTransition: 0n,
     strategyShortfall: 0n,
+    liquidPrizeAssets: 0n,
     realizedSurplus: 0n,
     reservedPrize: 0n,
     sponsoredPrize: 0n,
     winningsLiability: 0n,
+    harvestedYield: 0n,
+    sponsorContributions: 0n,
+    allocatedWinnings: 0n,
+    withdrawnWinnings: 0n,
+    autoSavedWinnings: 0n,
   };
 
   depositPrincipal(amount: bigint): void {
@@ -199,13 +211,17 @@ export class AccountingReferenceModel {
 
   harvestGenuineSurplus(amount: bigint): void {
     this.positive(amount);
+    this.state.liquidPrizeAssets += amount;
     this.state.realizedSurplus += amount;
+    this.state.harvestedYield += amount;
     this.assertInvariants();
   }
 
   sponsor(amount: bigint): void {
     this.positive(amount);
+    this.state.liquidPrizeAssets += amount;
     this.state.sponsoredPrize += amount;
+    this.state.sponsorContributions += amount;
     this.assertInvariants();
   }
 
@@ -224,6 +240,7 @@ export class AccountingReferenceModel {
     if (amount > this.state.reservedPrize) throw new Error("unreserved winnings");
     this.state.reservedPrize -= amount;
     this.state.winningsLiability += amount;
+    this.state.allocatedWinnings += amount;
     this.assertInvariants();
   }
 
@@ -231,8 +248,20 @@ export class AccountingReferenceModel {
     this.positive(amount);
     if (amount > this.state.winningsLiability) throw new Error("excess auto-save");
     this.state.winningsLiability -= amount;
+    this.state.liquidPrizeAssets -= amount;
     this.state.principalLiability += amount;
     this.state.liquidPrincipal += amount;
+    this.state.autoSavedWinnings += amount;
+    this.assertInvariants();
+  }
+
+  withdrawWinnings(amount: bigint): void {
+    this.positive(amount);
+    if (amount > this.state.winningsLiability || amount > this.state.liquidPrizeAssets)
+      throw new Error("insufficient winnings liquidity");
+    this.state.winningsLiability -= amount;
+    this.state.liquidPrizeAssets -= amount;
+    this.state.withdrawnWinnings += amount;
     this.assertInvariants();
   }
 
@@ -246,6 +275,21 @@ export class AccountingReferenceModel {
       this.state.principalLiability
     ) {
       throw new Error("principal reconciliation failed");
+    }
+    if (
+      this.state.realizedSurplus +
+        this.state.sponsoredPrize +
+        this.state.reservedPrize +
+        this.state.winningsLiability !==
+      this.state.liquidPrizeAssets
+    ) {
+      throw new Error("prize category reconciliation failed");
+    }
+    if (
+      this.state.harvestedYield + this.state.sponsorContributions !==
+      this.state.liquidPrizeAssets + this.state.withdrawnWinnings + this.state.autoSavedWinnings
+    ) {
+      throw new Error("prize asset reconciliation failed");
     }
   }
 

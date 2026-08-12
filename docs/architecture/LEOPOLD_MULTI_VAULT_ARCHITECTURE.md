@@ -7,9 +7,10 @@ in one `LeopoldVaultRegistry`. Deployment coordination is offchain and determini
 all four identities and durations. There are no clones, proxies, upgrade hooks, or implementation administrators.
 
 This avoids proxy/initializer risk while preserving code uniformity. Each deployment has separate storage, token
-custody, principal liabilities, user balances and observations, global TWAB, participants, rounds, sponsor buckets,
-prize reserves, winnings, draw state, and cursors. The registry owner can only mark discovery status active/deprecated.
-It cannot move funds, change vault configuration, close rounds, replace candidates, settle, or decrypt anything.
+custody, principal liabilities, user balances and observations, eligible-round TWAB, bonded participant sets, rounds,
+sponsor buckets, prize reserves, winnings, draw state, and cursors. The registry owner can only mark discovery status
+active/deprecated. It cannot move funds, change vault configuration, close rounds, replace candidates, settle, or
+decrypt anything.
 
 ## Contract boundaries
 
@@ -21,9 +22,9 @@ It cannot move funds, change vault configuration, close rounds, replace candidat
 | `ILeopoldYieldAdapter`        | Narrow actual-amount strategy boundary; receives no user identity or FHE ACL                   |
 | Internal TWAB/draw components | Libraries/internal state are safer than FHE-bearing module contracts                           |
 
-The integrated vault uses size-oriented optimizer settings (`runs: 1`, `viaIR`) and compiles to 24,496 runtime bytes, 80
-bytes below the 24,576-byte EIP-170 limit. This extremely narrow margin is a release gate: later slices must remeasure
-it and should prefer libraries or adjacent non-FHE boundaries over vault growth.
+The integrated vault uses size-oriented optimizer settings (`runs: 1`, `viaIR`) and compiles at the pre-frontend gate to
+23,539 runtime bytes, 1,037 bytes below the 24,576-byte EIP-170 limit. A deterministic 23,552-byte ceiling preserves at
+least 1,024 bytes of headroom; later Solidity changes must remeasure it.
 
 ## Registry authority
 
@@ -34,10 +35,11 @@ exactly four.
 ## Participant registry
 
 Each vault has a contract-owned append-only address array. Registration order is transaction order; callers cannot
-choose selection order. The registry has no permanent admission cap; round-close snapshots are O(1), while every
-selection/allocation transaction is bounded by an HCU-derived chunk limit. See the participant-admission analysis.
-Registration is explicit because encrypted positivity cannot safely drive public array insertion. A Sybil can still
-consume slots; the production admission/fee policy is a residual gate and must not reveal deposit amounts.
+choose selection order. There is no participant cap. Each round uses only its fresh public bonded set; close is O(1),
+while every selection/allocation transaction is bounded by an HCU-derived chunk limit. Historical participants create no
+later-round work unless they register and collateralize again. Registration is explicit because encrypted positivity
+cannot safely drive public array insertion. A Sybil can still consume slots; the production admission/fee policy is a
+residual gate and must not reveal deposit amounts.
 
 ## Public/private classification
 

@@ -10,8 +10,9 @@ or
 
 `OPEN -> AGGREGATE_PENDING -> AGGREGATE_FINALIZED -> CANDIDATE_VALIDITY_PENDING -> CANDIDATE_REJECTED -> ... -> TICKET_ACCEPTED -> WINNER_PROCESSING -> RECONCILIATION_PENDING -> READY_TO_ALLOCATE -> ALLOCATION_PROCESSING -> WINNINGS_ALLOCATED -> SETTLED`.
 
-A false reconciliation result terminates at `RECONCILIATION_FAILED` and cannot allocate. `EMPTY` rolls the complete
-reserved prize into the current open round and settles without RNG.
+A false reconciliation result enters `RECONCILIATION_FAILED` and cannot allocate; any caller may then recover by rolling
+the complete prize forward, finalizing the completed selection-pass reward, and refunding the unused allocation pass.
+`EMPTY` rolls the complete reserved prize into the current open round and settles without RNG.
 
 When a round closes, the next round opens immediately at the exact prior boundary while the old round progresses
 independently. One `closeRound` closes one round, so catching up after missed keeper activity is bounded and

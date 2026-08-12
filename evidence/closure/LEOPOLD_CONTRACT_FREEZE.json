@@ -1,0 +1,5017 @@
+{
+  "schema": "leopold.contract-core-freeze.v1",
+  "generatedFromGitHead": "WORKTREE_PRECOMMIT",
+  "compiler": {
+    "version": "0.8.27",
+    "evmVersion": "cancun",
+    "metadata": {
+      "bytecodeHash": "none"
+    },
+    "defaultOptimizer": {
+      "enabled": true,
+      "runs": 800,
+      "viaIR": false
+    },
+    "sizeCriticalOverrides": {
+      "LeopoldVault": {
+        "enabled": true,
+        "runs": 1,
+        "viaIR": true
+      },
+      "LeopoldVaultRegistry": {
+        "enabled": true,
+        "runs": 1,
+        "viaIR": true
+      }
+    }
+  },
+  "freezePolicy": {
+    "interfaceChangeIsFreezeBreaking": true,
+    "productionSolidityChangeIsFreezeBreaking": true
+  },
+  "contracts": [
+    {
+      "name": "LeopoldVault",
+      "sourceName": "contracts/LeopoldVault.sol",
+      "compilerArtifact": "artifacts/contracts/LeopoldVault.sol/LeopoldVault.json",
+      "constructor": {
+        "inputs": [
+          {
+            "internalType": "uint8",
+            "name": "vaultId",
+            "type": "uint8"
+          },
+          {
+            "internalType": "enum LeopoldVault.VaultType",
+            "name": "vaultType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "vaultName",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "roundDuration",
+            "type": "uint64"
+          },
+          {
+            "internalType": "contract IERC7984ERC20Wrapper",
+            "name": "asset",
+            "type": "address"
+          },
+          {
+            "internalType": "uint64",
+            "name": "firstRoundOpensAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "contract ICompoundComet",
+            "name": "compoundComet",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "strategyGuardian",
+            "type": "address"
+          },
+          {
+            "internalType": "uint64",
+            "name": "minimumStrategyEpochAge",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint256",
+            "name": "settlementBondAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "settlementRewardPerParticipantPass",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      "immutables": [
+        "VAULT_ID",
+        "VAULT_TYPE",
+        "VAULT_NAME",
+        "ROUND_DURATION",
+        "ASSET",
+        "UNDERLYING",
+        "WRAP_RATE",
+        "STRATEGY",
+        "STRATEGY_GUARDIAN",
+        "MINIMUM_STRATEGY_EPOCH_AGE",
+        "SETTLEMENT_BOND_ESCROW"
+      ],
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "vaultId",
+              "type": "uint8"
+            },
+            {
+              "internalType": "enum LeopoldVault.VaultType",
+              "name": "vaultType",
+              "type": "uint8"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "vaultName",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint64",
+              "name": "roundDuration",
+              "type": "uint64"
+            },
+            {
+              "internalType": "contract IERC7984ERC20Wrapper",
+              "name": "asset",
+              "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "firstRoundOpensAt",
+              "type": "uint64"
+            },
+            {
+              "internalType": "contract ICompoundComet",
+              "name": "compoundComet",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "strategyGuardian",
+              "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "minimumStrategyEpochAge",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint256",
+              "name": "settlementBondAmount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "settlementRewardPerParticipantPass",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "AggregateOutOfDomain",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "CandidateNotPending",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidAddress",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidCallbackData",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidChunkSize",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidCleartextEncoding",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidConfiguration",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidKMSSignatures",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidRound",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "enum LeopoldVault.RoundState",
+              "name": "actual",
+              "type": "uint8"
+            },
+            {
+              "internalType": "enum LeopoldVault.RoundState",
+              "name": "expected",
+              "type": "uint8"
+            }
+          ],
+          "name": "InvalidRoundState",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidSponsorAmount",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidSponsorRound",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidStrategyEpoch",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ParticipantAlreadyRegistered",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ParticipantNotRegistered",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ReconciliationNotPending",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ReentrancyGuardReentrantCall",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "RoundNotOpen",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "RoundStillOpen",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "token",
+              "type": "address"
+            }
+          ],
+          "name": "SafeERC20FailedOperation",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "handle",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "sender",
+              "type": "address"
+            }
+          ],
+          "name": "SenderNotAllowedToUseHandle",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "SettlementNotReady",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "StrategyAmountOutOfDomain",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "StrategyDisabled",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "StrategyEpochNotReady",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "StrategyEpochPending",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "StrategyPaused",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "UnauthorizedAsset",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "UnauthorizedBondEscrow",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "WeightUnavailable",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ZamaProtocolUnsupported",
+          "type": "error"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint128",
+              "name": "aggregateTwab",
+              "type": "uint128"
+            }
+          ],
+          "name": "AggregateFinalized",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "cursor",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "participantCountSnapshot",
+              "type": "uint256"
+            }
+          ],
+          "name": "AllocationProgress",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "enum LeopoldVault.AutoSavePreference",
+              "name": "preference",
+              "type": "uint8"
+            }
+          ],
+          "name": "AutoSavePreferenceSet",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "CandidateObjectivelyRejected",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "DepositProcessed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "bytes32[]",
+              "name": "handlesList",
+              "type": "bytes32[]"
+            },
+            {
+              "indexed": false,
+              "internalType": "bytes",
+              "name": "abiEncodedCleartexts",
+              "type": "bytes"
+            }
+          ],
+          "name": "PublicDecryptionVerified",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint32",
+              "name": "attempt",
+              "type": "uint32"
+            }
+          ],
+          "name": "RandomCandidateGenerated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "nextRoundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "RoundClosed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "RoundSettled",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "bytes32",
+              "name": "handle",
+              "type": "bytes32"
+            }
+          ],
+          "name": "RoundWeightMaterialized",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "cursor",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "participantCountSnapshot",
+              "type": "uint256"
+            }
+          ],
+          "name": "SelectionProgress",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "SelectionReconciled",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "SelectionReconciliationFailed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "SelectionReconciliationRequested",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "sponsor",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "confidentialAssetBaseUnits",
+              "type": "uint64"
+            }
+          ],
+          "name": "SponsorContributionCommitted",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "handle",
+              "type": "bytes32"
+            }
+          ],
+          "name": "StrategyAmountRequested",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "recovered",
+              "type": "uint64"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "shortfall",
+              "type": "uint64"
+            }
+          ],
+          "name": "StrategyEmergencyUnwound",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            }
+          ],
+          "name": "StrategyEpochCancelled",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "amount",
+              "type": "uint64"
+            }
+          ],
+          "name": "StrategyEpochCompleted",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "enum LeopoldVault.StrategyEpochKind",
+              "name": "kind",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "eligibleAt",
+              "type": "uint64"
+            }
+          ],
+          "name": "StrategyEpochOpened",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "requestId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "StrategyUnwrapRequested",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "amount",
+              "type": "uint64"
+            }
+          ],
+          "name": "StrategyYieldHarvested",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "TicketAccepted",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "WinningsWithdrawalProcessed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "WithdrawalProcessed",
+          "type": "event"
+        },
+        {
+          "inputs": [],
+          "name": "ASSET",
+          "outputs": [
+            {
+              "internalType": "contract IERC7984ERC20Wrapper",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "ROUND_DURATION",
+          "outputs": [
+            {
+              "internalType": "uint64",
+              "name": "",
+              "type": "uint64"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "SETTLEMENT_BOND_ESCROW",
+          "outputs": [
+            {
+              "internalType": "contract LeopoldSettlementBondEscrow",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "STRATEGY",
+          "outputs": [
+            {
+              "internalType": "contract LeopoldCompoundAdapter",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "UNDERLYING",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "VAULT_ID",
+          "outputs": [
+            {
+              "internalType": "uint8",
+              "name": "",
+              "type": "uint8"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "VAULT_NAME",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "VAULT_TYPE",
+          "outputs": [
+            {
+              "internalType": "enum LeopoldVault.VaultType",
+              "name": "",
+              "type": "uint8"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "acceptBondRegistration",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "activeRoundId",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "activeStrategyEpochId",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "aggregateTwabHandle",
+          "outputs": [
+            {
+              "internalType": "euint128",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "autoSavePreference",
+          "outputs": [
+            {
+              "internalType": "enum LeopoldVault.AutoSavePreference",
+              "name": "",
+              "type": "uint8"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            }
+          ],
+          "name": "cancelAgingStrategyEpoch",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint64",
+              "name": "clearAmount",
+              "type": "uint64"
+            },
+            {
+              "internalType": "bytes",
+              "name": "decryptionProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "cancelExpiredStrategyEpoch",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "candidateValidityHandle",
+          "outputs": [
+            {
+              "internalType": "ebool",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "closeRound",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "confidentialProtocolId",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint64",
+              "name": "confidentialAssetBaseUnits",
+              "type": "uint64"
+            }
+          ],
+          "name": "contributeSponsor",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "eligibilityStart",
+          "outputs": [
+            {
+              "internalType": "uint64",
+              "name": "",
+              "type": "uint64"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "emergencyUnwindStrategy",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "abiEncodedCleartexts",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes",
+              "name": "decryptionProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "finalizeAggregate",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "abiEncodedCleartexts",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes",
+              "name": "decryptionProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "finalizeCandidateValidity",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "abiEncodedCleartexts",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes",
+              "name": "decryptionProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "finalizeSelectionReconciliation",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "finalizeSettlement",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint64",
+              "name": "clearAmount",
+              "type": "uint64"
+            },
+            {
+              "internalType": "bytes",
+              "name": "decryptionProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "finalizeStrategyDeployment",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "abiEncodedCleartexts",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes",
+              "name": "decryptionProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "finalizeStrategyReplenishment",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "generateRandomCandidate",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "harvestStrategyYield",
+          "outputs": [
+            {
+              "internalType": "uint64",
+              "name": "harvested",
+              "type": "uint64"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "materializeMyRoundWeight",
+          "outputs": [
+            {
+              "internalType": "euint128",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "internalType": "euint64",
+              "name": "amount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "onConfidentialTransferReceived",
+          "outputs": [
+            {
+              "internalType": "ebool",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "enum LeopoldVault.StrategyEpochKind",
+              "name": "kind",
+              "type": "uint8"
+            }
+          ],
+          "name": "openStrategyEpoch",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "principalOf",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "maxParticipants",
+              "type": "uint256"
+            }
+          ],
+          "name": "processAllocation",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "maxParticipants",
+              "type": "uint256"
+            }
+          ],
+          "name": "processSelection",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "publicSponsoredPrize",
+          "outputs": [
+            {
+              "internalType": "uint64",
+              "name": "",
+              "type": "uint64"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "publicUncommittedYield",
+          "outputs": [
+            {
+              "internalType": "uint64",
+              "name": "",
+              "type": "uint64"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "reconciliationHandle",
+          "outputs": [
+            {
+              "internalType": "ebool",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "recoverFailedReconciliation",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "epochId",
+              "type": "uint256"
+            }
+          ],
+          "name": "requestStrategyAmount",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "roundInfo",
+          "outputs": [
+            {
+              "internalType": "uint64",
+              "name": "",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "",
+              "type": "uint64"
+            },
+            {
+              "internalType": "enum LeopoldVault.RoundState",
+              "name": "",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint128",
+              "name": "",
+              "type": "uint128"
+            },
+            {
+              "internalType": "uint64",
+              "name": "",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "enum LeopoldVault.AutoSavePreference",
+              "name": "preference",
+              "type": "uint8"
+            }
+          ],
+          "name": "setAutoSavePreference",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bool",
+              "name": "paused_",
+              "type": "bool"
+            }
+          ],
+          "name": "setStrategyPaused",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "settleEmptyRound",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "winningsOf",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "externalEuint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "inputProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "withdraw",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "externalEuint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "inputProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "withdrawWinnings",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ],
+      "functions": [
+        {
+          "signature": "acceptBondRegistration(uint256,address)",
+          "selector": "0xa0f00c08"
+        },
+        {
+          "signature": "activeRoundId()",
+          "selector": "0xd86005f6"
+        },
+        {
+          "signature": "activeStrategyEpochId()",
+          "selector": "0xf86d3463"
+        },
+        {
+          "signature": "aggregateTwabHandle(uint256)",
+          "selector": "0x09021676"
+        },
+        {
+          "signature": "ASSET()",
+          "selector": "0x4800d97f"
+        },
+        {
+          "signature": "autoSavePreference(address)",
+          "selector": "0x9959724e"
+        },
+        {
+          "signature": "cancelAgingStrategyEpoch(uint256)",
+          "selector": "0xb17c5328"
+        },
+        {
+          "signature": "cancelExpiredStrategyEpoch(uint256,uint64,bytes)",
+          "selector": "0xb6f89e15"
+        },
+        {
+          "signature": "candidateValidityHandle(uint256)",
+          "selector": "0xf6963396"
+        },
+        {
+          "signature": "closeRound()",
+          "selector": "0xe278fe6f"
+        },
+        {
+          "signature": "confidentialProtocolId()",
+          "selector": "0x8927b030"
+        },
+        {
+          "signature": "contributeSponsor(uint256,uint64)",
+          "selector": "0x34f1f18c"
+        },
+        {
+          "signature": "eligibilityStart(uint256,address)",
+          "selector": "0x20207779"
+        },
+        {
+          "signature": "emergencyUnwindStrategy()",
+          "selector": "0xc7bd7f98"
+        },
+        {
+          "signature": "finalizeAggregate(uint256,bytes,bytes)",
+          "selector": "0xd446ce82"
+        },
+        {
+          "signature": "finalizeCandidateValidity(uint256,bytes,bytes)",
+          "selector": "0x5ef521c2"
+        },
+        {
+          "signature": "finalizeSelectionReconciliation(uint256,bytes,bytes)",
+          "selector": "0xeff1f56e"
+        },
+        {
+          "signature": "finalizeSettlement(uint256)",
+          "selector": "0x96d0cb37"
+        },
+        {
+          "signature": "finalizeStrategyDeployment(uint256,uint64,bytes)",
+          "selector": "0x024ff6ba"
+        },
+        {
+          "signature": "finalizeStrategyReplenishment(uint256,bytes,bytes)",
+          "selector": "0x2a81fbe9"
+        },
+        {
+          "signature": "generateRandomCandidate(uint256)",
+          "selector": "0xb7cbd1f8"
+        },
+        {
+          "signature": "harvestStrategyYield()",
+          "selector": "0x9f63b6b6"
+        },
+        {
+          "signature": "materializeMyRoundWeight(uint256)",
+          "selector": "0x21551f78"
+        },
+        {
+          "signature": "onConfidentialTransferReceived(address,address,bytes32,bytes)",
+          "selector": "0x46083bfd"
+        },
+        {
+          "signature": "openStrategyEpoch(uint8)",
+          "selector": "0xdd407de3"
+        },
+        {
+          "signature": "principalOf(address)",
+          "selector": "0x61e20a1c"
+        },
+        {
+          "signature": "processAllocation(uint256,uint256)",
+          "selector": "0x48fcccb2"
+        },
+        {
+          "signature": "processSelection(uint256,uint256)",
+          "selector": "0x588711f0"
+        },
+        {
+          "signature": "publicSponsoredPrize(uint256)",
+          "selector": "0x77c64109"
+        },
+        {
+          "signature": "publicUncommittedYield()",
+          "selector": "0xc1fa9b9a"
+        },
+        {
+          "signature": "reconciliationHandle(uint256)",
+          "selector": "0xbaadbf4c"
+        },
+        {
+          "signature": "recoverFailedReconciliation(uint256)",
+          "selector": "0x19b2594f"
+        },
+        {
+          "signature": "requestStrategyAmount(uint256)",
+          "selector": "0xe8d9bb8d"
+        },
+        {
+          "signature": "ROUND_DURATION()",
+          "selector": "0x6641ea08"
+        },
+        {
+          "signature": "roundInfo(uint256)",
+          "selector": "0x427f0b00"
+        },
+        {
+          "signature": "setAutoSavePreference(uint8)",
+          "selector": "0x02c9a13e"
+        },
+        {
+          "signature": "setStrategyPaused(bool)",
+          "selector": "0x4039384f"
+        },
+        {
+          "signature": "settleEmptyRound(uint256)",
+          "selector": "0x94b11103"
+        },
+        {
+          "signature": "SETTLEMENT_BOND_ESCROW()",
+          "selector": "0xaced7cbd"
+        },
+        {
+          "signature": "STRATEGY()",
+          "selector": "0x185025ef"
+        },
+        {
+          "signature": "UNDERLYING()",
+          "selector": "0xc5d664c6"
+        },
+        {
+          "signature": "VAULT_ID()",
+          "selector": "0x540acabc"
+        },
+        {
+          "signature": "VAULT_NAME()",
+          "selector": "0x74a0a5cc"
+        },
+        {
+          "signature": "VAULT_TYPE()",
+          "selector": "0xf060b8ae"
+        },
+        {
+          "signature": "winningsOf(address)",
+          "selector": "0x458cc8a9"
+        },
+        {
+          "signature": "withdraw(bytes32,bytes)",
+          "selector": "0x4a2e35ba"
+        },
+        {
+          "signature": "withdrawWinnings(bytes32,bytes)",
+          "selector": "0xd223800d"
+        }
+      ],
+      "events": [
+        {
+          "signature": "AggregateFinalized(uint256,uint128)",
+          "topic0": "0x4f5a0a24d231692b26c3435476b7430706c2c86cd1a6d513a6cfbdb9c6f4e0b7"
+        },
+        {
+          "signature": "AllocationProgress(uint256,uint256,uint256)",
+          "topic0": "0x3747ac76222553c8939afce0d78be57028a80a4c910543e639fd6747710be09d"
+        },
+        {
+          "signature": "AutoSavePreferenceSet(address,uint8)",
+          "topic0": "0x8578fb8041e4a16d405c97204ad7aeddc35a9a221b1dc9fe7a31679f1df3757b"
+        },
+        {
+          "signature": "CandidateObjectivelyRejected(uint256)",
+          "topic0": "0xa767799093f0ae32e39974f6a76968fac191dd14724ce03144373eb2e5aa2717"
+        },
+        {
+          "signature": "DepositProcessed(address,uint256)",
+          "topic0": "0x85a190caa61692b36b63a55e069330d18ab9af179fed7a25c16a4262bc63b7d2"
+        },
+        {
+          "signature": "PublicDecryptionVerified(bytes32[],bytes)",
+          "topic0": "0xc6366bab028b8d033cb362cfd1f2f3457ef4e92fc738b6788b90d5a7846367a0"
+        },
+        {
+          "signature": "RandomCandidateGenerated(uint256,uint32)",
+          "topic0": "0x0b63c8047f9efbb9119d037a02a73c027102d20c0ea63f5658775a45bd1ff90c"
+        },
+        {
+          "signature": "RoundClosed(uint256,uint256)",
+          "topic0": "0xc67dda8e11f1aa941c7e74466b1859a07a32f46aaf641d29b83be348424d93cd"
+        },
+        {
+          "signature": "RoundSettled(uint256)",
+          "topic0": "0x466802360b54c4821d64b66550c8e81a3117d074446a33ed38eb777fe7cd6d2d"
+        },
+        {
+          "signature": "RoundWeightMaterialized(uint256,address,bytes32)",
+          "topic0": "0xdd17ba0ea0c3f4447f82c29d1bc338a887c0b6d7a6a8528c1a8c8a86c6a978ce"
+        },
+        {
+          "signature": "SelectionProgress(uint256,uint256,uint256)",
+          "topic0": "0xeda31700c81f004148810bf532c6652dac4321f73de159a1b8d7dbf13d92b026"
+        },
+        {
+          "signature": "SelectionReconciled(uint256)",
+          "topic0": "0xc73741cecd8232671145524bb86252dcad507407fe762114a9f4c84093775278"
+        },
+        {
+          "signature": "SelectionReconciliationFailed(uint256)",
+          "topic0": "0x383e2172966100f48b9b6e5fb5e71700be2c69437686f2e98dc10603d739cd72"
+        },
+        {
+          "signature": "SelectionReconciliationRequested(uint256)",
+          "topic0": "0xa7dc0dac06cccb19e214c06b96ba4cf3c306d7c7e069bf67684ae726cb098a97"
+        },
+        {
+          "signature": "SponsorContributionCommitted(address,uint256,uint64)",
+          "topic0": "0x3500be5c1ecccfafda9b0b66de6251c072ef78e3aa61ed1b4b6e9317e7521810"
+        },
+        {
+          "signature": "StrategyAmountRequested(uint256,bytes32)",
+          "topic0": "0x3b00d0763ec475680dbdfd175c6b88c48c26eda1e00b50120d3f8aa0b32257ae"
+        },
+        {
+          "signature": "StrategyEmergencyUnwound(uint64,uint64)",
+          "topic0": "0x60695d7cc6e5e8716d0dfbcb4ab417f854a58bb28367d5a6a098553a1b7eccc3"
+        },
+        {
+          "signature": "StrategyEpochCancelled(uint256)",
+          "topic0": "0xb494e17cdbfbf598f026e7373cc6c49a10cb1c18e6ff6cc97a2abc01efdd9d7c"
+        },
+        {
+          "signature": "StrategyEpochCompleted(uint256,uint64)",
+          "topic0": "0xb2798a400380dcf12e97be520e74f0deca700d0a9daad3d06a9751876fcaa127"
+        },
+        {
+          "signature": "StrategyEpochOpened(uint256,uint8,uint64)",
+          "topic0": "0x2866a1153214fa4fb2dd4dde136cf9d510b4fb16e6558c1ed5513c13fa891c3f"
+        },
+        {
+          "signature": "StrategyUnwrapRequested(uint256,bytes32)",
+          "topic0": "0x0670640ece598ee08a50c4cd93b291a4071645c67099fbf351817106e8afa65f"
+        },
+        {
+          "signature": "StrategyYieldHarvested(uint64)",
+          "topic0": "0x70ae7b7f7541d880312075411b3bf3423bb758af2c09a77d599b8cfc23d3917a"
+        },
+        {
+          "signature": "TicketAccepted(uint256)",
+          "topic0": "0xa29ec68aaf8fc952096221085784b57f5b1ad162757074332b7edbebbaf01ae5"
+        },
+        {
+          "signature": "WinningsWithdrawalProcessed(address)",
+          "topic0": "0xa5465a90e394b5ba918709723c5f00533c9560410b623fcd5b8a3ea6689373c7"
+        },
+        {
+          "signature": "WithdrawalProcessed(address,uint256)",
+          "topic0": "0x5abb0fc89def2ee3226cc48f5621ee8e2b45f6dcc7898d2bdb5d480533c32bc0"
+        }
+      ],
+      "errors": [
+        {
+          "signature": "AggregateOutOfDomain()",
+          "selector": "0xa1f1dae3"
+        },
+        {
+          "signature": "CandidateNotPending()",
+          "selector": "0x0865e8d2"
+        },
+        {
+          "signature": "InvalidAddress()",
+          "selector": "0xe6c4247b"
+        },
+        {
+          "signature": "InvalidCallbackData()",
+          "selector": "0xcdcf2483"
+        },
+        {
+          "signature": "InvalidChunkSize()",
+          "selector": "0xcb4436f4"
+        },
+        {
+          "signature": "InvalidCleartextEncoding()",
+          "selector": "0xfbee927d"
+        },
+        {
+          "signature": "InvalidConfiguration()",
+          "selector": "0xc52a9bd3"
+        },
+        {
+          "signature": "InvalidKMSSignatures()",
+          "selector": "0xcf6c44e9"
+        },
+        {
+          "signature": "InvalidRound()",
+          "selector": "0xa2b52a54"
+        },
+        {
+          "signature": "InvalidRoundState(uint8,uint8)",
+          "selector": "0xac831504"
+        },
+        {
+          "signature": "InvalidSponsorAmount()",
+          "selector": "0xb84961ed"
+        },
+        {
+          "signature": "InvalidSponsorRound()",
+          "selector": "0xd383f488"
+        },
+        {
+          "signature": "InvalidStrategyEpoch()",
+          "selector": "0x9d5ebae4"
+        },
+        {
+          "signature": "ParticipantAlreadyRegistered()",
+          "selector": "0x967dce7b"
+        },
+        {
+          "signature": "ParticipantNotRegistered()",
+          "selector": "0x74590850"
+        },
+        {
+          "signature": "ReconciliationNotPending()",
+          "selector": "0x3bc60fc8"
+        },
+        {
+          "signature": "ReentrancyGuardReentrantCall()",
+          "selector": "0x3ee5aeb5"
+        },
+        {
+          "signature": "RoundNotOpen()",
+          "selector": "0x402bc007"
+        },
+        {
+          "signature": "RoundStillOpen()",
+          "selector": "0xffaaffc7"
+        },
+        {
+          "signature": "SafeERC20FailedOperation(address)",
+          "selector": "0x5274afe7"
+        },
+        {
+          "signature": "SenderNotAllowedToUseHandle(bytes32,address)",
+          "selector": "0x0276b5d9"
+        },
+        {
+          "signature": "SettlementNotReady()",
+          "selector": "0xc03deffd"
+        },
+        {
+          "signature": "StrategyAmountOutOfDomain()",
+          "selector": "0x8a26c73f"
+        },
+        {
+          "signature": "StrategyDisabled()",
+          "selector": "0x46c26e4b"
+        },
+        {
+          "signature": "StrategyEpochNotReady()",
+          "selector": "0xda09b32d"
+        },
+        {
+          "signature": "StrategyEpochPending()",
+          "selector": "0x9527adf8"
+        },
+        {
+          "signature": "StrategyPaused()",
+          "selector": "0xe628b949"
+        },
+        {
+          "signature": "UnauthorizedAsset()",
+          "selector": "0xede905a5"
+        },
+        {
+          "signature": "UnauthorizedBondEscrow()",
+          "selector": "0x5e4171d7"
+        },
+        {
+          "signature": "WeightUnavailable()",
+          "selector": "0xed07a7b9"
+        },
+        {
+          "signature": "ZamaProtocolUnsupported()",
+          "selector": "0x73cac13b"
+        }
+      ],
+      "creationBytecode": {
+        "bytes": 36147,
+        "sha256": "21ebb29c449b2013cb073031c6a08342da5e1c5c7780290964de54e28a2306b6",
+        "keccak256": "0xc48d7427dd59de35388f14ab1df6bdbc9a4a332d9ff28afd7a6105923bb74c2b"
+      },
+      "runtimeBytecodeTemplate": {
+        "bytes": 23539,
+        "sha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3",
+        "keccak256": "0x2f11ab8706ac9e7c797d0d75eff9a56e7be2cfbbda3ff699e9ac02d91dbf1001",
+        "note": "Artifact template; deployed hash differs where compiler immutable references are substituted."
+      }
+    },
+    {
+      "name": "LeopoldSettlementBondEscrow",
+      "sourceName": "contracts/LeopoldSettlementBondEscrow.sol",
+      "compilerArtifact": "artifacts/contracts/LeopoldSettlementBondEscrow.sol/LeopoldSettlementBondEscrow.json",
+      "constructor": {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "vault",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "bondAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rewardPerParticipantPass",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      "immutables": [
+        "VAULT",
+        "BOND_AMOUNT",
+        "REWARD_PER_PARTICIPANT_PASS",
+        "REFUND_PER_COMPLETED_PARTICIPANT"
+      ],
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "vault",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "bondAmount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "rewardPerParticipantPass",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "AlreadyRegistered",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "DirectNativeTransferRejected",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidBondAmount",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidConfiguration",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidProgress",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidRoundFinalization",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NativeTransferFailed",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NothingToWithdraw",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ReentrancyGuardReentrantCall",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "RefundUnavailable",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "UnauthorizedVault",
+          "type": "error"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "BondRefundWithdrawn",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint8",
+              "name": "completedPasses",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "refundPerParticipant",
+              "type": "uint256"
+            }
+          ],
+          "name": "RoundBondAccountingFinalized",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "RoundBondPosted",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "progressor",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint8",
+              "name": "pass",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "participants",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "SettlementRewardAccrued",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "SettlementRewardsWithdrawn",
+          "type": "event"
+        },
+        {
+          "stateMutability": "payable",
+          "type": "fallback"
+        },
+        {
+          "inputs": [],
+          "name": "BOND_AMOUNT",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "REFUND_PER_COMPLETED_PARTICIPANT",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "REWARD_PER_PARTICIPANT_PASS",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "VAULT",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "accountedLiability",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "claimBondRefund",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint8",
+              "name": "pass",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint256",
+              "name": "participants",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "progressor",
+              "type": "address"
+            }
+          ],
+          "name": "creditProgress",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint8",
+              "name": "completedPasses",
+              "type": "uint8"
+            }
+          ],
+          "name": "finalizeRound",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "isRegistered",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "refundClaimed",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "registerForRound",
+          "outputs": [],
+          "stateMutability": "payable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "roundId",
+              "type": "uint256"
+            }
+          ],
+          "name": "roundInfo",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "settlementRewardCredit",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "totalDeposited",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "totalRefundLiability",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "totalRefundsWithdrawn",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "totalRewardLiability",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "totalRewardsWithdrawn",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "totalUnresolvedLiability",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "withdrawSettlementRewards",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "stateMutability": "payable",
+          "type": "receive"
+        }
+      ],
+      "functions": [
+        {
+          "signature": "accountedLiability()",
+          "selector": "0x7a03640a"
+        },
+        {
+          "signature": "BOND_AMOUNT()",
+          "selector": "0xbcacc70a"
+        },
+        {
+          "signature": "claimBondRefund(uint256)",
+          "selector": "0x90a6e470"
+        },
+        {
+          "signature": "creditProgress(uint256,uint8,uint256,address)",
+          "selector": "0xc1faf29a"
+        },
+        {
+          "signature": "finalizeRound(uint256,uint8)",
+          "selector": "0xaa327c90"
+        },
+        {
+          "signature": "isRegistered(uint256,address)",
+          "selector": "0xb81f6e18"
+        },
+        {
+          "signature": "REFUND_PER_COMPLETED_PARTICIPANT()",
+          "selector": "0xb5b1c385"
+        },
+        {
+          "signature": "refundClaimed(uint256,address)",
+          "selector": "0x7d8022c0"
+        },
+        {
+          "signature": "registerForRound(uint256)",
+          "selector": "0xe8090f7b"
+        },
+        {
+          "signature": "REWARD_PER_PARTICIPANT_PASS()",
+          "selector": "0x86e4a880"
+        },
+        {
+          "signature": "roundInfo(uint256)",
+          "selector": "0x427f0b00"
+        },
+        {
+          "signature": "settlementRewardCredit(address)",
+          "selector": "0x929b3429"
+        },
+        {
+          "signature": "totalDeposited()",
+          "selector": "0xff50abdc"
+        },
+        {
+          "signature": "totalRefundLiability()",
+          "selector": "0xaa410e76"
+        },
+        {
+          "signature": "totalRefundsWithdrawn()",
+          "selector": "0x9f1f83cb"
+        },
+        {
+          "signature": "totalRewardLiability()",
+          "selector": "0x852eb991"
+        },
+        {
+          "signature": "totalRewardsWithdrawn()",
+          "selector": "0xeb53e214"
+        },
+        {
+          "signature": "totalUnresolvedLiability()",
+          "selector": "0x3bf6e0f4"
+        },
+        {
+          "signature": "VAULT()",
+          "selector": "0x411557d1"
+        },
+        {
+          "signature": "withdrawSettlementRewards()",
+          "selector": "0x0fcdf578"
+        }
+      ],
+      "events": [
+        {
+          "signature": "BondRefundWithdrawn(uint256,address,uint256)",
+          "topic0": "0x7953e12732769b1bf3fca972a039975c5db6151d14e1831259dbf0fea7748196"
+        },
+        {
+          "signature": "RoundBondAccountingFinalized(uint256,uint8,uint256)",
+          "topic0": "0xedd1830660a946069e21e6d0f1e659698dc9c95bc4c2bd0912939bac7429c182"
+        },
+        {
+          "signature": "RoundBondPosted(uint256,address,uint256)",
+          "topic0": "0x951bb92d9e53d0e954e9d1b7ec4ee7c7be92f3f6b611911733c8576e65576b7e"
+        },
+        {
+          "signature": "SettlementRewardAccrued(uint256,address,uint8,uint256,uint256)",
+          "topic0": "0xb17b0c80aebff68dc6045827f6e6699d523a40684496b766cefe6c8418313242"
+        },
+        {
+          "signature": "SettlementRewardsWithdrawn(address,uint256)",
+          "topic0": "0x7e0982c26c68f2c066058cac4ec3a874ba58348191a364be5060108c173efab7"
+        }
+      ],
+      "errors": [
+        {
+          "signature": "AlreadyRegistered()",
+          "selector": "0x3a81d6fc"
+        },
+        {
+          "signature": "DirectNativeTransferRejected()",
+          "selector": "0xcc6e6565"
+        },
+        {
+          "signature": "InvalidBondAmount()",
+          "selector": "0xdb66f3fb"
+        },
+        {
+          "signature": "InvalidConfiguration()",
+          "selector": "0xc52a9bd3"
+        },
+        {
+          "signature": "InvalidProgress()",
+          "selector": "0xf5fb651e"
+        },
+        {
+          "signature": "InvalidRoundFinalization()",
+          "selector": "0xe158309f"
+        },
+        {
+          "signature": "NativeTransferFailed()",
+          "selector": "0xf4b3b1bc"
+        },
+        {
+          "signature": "NothingToWithdraw()",
+          "selector": "0xd0d04f60"
+        },
+        {
+          "signature": "ReentrancyGuardReentrantCall()",
+          "selector": "0x3ee5aeb5"
+        },
+        {
+          "signature": "RefundUnavailable()",
+          "selector": "0x551a40dc"
+        },
+        {
+          "signature": "UnauthorizedVault()",
+          "selector": "0xc732d643"
+        }
+      ],
+      "creationBytecode": {
+        "bytes": 4741,
+        "sha256": "78cd3d859bacca006b16e81ce4cdf522a7b35f483396f5f8542de54b4e39c947",
+        "keccak256": "0xd83a0c781394f4023e9a07469255f96598ff97665a6ff28d2ca375f53f7a8e8c"
+      },
+      "runtimeBytecodeTemplate": {
+        "bytes": 4270,
+        "sha256": "6c0e4774830bfd27c0de17a5833d662cc167f6e8083b6769ffa2bbaedcc9ac18",
+        "keccak256": "0x9e653ad265e8322f8cd02b283ed9ac84075ee93979533b4d70b1316d1a1df3a4",
+        "note": "Artifact template; deployed hash differs where compiler immutable references are substituted."
+      }
+    },
+    {
+      "name": "LeopoldConfidentialUSDC",
+      "sourceName": "contracts/LeopoldConfidentialUSDC.sol",
+      "compilerArtifact": "artifacts/contracts/LeopoldConfidentialUSDC.sol/LeopoldConfidentialUSDC.json",
+      "constructor": {
+        "inputs": [],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      "immutables": [
+        "underlying",
+        "rate"
+      ],
+      "abi": [
+        {
+          "inputs": [],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "receiver",
+              "type": "address"
+            }
+          ],
+          "name": "ERC7984InvalidReceiver",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "sender",
+              "type": "address"
+            }
+          ],
+          "name": "ERC7984InvalidSender",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ERC7984TotalSupplyOverflow",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "caller",
+              "type": "address"
+            }
+          ],
+          "name": "ERC7984UnauthorizedCaller",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "holder",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "spender",
+              "type": "address"
+            }
+          ],
+          "name": "ERC7984UnauthorizedSpender",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "euint64",
+              "name": "amount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            }
+          ],
+          "name": "ERC7984UnauthorizedUseOfEncryptedAmount",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidKMSSignatures",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "unwrapRequestId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "InvalidUnwrapRequest",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "bits",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            }
+          ],
+          "name": "SafeCastOverflowedUintDowncast",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "token",
+              "type": "address"
+            }
+          ],
+          "name": "SafeERC20FailedOperation",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "handle",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "sender",
+              "type": "address"
+            }
+          ],
+          "name": "SenderNotAllowedToUseHandle",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ZamaProtocolUnsupported",
+          "type": "error"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "euint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "requester",
+              "type": "address"
+            }
+          ],
+          "name": "AmountDiscloseRequested",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "euint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "amount",
+              "type": "uint64"
+            }
+          ],
+          "name": "AmountDisclosed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "euint64",
+              "name": "amount",
+              "type": "bytes32"
+            }
+          ],
+          "name": "ConfidentialTransfer",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "holder",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "operator",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint48",
+              "name": "until",
+              "type": "uint48"
+            }
+          ],
+          "name": "OperatorSet",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "bytes32[]",
+              "name": "handlesList",
+              "type": "bytes32[]"
+            },
+            {
+              "indexed": false,
+              "internalType": "bytes",
+              "name": "abiEncodedCleartexts",
+              "type": "bytes"
+            }
+          ],
+          "name": "PublicDecryptionVerified",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "receiver",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "unwrapRequestId",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "euint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "cleartextAmount",
+              "type": "uint64"
+            }
+          ],
+          "name": "UnwrapFinalized",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "receiver",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "unwrapRequestId",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "euint64",
+              "name": "amount",
+              "type": "bytes32"
+            }
+          ],
+          "name": "UnwrapRequested",
+          "type": "event"
+        },
+        {
+          "inputs": [],
+          "name": "CIRCLE_SEPOLIA_USDC",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "confidentialBalanceOf",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "confidentialProtocolId",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "confidentialTotalSupply",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "externalEuint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "inputProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "confidentialTransfer",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "euint64",
+              "name": "amount",
+              "type": "bytes32"
+            }
+          ],
+          "name": "confidentialTransfer",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "euint64",
+              "name": "amount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "confidentialTransferAndCall",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "externalEuint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "inputProof",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "confidentialTransferAndCall",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "externalEuint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "inputProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "confidentialTransferFrom",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "euint64",
+              "name": "amount",
+              "type": "bytes32"
+            }
+          ],
+          "name": "confidentialTransferFrom",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "externalEuint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "inputProof",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "confidentialTransferFromAndCall",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "euint64",
+              "name": "amount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "confidentialTransferFromAndCall",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "contractURI",
+          "outputs": [
+            {
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "decimals",
+          "outputs": [
+            {
+              "internalType": "uint8",
+              "name": "",
+              "type": "uint8"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "euint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint64",
+              "name": "cleartextAmount",
+              "type": "uint64"
+            },
+            {
+              "internalType": "bytes",
+              "name": "decryptionProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "discloseEncryptedAmount",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "unwrapRequestId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint64",
+              "name": "unwrapAmountCleartext",
+              "type": "uint64"
+            },
+            {
+              "internalType": "bytes",
+              "name": "decryptionProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "finalizeUnwrap",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "inferredTotalSupply",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "holder",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "spender",
+              "type": "address"
+            }
+          ],
+          "name": "isOperator",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "maxTotalSupply",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "name",
+          "outputs": [
+            {
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "onTransferReceived",
+          "outputs": [
+            {
+              "internalType": "bytes4",
+              "name": "",
+              "type": "bytes4"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "rate",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "euint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            }
+          ],
+          "name": "requestDiscloseEncryptedAmount",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "operator",
+              "type": "address"
+            },
+            {
+              "internalType": "uint48",
+              "name": "until",
+              "type": "uint48"
+            }
+          ],
+          "name": "setOperator",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes4",
+              "name": "interfaceId",
+              "type": "bytes4"
+            }
+          ],
+          "name": "supportsInterface",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "symbol",
+          "outputs": [
+            {
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "underlying",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "externalEuint64",
+              "name": "encryptedAmount",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "inputProof",
+              "type": "bytes"
+            }
+          ],
+          "name": "unwrap",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "euint64",
+              "name": "amount",
+              "type": "bytes32"
+            }
+          ],
+          "name": "unwrap",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "unwrapRequestId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "unwrapAmount",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "unwrapRequestId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "unwrapRequester",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "wrap",
+          "outputs": [
+            {
+              "internalType": "euint64",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ],
+      "functions": [
+        {
+          "signature": "CIRCLE_SEPOLIA_USDC()",
+          "selector": "0x104d8ef0"
+        },
+        {
+          "signature": "confidentialBalanceOf(address)",
+          "selector": "0x344ff101"
+        },
+        {
+          "signature": "confidentialProtocolId()",
+          "selector": "0x8927b030"
+        },
+        {
+          "signature": "confidentialTotalSupply()",
+          "selector": "0x54095227"
+        },
+        {
+          "signature": "confidentialTransfer(address,bytes32,bytes)",
+          "selector": "0x2fb74e62"
+        },
+        {
+          "signature": "confidentialTransfer(address,bytes32)",
+          "selector": "0x5bebed7e"
+        },
+        {
+          "signature": "confidentialTransferAndCall(address,bytes32,bytes,bytes)",
+          "selector": "0xde642119"
+        },
+        {
+          "signature": "confidentialTransferAndCall(address,bytes32,bytes)",
+          "selector": "0x537d3c50"
+        },
+        {
+          "signature": "confidentialTransferFrom(address,address,bytes32,bytes)",
+          "selector": "0xe064b9bb"
+        },
+        {
+          "signature": "confidentialTransferFrom(address,address,bytes32)",
+          "selector": "0xeb3155b5"
+        },
+        {
+          "signature": "confidentialTransferFromAndCall(address,address,bytes32,bytes,bytes)",
+          "selector": "0x34c45743"
+        },
+        {
+          "signature": "confidentialTransferFromAndCall(address,address,bytes32,bytes)",
+          "selector": "0xc7b8a75e"
+        },
+        {
+          "signature": "contractURI()",
+          "selector": "0xe8a3d485"
+        },
+        {
+          "signature": "decimals()",
+          "selector": "0x313ce567"
+        },
+        {
+          "signature": "discloseEncryptedAmount(bytes32,uint64,bytes)",
+          "selector": "0xb1af281e"
+        },
+        {
+          "signature": "finalizeUnwrap(bytes32,uint64,bytes)",
+          "selector": "0x5bb67a05"
+        },
+        {
+          "signature": "inferredTotalSupply()",
+          "selector": "0xf89d30b1"
+        },
+        {
+          "signature": "isOperator(address,address)",
+          "selector": "0xb6363cf2"
+        },
+        {
+          "signature": "maxTotalSupply()",
+          "selector": "0x2ab4d052"
+        },
+        {
+          "signature": "name()",
+          "selector": "0x06fdde03"
+        },
+        {
+          "signature": "onTransferReceived(address,address,uint256,bytes)",
+          "selector": "0x88a7ca5c"
+        },
+        {
+          "signature": "rate()",
+          "selector": "0x2c4e722e"
+        },
+        {
+          "signature": "requestDiscloseEncryptedAmount(bytes32)",
+          "selector": "0xd8061806"
+        },
+        {
+          "signature": "setOperator(address,uint48)",
+          "selector": "0xd4febb96"
+        },
+        {
+          "signature": "supportsInterface(bytes4)",
+          "selector": "0x01ffc9a7"
+        },
+        {
+          "signature": "symbol()",
+          "selector": "0x95d89b41"
+        },
+        {
+          "signature": "underlying()",
+          "selector": "0x6f307dc3"
+        },
+        {
+          "signature": "unwrap(address,address,bytes32,bytes)",
+          "selector": "0x5bf4ef06"
+        },
+        {
+          "signature": "unwrap(address,address,bytes32)",
+          "selector": "0xe8c15fd4"
+        },
+        {
+          "signature": "unwrapAmount(bytes32)",
+          "selector": "0xe3179426"
+        },
+        {
+          "signature": "unwrapRequester(bytes32)",
+          "selector": "0xeee8a0e8"
+        },
+        {
+          "signature": "wrap(address,uint256)",
+          "selector": "0xbf376c7a"
+        }
+      ],
+      "events": [
+        {
+          "signature": "AmountDisclosed(bytes32,uint64)",
+          "topic0": "0x83bbbc07896439e5d950a6cead04cbc676180af7a61cecf43f5296475057f571"
+        },
+        {
+          "signature": "AmountDiscloseRequested(bytes32,address)",
+          "topic0": "0x189c3bfae2e5ce7726b29d57bb6ed0f1a7ebcd153a863ff5ecb6cd998064c98c"
+        },
+        {
+          "signature": "ConfidentialTransfer(address,address,bytes32)",
+          "topic0": "0x67500e8d0ed826d2194f514dd0d8124f35648ab6e3fb5e6ed867134cffe661e9"
+        },
+        {
+          "signature": "OperatorSet(address,address,uint48)",
+          "topic0": "0x921a218a75d18e8ec5704851e6b234a85725b21a2521ce889622c35dedc1fa12"
+        },
+        {
+          "signature": "PublicDecryptionVerified(bytes32[],bytes)",
+          "topic0": "0xc6366bab028b8d033cb362cfd1f2f3457ef4e92fc738b6788b90d5a7846367a0"
+        },
+        {
+          "signature": "UnwrapFinalized(address,bytes32,bytes32,uint64)",
+          "topic0": "0x87061fd1a5b3714805472c94c9eb8a6b8491992ee77791aa2594be67b92fd962"
+        },
+        {
+          "signature": "UnwrapRequested(address,bytes32,bytes32)",
+          "topic0": "0x4b1bfb262557cf08a74ddeefb8aef086b81deb08484bdc1820b9f420cdd1aa0e"
+        }
+      ],
+      "errors": [
+        {
+          "signature": "ERC7984InvalidReceiver(address)",
+          "selector": "0x8d518801"
+        },
+        {
+          "signature": "ERC7984InvalidSender(address)",
+          "selector": "0xee457ebf"
+        },
+        {
+          "signature": "ERC7984TotalSupplyOverflow()",
+          "selector": "0xa9e53fc3"
+        },
+        {
+          "signature": "ERC7984UnauthorizedCaller(address)",
+          "selector": "0x782c6ffd"
+        },
+        {
+          "signature": "ERC7984UnauthorizedSpender(address,address)",
+          "selector": "0x79f2cb38"
+        },
+        {
+          "signature": "ERC7984UnauthorizedUseOfEncryptedAmount(bytes32,address)",
+          "selector": "0x67cfe805"
+        },
+        {
+          "signature": "InvalidKMSSignatures()",
+          "selector": "0xcf6c44e9"
+        },
+        {
+          "signature": "InvalidUnwrapRequest(bytes32)",
+          "selector": "0xd1630f8e"
+        },
+        {
+          "signature": "SafeCastOverflowedUintDowncast(uint8,uint256)",
+          "selector": "0x6dfcc650"
+        },
+        {
+          "signature": "SafeERC20FailedOperation(address)",
+          "selector": "0x5274afe7"
+        },
+        {
+          "signature": "SenderNotAllowedToUseHandle(bytes32,address)",
+          "selector": "0x0276b5d9"
+        },
+        {
+          "signature": "ZamaProtocolUnsupported()",
+          "selector": "0x73cac13b"
+        }
+      ],
+      "creationBytecode": {
+        "bytes": 12510,
+        "sha256": "e44af2bacfdb4e1bb3c45b13653d0294a6070c02deccda884e724bf7edc5cc0f",
+        "keccak256": "0x265a15b45b7c3b00bd84b39867b44d48ecb39bbb46e54125c016c45a5dbbf419"
+      },
+      "runtimeBytecodeTemplate": {
+        "bytes": 10565,
+        "sha256": "3346df4a1411a5170f3a3ff189dd4828805897f85d6766970eac75b73b7ca438",
+        "keccak256": "0xab33d44f35e580c20e4f51978fc483e38291b36d8e60bb408b36455fffefd205",
+        "note": "Artifact template; deployed hash differs where compiler immutable references are substituted."
+      }
+    },
+    {
+      "name": "LeopoldCompoundAdapter",
+      "sourceName": "contracts/LeopoldCompoundAdapter.sol",
+      "compilerArtifact": "artifacts/contracts/LeopoldCompoundAdapter.sol/LeopoldCompoundAdapter.json",
+      "constructor": {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "asset_",
+            "type": "address"
+          },
+          {
+            "internalType": "contract ICompoundComet",
+            "name": "comet_",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "guardian_",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      "immutables": [
+        "vault",
+        "asset",
+        "guardian",
+        "COMET"
+      ],
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "asset_",
+              "type": "address"
+            },
+            {
+              "internalType": "contract ICompoundComet",
+              "name": "comet_",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "guardian_",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "CompoundPaused",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InsufficientManagedAssets",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidConfiguration",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ReentrancyGuardReentrantCall",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "token",
+              "type": "address"
+            }
+          ],
+          "name": "SafeERC20FailedOperation",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "StrategyPaused",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "Unauthorized",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "UnexpectedPositionMutation",
+          "type": "error"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "assets",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "basisAfter",
+              "type": "uint256"
+            }
+          ],
+          "name": "AssetsDeployed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "recovered",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "shortfall",
+              "type": "uint256"
+            }
+          ],
+          "name": "EmergencyExitCompleted",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "assets",
+              "type": "uint256"
+            }
+          ],
+          "name": "GenuineSurplusHarvested",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "assets",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "basisAfter",
+              "type": "uint256"
+            }
+          ],
+          "name": "PrincipalRecovered",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "bool",
+              "name": "paused",
+              "type": "bool"
+            }
+          ],
+          "name": "StrategyPauseChanged",
+          "type": "event"
+        },
+        {
+          "inputs": [],
+          "name": "COMET",
+          "outputs": [
+            {
+              "internalType": "contract ICompoundComet",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "COMET_ROUNDING_TOLERANCE",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "asset",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "currentShortfall",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "deployAssets",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "deployed",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "deployedPrincipalBasis",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "emergencyExit",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "recovered",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "shortfall",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "expectedCometPrincipal",
+          "outputs": [
+            {
+              "internalType": "int104",
+              "name": "",
+              "type": "int104"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "guardian",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "harvest",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "realizedSurplus",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "managedAssets",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "marketIntegrity",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "paused",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "positionIntegrity",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bool",
+              "name": "paused_",
+              "type": "bool"
+            }
+          ],
+          "name": "setPaused",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "vault",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "withdrawPrincipal",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "recovered",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ],
+      "functions": [
+        {
+          "signature": "asset()",
+          "selector": "0x38d52e0f"
+        },
+        {
+          "signature": "COMET_ROUNDING_TOLERANCE()",
+          "selector": "0x6a8cd1c5"
+        },
+        {
+          "signature": "COMET()",
+          "selector": "0x2517b92b"
+        },
+        {
+          "signature": "currentShortfall()",
+          "selector": "0x0c345759"
+        },
+        {
+          "signature": "deployAssets(uint256)",
+          "selector": "0xbc931524"
+        },
+        {
+          "signature": "deployedPrincipalBasis()",
+          "selector": "0xb7b59e33"
+        },
+        {
+          "signature": "emergencyExit()",
+          "selector": "0x5641ec03"
+        },
+        {
+          "signature": "expectedCometPrincipal()",
+          "selector": "0xa4ce6176"
+        },
+        {
+          "signature": "guardian()",
+          "selector": "0x452a9320"
+        },
+        {
+          "signature": "harvest()",
+          "selector": "0x4641257d"
+        },
+        {
+          "signature": "managedAssets()",
+          "selector": "0xf4a0877f"
+        },
+        {
+          "signature": "marketIntegrity()",
+          "selector": "0x90e37ea6"
+        },
+        {
+          "signature": "paused()",
+          "selector": "0x5c975abb"
+        },
+        {
+          "signature": "positionIntegrity()",
+          "selector": "0xb3180394"
+        },
+        {
+          "signature": "setPaused(bool)",
+          "selector": "0x16c38b3c"
+        },
+        {
+          "signature": "vault()",
+          "selector": "0xfbfa77cf"
+        },
+        {
+          "signature": "withdrawPrincipal(uint256)",
+          "selector": "0x658e28a4"
+        }
+      ],
+      "events": [
+        {
+          "signature": "AssetsDeployed(uint256,uint256)",
+          "topic0": "0x63b8e69bd8daf8f3de570e0dd6402872b784ebfec845dbbcd210ecd64841fc64"
+        },
+        {
+          "signature": "EmergencyExitCompleted(uint256,uint256)",
+          "topic0": "0x1fb1509a9787c001ffd36df7323dd544ec51387905c9e642022308a86723cc1f"
+        },
+        {
+          "signature": "GenuineSurplusHarvested(uint256)",
+          "topic0": "0xe34d3268ac12436b0c72a49aef436c30632cf91a955d0325edb48358662f8fb2"
+        },
+        {
+          "signature": "PrincipalRecovered(uint256,uint256)",
+          "topic0": "0x9ea96f2ee2af3111c902ba38d5fb06b3f47491c3360014eeb3db91be94ce9eb1"
+        },
+        {
+          "signature": "StrategyPauseChanged(bool)",
+          "topic0": "0x87709c0f93aa1935bff44de9c7904b950360cdae2e10fc00fc8aed6205c0db1e"
+        }
+      ],
+      "errors": [
+        {
+          "signature": "CompoundPaused()",
+          "selector": "0x81f8da06"
+        },
+        {
+          "signature": "InsufficientManagedAssets()",
+          "selector": "0x09feda75"
+        },
+        {
+          "signature": "InvalidConfiguration()",
+          "selector": "0xc52a9bd3"
+        },
+        {
+          "signature": "ReentrancyGuardReentrantCall()",
+          "selector": "0x3ee5aeb5"
+        },
+        {
+          "signature": "SafeERC20FailedOperation(address)",
+          "selector": "0x5274afe7"
+        },
+        {
+          "signature": "StrategyPaused()",
+          "selector": "0xe628b949"
+        },
+        {
+          "signature": "Unauthorized()",
+          "selector": "0x82b42900"
+        },
+        {
+          "signature": "UnexpectedPositionMutation()",
+          "selector": "0x3aa5054f"
+        }
+      ],
+      "creationBytecode": {
+        "bytes": 6381,
+        "sha256": "039a6ed4312585cf5e5e9d711254e7b7c34276bea33c8db7bb7eb307e71d1565",
+        "keccak256": "0xb036447e40441ceea4bca7e44b79f813b9b519a282292e23b2a6cc0d40eac05d"
+      },
+      "runtimeBytecodeTemplate": {
+        "bytes": 5535,
+        "sha256": "ac244dfaf00045224206e4763438222c1e1336adfaac74086293e88d6872d45e",
+        "keccak256": "0xd445bb262796fec9f7d3d52cfb4a4a564cf3a12d33ad422039e5b0a23e4d569b",
+        "note": "Artifact template; deployed hash differs where compiler immutable references are substituted."
+      }
+    },
+    {
+      "name": "LeopoldVaultRegistry",
+      "sourceName": "contracts/LeopoldVaultRegistry.sol",
+      "compilerArtifact": "artifacts/contracts/LeopoldVaultRegistry.sol/LeopoldVaultRegistry.json",
+      "constructor": {
+        "inputs": [
+          {
+            "internalType": "address[4]",
+            "name": "vaults",
+            "type": "address[4]"
+          },
+          {
+            "internalType": "address",
+            "name": "initialOwner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expectedBondAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expectedRewardPerParticipantPass",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      "immutables": [
+        "EXPECTED_BOND_AMOUNT",
+        "EXPECTED_REWARD_PER_PARTICIPANT_PASS"
+      ],
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address[4]",
+              "name": "vaults",
+              "type": "address[4]"
+            },
+            {
+              "internalType": "address",
+              "name": "initialOwner",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "expectedBondAmount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "expectedRewardPerParticipantPass",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "vault",
+              "type": "address"
+            }
+          ],
+          "name": "DuplicateVault",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidOwner",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "vaultId",
+              "type": "uint8"
+            }
+          ],
+          "name": "InvalidVault",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "owner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnableInvalidOwner",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "OwnableUnauthorizedAccount",
+          "type": "error"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint8",
+              "name": "vaultId",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "bool",
+              "name": "active",
+              "type": "bool"
+            }
+          ],
+          "name": "OfficialVaultStatusChanged",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        },
+        {
+          "inputs": [],
+          "name": "EXPECTED_BOND_AMOUNT",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "EXPECTED_REWARD_PER_PARTICIPANT_PASS",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "OFFICIAL_VAULT_COUNT",
+          "outputs": [
+            {
+              "internalType": "uint8",
+              "name": "",
+              "type": "uint8"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "vault",
+              "type": "address"
+            }
+          ],
+          "name": "isOfficialVault",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "vaultId",
+              "type": "uint8"
+            }
+          ],
+          "name": "officialVault",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "address",
+                  "name": "vault",
+                  "type": "address"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "name",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "enum LeopoldVault.VaultType",
+                  "name": "vaultType",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "roundDuration",
+                  "type": "uint64"
+                },
+                {
+                  "internalType": "address",
+                  "name": "asset",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "strategy",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "comet",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "bondEscrow",
+                  "type": "address"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "active",
+                  "type": "bool"
+                }
+              ],
+              "internalType": "struct LeopoldVaultRegistry.OfficialVault",
+              "name": "",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "owner",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "renounceOwnership",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "vaultId",
+              "type": "uint8"
+            },
+            {
+              "internalType": "bool",
+              "name": "active",
+              "type": "bool"
+            }
+          ],
+          "name": "setOfficialVaultActive",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "transferOwnership",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ],
+      "functions": [
+        {
+          "signature": "EXPECTED_BOND_AMOUNT()",
+          "selector": "0x7ba71b22"
+        },
+        {
+          "signature": "EXPECTED_REWARD_PER_PARTICIPANT_PASS()",
+          "selector": "0xf59e7718"
+        },
+        {
+          "signature": "isOfficialVault(address)",
+          "selector": "0xf751eb74"
+        },
+        {
+          "signature": "OFFICIAL_VAULT_COUNT()",
+          "selector": "0x240fbb49"
+        },
+        {
+          "signature": "officialVault(uint8)",
+          "selector": "0x996cd12a"
+        },
+        {
+          "signature": "owner()",
+          "selector": "0x8da5cb5b"
+        },
+        {
+          "signature": "renounceOwnership()",
+          "selector": "0x715018a6"
+        },
+        {
+          "signature": "setOfficialVaultActive(uint8,bool)",
+          "selector": "0xc7b38b3d"
+        },
+        {
+          "signature": "transferOwnership(address)",
+          "selector": "0xf2fde38b"
+        }
+      ],
+      "events": [
+        {
+          "signature": "OfficialVaultStatusChanged(uint8,bool)",
+          "topic0": "0x23f1159075165119a035064ab40d9d11bb1108210efa288dd27f46bcdc606706"
+        },
+        {
+          "signature": "OwnershipTransferred(address,address)",
+          "topic0": "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0"
+        }
+      ],
+      "errors": [
+        {
+          "signature": "DuplicateVault(address)",
+          "selector": "0xde1b8d3f"
+        },
+        {
+          "signature": "InvalidOwner()",
+          "selector": "0x49e27cff"
+        },
+        {
+          "signature": "InvalidVault(uint8)",
+          "selector": "0x46a5a3fa"
+        },
+        {
+          "signature": "OwnableInvalidOwner(address)",
+          "selector": "0x1e4fbdf7"
+        },
+        {
+          "signature": "OwnableUnauthorizedAccount(address)",
+          "selector": "0x118cdaa7"
+        }
+      ],
+      "creationBytecode": {
+        "bytes": 4744,
+        "sha256": "10373d18f80ae9a75d7100cfe4726381a8079ff8944f0d5b6b8b6916b78c2d11",
+        "keccak256": "0xa8c14cdcc25358096a5e94b7ee2558f1ae292e81bb090435b7bfc92354d6aec0"
+      },
+      "runtimeBytecodeTemplate": {
+        "bytes": 1334,
+        "sha256": "733f7f799f6977c0e6be8fc8a3e1a61d0f7cc284b28c7f2d368989ed97830ac8",
+        "keccak256": "0x929e509c8be185cc68a32b8c30d01b32368a7e6cd88d7a37dda0dd9a5092192d",
+        "note": "Artifact template; deployed hash differs where compiler immutable references are substituted."
+      }
+    }
+  ]
+}

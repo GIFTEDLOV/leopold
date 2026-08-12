@@ -32,4 +32,10 @@ scripts/sg4-hcu-authority-binding.json
 evidence/cp0/SG3_WEIGHT_DOMAIN_DERIVATION.json
 evidence/cp0/SG5_BROWSER_CAPABILITY.json
 evidence/sg4/SG4_RANDOMNESS_BENCHMARK.json
+evidence/closure/LEOPOLD_CONTRACT_FREEZE.json
 docs/security/SG4_RANDOMNESS_WIDTH_DECISION.md
+
+# Immutable failed-spike evidence retained verbatim as architectural provenance.
+contracts/spikes
+test/spikes
+research/settlement-tree-spike

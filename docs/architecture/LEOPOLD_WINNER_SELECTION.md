@@ -27,7 +27,9 @@ publishes only the encrypted conjunction:
 `selectionCumulative == publicAggregateTwab && encryptedWinnerCount == 1`
 
 Allocation cannot begin until a valid KMS public-decryption proof establishes that this objective boolean is true. A
-false result permanently enters `RECONCILIATION_FAILED`; it cannot allocate prize value.
+false result enters `RECONCILIATION_FAILED`; it cannot allocate prize value. Any caller may then execute the narrow
+recovery transition, which rolls the full prize into the active round, finalizes only the completed selection-pass
+reward, refunds unused allocation-pass collateral, and marks the source round settled.
 
 ## Replay and interruption
 

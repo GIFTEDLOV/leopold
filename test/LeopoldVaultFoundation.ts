@@ -19,6 +19,7 @@ type Fixture = {
 
 const DAILY = 86_400;
 const MAX_POOL = 1_000_000_000_000_000n;
+const BOND = ethers.parseEther("0.001");
 
 async function deployFixture(vaultId = 1, vaultType = 0, duration = DAILY): Promise<Fixture> {
   const [deployer, alice, bob, sponsor] = await ethers.getSigners();
@@ -41,6 +42,8 @@ async function deployFixture(vaultId = 1, vaultType = 0, duration = DAILY): Prom
     ethers.ZeroAddress,
     ethers.ZeroAddress,
     0,
+    ethers.parseEther("0.001"),
+    ethers.parseEther("0.0002"),
   )) as LeopoldVault;
   return { deployer, alice, bob, sponsor, underlying, asset, vault };
 }
@@ -67,6 +70,27 @@ async function withdraw(fixture: Fixture, account: HardhatEthersSigner, amount: 
   return fixture.vault.connect(account).withdraw(input.handles[0], input.inputProof);
 }
 
+async function enterRound(fixture: Fixture, account: HardhatEthersSigner, roundId = 1n) {
+  const escrow = await ethers.getContractAt(
+    "LeopoldSettlementBondEscrow",
+    await fixture.vault.SETTLEMENT_BOND_ESCROW(),
+  );
+  return escrow.connect(account).registerForRound(roundId, { value: BOND });
+}
+
+async function materializeWeight(fixture: Fixture, account: HardhatEthersSigner, roundId: bigint): Promise<string> {
+  const receipt = await (await fixture.vault.connect(account).materializeMyRoundWeight(roundId)).wait();
+  for (const log of receipt!.logs) {
+    try {
+      const parsed = fixture.vault.interface.parseLog(log);
+      if (parsed?.name === "RoundWeightMaterialized") return parsed.args.handle as string;
+    } catch {
+      // Ignore logs emitted by other contracts in the transaction.
+    }
+  }
+  throw new Error("missing RoundWeightMaterialized event");
+}
+
 async function decryptPrincipal(fixture: Fixture, account: HardhatEthersSigner): Promise<bigint> {
   const handle = await fixture.vault.principalOf(account.address);
   return fhevm.userDecryptEuint(FhevmType.euint64, handle, await fixture.vault.getAddress(), account);
@@ -77,23 +101,19 @@ describe("Leopold CP1 confidential vault foundation", function () {
     if (!fhevm.isMock) this.skip();
   });
 
-  it("records deposits from the actual ERC-7984 callback amount and rejects unregistered accounts", async function () {
+  it("keeps saving permissionless and makes prize eligibility a separate bonded action", async function () {
     const fixture = await deployFixture();
     await fundConfidential(fixture, fixture.alice, 100n);
-    await expect(deposit(fixture, fixture.alice, 100n)).to.be.revertedWithCustomError(
-      fixture.vault,
-      "ParticipantNotRegistered",
-    );
-    await fixture.vault.connect(fixture.alice).registerParticipant();
     await expect(deposit(fixture, fixture.alice, 100n))
       .to.emit(fixture.vault, "DepositProcessed")
       .withArgs(fixture.alice.address, 1n);
     expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(100n);
+    await enterRound(fixture, fixture.alice);
+    expect(await fixture.vault.eligibilityStart(1, fixture.alice.address)).not.to.equal(0n);
   });
 
   it("enforces the encrypted global principal cap and preserves refunded assets", async function () {
     const fixture = await deployFixture();
-    await fixture.vault.connect(fixture.alice).registerParticipant();
     await fundConfidential(fixture, fixture.alice, MAX_POOL + 1n);
     await deposit(fixture, fixture.alice, MAX_POOL);
     await deposit(fixture, fixture.alice, 1n);
@@ -111,7 +131,6 @@ describe("Leopold CP1 confidential vault foundation", function () {
 
   it("supports partial and full immediate withdrawals without duplicate entitlement", async function () {
     const fixture = await deployFixture();
-    await fixture.vault.connect(fixture.alice).registerParticipant();
     await fundConfidential(fixture, fixture.alice, 100n);
     await deposit(fixture, fixture.alice, 100n);
     await withdraw(fixture, fixture.alice, 40n);
@@ -122,9 +141,26 @@ describe("Leopold CP1 confidential vault foundation", function () {
     expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(0n);
   });
 
+  it("enforces the exclusive round-close boundary for deposits and withdrawals", async function () {
+    const beforeClose = await deployFixture();
+    await fundConfidential(beforeClose, beforeClose.alice, 10n);
+    const closesAt = (await beforeClose.vault.roundInfo(1))[1];
+    await time.setNextBlockTimestamp(closesAt - 1n);
+    await expect(deposit(beforeClose, beforeClose.alice, 10n)).to.emit(beforeClose.vault, "DepositProcessed");
+    await time.setNextBlockTimestamp(closesAt);
+    await expect(withdraw(beforeClose, beforeClose.alice, 1n)).to.be.revertedWithCustomError(
+      beforeClose.vault,
+      "RoundNotOpen",
+    );
+
+    const atClose = await deployFixture();
+    await fundConfidential(atClose, atClose.alice, 10n);
+    await time.setNextBlockTimestamp((await atClose.vault.roundInfo(1))[1]);
+    await expect(deposit(atClose, atClose.alice, 10n)).to.be.revertedWithCustomError(atClose.vault, "RoundNotOpen");
+  });
+
   it("denies cross-user decryption of private principal", async function () {
     const fixture = await deployFixture();
-    await fixture.vault.connect(fixture.alice).registerParticipant();
     await fundConfidential(fixture, fixture.alice, 33n);
     await deposit(fixture, fixture.alice, 33n);
     const handle = await fixture.vault.principalOf(fixture.alice.address);
@@ -148,7 +184,7 @@ describe("Leopold CP1 confidential vault foundation", function () {
     expect(await fixture.vault.principalOf(fixture.sponsor.address)).to.equal(ethers.ZeroHash);
     await time.increaseTo((await fixture.vault.roundInfo(1))[1]);
     await fixture.vault.closeRound();
-    expect(await fixture.vault.roundReservedPrizeHandle(1)).not.to.equal(ethers.ZeroHash);
+    expect((await fixture.vault.roundInfo(1))[4]).to.equal(75n);
     const stateChanging = fixture.vault.interface.fragments
       .filter((fragment): fragment is FunctionFragment => fragment.type === "function")
       .filter((fragment) => !["view", "pure"].includes(fragment.stateMutability))
@@ -156,30 +192,29 @@ describe("Leopold CP1 confidential vault foundation", function () {
     expect(stateChanging).not.to.include("withdrawSponsor");
   });
 
-  it("uses append-only deterministic participant order", async function () {
+  it("uses append-only deterministic round-scoped participation", async function () {
     const fixture = await deployFixture();
-    await fixture.vault.connect(fixture.bob).registerParticipant();
-    await fixture.vault.connect(fixture.alice).registerParticipant();
-    expect(await fixture.vault.participantCount()).to.equal(2n);
-    expect(await fixture.vault.participantAt(0)).to.equal(fixture.bob.address);
-    expect(await fixture.vault.participantAt(1)).to.equal(fixture.alice.address);
-    await expect(fixture.vault.connect(fixture.bob).registerParticipant()).to.be.revertedWithCustomError(
-      fixture.vault,
-      "ParticipantAlreadyRegistered",
+    await enterRound(fixture, fixture.bob);
+    await enterRound(fixture, fixture.alice);
+    const escrow = await ethers.getContractAt(
+      "LeopoldSettlementBondEscrow",
+      await fixture.vault.SETTLEMENT_BOND_ESCROW(),
     );
+    expect((await escrow.roundInfo(1))[0]).to.equal(2n);
+    await expect(enterRound(fixture, fixture.bob)).to.be.revertedWithCustomError(escrow, "AlreadyRegistered");
   });
 
   it("matches exact individual and aggregate TWAB after closing a round", async function () {
     const fixture = await deployFixture();
     const round = await fixture.vault.roundInfo(1);
-    await fixture.vault.connect(fixture.alice).registerParticipant();
     await fundConfidential(fixture, fixture.alice, 10n);
-    const receipt = await (await deposit(fixture, fixture.alice, 10n)).wait();
-    const depositBlock = await ethers.provider.getBlock(receipt!.blockNumber);
+    await deposit(fixture, fixture.alice, 10n);
+    const registrationReceipt = await (await enterRound(fixture, fixture.alice)).wait();
+    const registrationBlock = await ethers.provider.getBlock(registrationReceipt!.blockNumber);
     await time.increaseTo(round[1]);
     await fixture.vault.closeRound();
 
-    const expected = 10n * (round[1] - BigInt(depositBlock!.timestamp));
+    const expected = 10n * (round[1] - BigInt(registrationBlock!.timestamp));
     const aggregateHandle = await fixture.vault.aggregateTwabHandle(1);
     const aggregateResult = await fhevm.publicDecrypt([aggregateHandle]);
     expect(aggregateResult.clearValues[aggregateHandle as `0x${string}`]).to.equal(expected);
@@ -190,8 +225,7 @@ describe("Leopold CP1 confidential vault foundation", function () {
     await withdraw(fixture, fixture.alice, 2n);
     expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(8n);
 
-    await fixture.vault.connect(fixture.alice).materializeMyRoundWeight(1);
-    const weightHandle = await fixture.vault.materializedWeightOf(1, fixture.alice.address);
+    const weightHandle = await materializeWeight(fixture, fixture.alice, 1n);
     expect(
       await fhevm.userDecryptEuint(FhevmType.euint128, weightHandle, await fixture.vault.getAddress(), fixture.alice),
     ).to.equal(expected);
@@ -215,19 +249,18 @@ describe("Leopold CP1 confidential vault foundation", function () {
   it("keeps inactive-user historical TWAB exact across multiple missed rounds", async function () {
     const fixture = await deployFixture();
     const first = await fixture.vault.roundInfo(1);
-    await fixture.vault.connect(fixture.alice).registerParticipant();
     await fundConfidential(fixture, fixture.alice, 5n);
-    const receipt = await (await deposit(fixture, fixture.alice, 5n)).wait();
-    const depositedAt = BigInt((await ethers.provider.getBlock(receipt!.blockNumber))!.timestamp);
+    await deposit(fixture, fixture.alice, 5n);
+    await enterRound(fixture, fixture.alice);
+    const registeredAt = await fixture.vault.eligibilityStart(1, fixture.alice.address);
     await time.increaseTo(first[1] + BigInt(DAILY * 2));
     await fixture.vault.closeRound();
     await fixture.vault.closeRound();
     await fixture.vault.closeRound();
-    await fixture.vault.connect(fixture.alice).materializeMyRoundWeight(1);
-    const handle = await fixture.vault.materializedWeightOf(1, fixture.alice.address);
+    const handle = await materializeWeight(fixture, fixture.alice, 1n);
     expect(
       await fhevm.userDecryptEuint(FhevmType.euint128, handle, await fixture.vault.getAddress(), fixture.alice),
-    ).to.equal(5n * (first[1] - depositedAt));
+    ).to.equal(5n * (first[1] - registeredAt));
   });
 
   it("keeps the same wallet's vault positions and TWAB isolated", async function () {
@@ -244,10 +277,12 @@ describe("Leopold CP1 confidential vault foundation", function () {
       ethers.ZeroAddress,
       ethers.ZeroAddress,
       0,
+      ethers.parseEther("0.001"),
+      ethers.parseEther("0.0002"),
     )) as LeopoldVault;
     const second = { ...first, vault: secondVault };
-    await first.vault.connect(first.alice).registerParticipant();
-    await second.vault.connect(second.alice).registerParticipant();
+    await enterRound(first, first.alice);
+    await enterRound(second, second.alice);
     await fundConfidential(first, first.alice, 100n);
     await deposit(first, first.alice, 60n);
     await deposit(second, second.alice, 40n);
@@ -268,6 +303,8 @@ describe("Leopold CP1 confidential vault foundation", function () {
         ethers.ZeroAddress,
         ethers.ZeroAddress,
         0,
+        ethers.parseEther("0.001"),
+        ethers.parseEther("0.0002"),
       ),
     ).to.be.revertedWithCustomError(fixture.vault, "InvalidConfiguration");
     await expect(
@@ -305,6 +342,8 @@ describe("Leopold official four-vault registry", function () {
           ethers.ZeroAddress,
           ethers.ZeroAddress,
           0,
+          ethers.parseEther("0.001"),
+          ethers.parseEther("0.0002"),
         )) as LeopoldVault,
       );
     }
@@ -317,7 +356,12 @@ describe("Leopold official four-vault registry", function () {
     ];
     const registry = (await (
       await ethers.getContractFactory("LeopoldVaultRegistry")
-    ).deploy(officialAddresses, fixture.deployer.address)) as LeopoldVaultRegistry;
+    ).deploy(
+      officialAddresses,
+      fixture.deployer.address,
+      ethers.parseEther("0.001"),
+      ethers.parseEther("0.0002"),
+    )) as LeopoldVaultRegistry;
     expect(await registry.OFFICIAL_VAULT_COUNT()).to.equal(4n);
     for (let id = 1; id <= 4; id += 1) {
       const entry = await registry.officialVault(id);
@@ -341,6 +385,55 @@ describe("Leopold official four-vault registry", function () {
       (await ethers.getContractFactory("LeopoldVaultRegistry")).deploy(
         [address, address, address, address],
         fixture.deployer.address,
+        ethers.parseEther("0.001"),
+        ethers.parseEther("0.0002"),
+      ),
+    ).to.be.reverted;
+
+    const start = await time.latest();
+    const configs = [
+      [1, 0, "Daily", DAILY],
+      [2, 1, "Weekly", 7 * DAILY],
+      [3, 2, "Monthly", 30 * DAILY],
+      [4, 3, "Boost", 7 * DAILY],
+    ] as const;
+    const vaults = await Promise.all(
+      configs.map(async ([id, kind, name, duration]) =>
+        (await ethers.getContractFactory("LeopoldVault")).deploy(
+          id,
+          kind,
+          ethers.encodeBytes32String(name),
+          duration,
+          await fixture.asset.getAddress(),
+          start,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          0,
+          ethers.parseEther("0.001"),
+          ethers.parseEther("0.0002"),
+        ),
+      ),
+    );
+    const addresses = (await Promise.all(vaults.map((vault) => vault.getAddress()))) as [
+      string,
+      string,
+      string,
+      string,
+    ];
+    await expect(
+      (await ethers.getContractFactory("LeopoldVaultRegistry")).deploy(
+        addresses,
+        fixture.deployer.address,
+        ethers.parseEther("0.002"),
+        ethers.parseEther("0.0002"),
+      ),
+    ).to.be.reverted;
+    await expect(
+      (await ethers.getContractFactory("LeopoldVaultRegistry")).deploy(
+        addresses,
+        fixture.deployer.address,
+        ethers.parseEther("0.001"),
+        ethers.parseEther("0.0001"),
       ),
     ).to.be.reverted;
   });

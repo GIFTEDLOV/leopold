@@ -11,8 +11,8 @@ import {ICompoundComet} from "../interfaces/ICompoundComet.sol";
 contract MockCompoundComet is ICompoundComet {
     using SafeERC20 for IERC20;
 
-    address public immutable override baseToken;
-    uint64 public constant override baseScale = 1_000_000;
+    address public override baseToken;
+    uint64 public override baseScale = 1_000_000;
     bool public override isSupplyPaused;
     bool public override isWithdrawPaused;
     mapping(address => uint256) private _balance;
@@ -68,5 +68,10 @@ contract MockCompoundComet is ICompoundComet {
     function setPaused(bool supplyPaused, bool withdrawPaused) external {
         isSupplyPaused = supplyPaused;
         isWithdrawPaused = withdrawPaused;
+    }
+
+    function setMarketConfiguration(address baseToken_, uint64 baseScale_) external {
+        baseToken = baseToken_;
+        baseScale = baseScale_;
     }
 }

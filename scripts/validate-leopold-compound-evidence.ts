@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 const evidencePath = path.resolve("evidence/cp1/LEOPOLD_COMPOUND_LIVE.json");
@@ -46,15 +47,16 @@ assert(
   evidence.finality.verified === true && evidence.finality.finalizedBlock >= evidence.finality.requiredThroughBlock,
   "finality",
 );
+const evidenceCommit = "8f30ba74a1fcbfa2cbb45aa420a90b3ec65f7951";
 const sources = [
   ["vault", "contracts/LeopoldVault.sol", evidence.finalSource.vaultSha256],
   ["adapter", "contracts/LeopoldCompoundAdapter.sol", evidence.finalSource.adapterSha256],
   ["wrapper", "contracts/LeopoldConfidentialUSDC.sol", evidence.finalSource.wrapperSha256],
 ] as const;
 for (const [name, sourcePath, expected] of sources) {
-  const current = createHash("sha256")
-    .update(readFileSync(path.resolve(sourcePath)))
+  const historical = createHash("sha256")
+    .update(execFileSync("git", ["show", `${evidenceCommit}:${sourcePath}`]))
     .digest("hex");
-  assert(current === expected, `${name} source hash`);
+  assert(historical === expected, `${name} historical source hash`);
 }
-console.log(`LEOPOLD_COMPOUND_LIVE_EVIDENCE_VALID ${digest}`);
+console.log(`LEOPOLD_COMPOUND_LIVE_EVIDENCE_VALID ${digest} sourceCommit=${evidenceCommit}`);

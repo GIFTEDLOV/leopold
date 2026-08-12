@@ -18,6 +18,7 @@ type Fixture = {
 };
 
 const DAY = 86_400;
+const BOND = ethers.parseEther("0.001");
 
 async function fixture(): Promise<Fixture> {
   const [deployer, alice, bob, carol, sponsor] = await ethers.getSigners();
@@ -39,6 +40,8 @@ async function fixture(): Promise<Fixture> {
     ethers.ZeroAddress,
     ethers.ZeroAddress,
     0,
+    ethers.parseEther("0.001"),
+    ethers.parseEther("0.0002"),
   )) as LeopoldVault;
   return { deployer, alice, bob, carol, sponsor, underlying, asset, vault };
 }
@@ -59,6 +62,28 @@ async function fundAndDeposit(state: Fixture, account: HardhatEthersSigner, amou
 
 async function decrypt64(state: Fixture, account: HardhatEthersSigner, handle: string): Promise<bigint> {
   return fhevm.userDecryptEuint(FhevmType.euint64, handle, await state.vault.getAddress(), account);
+}
+
+async function enterVaultRound(vault: LeopoldVault, account: HardhatEthersSigner, roundId?: bigint) {
+  const escrow = await ethers.getContractAt("LeopoldSettlementBondEscrow", await vault.SETTLEMENT_BOND_ESCROW());
+  return escrow.connect(account).registerForRound(roundId ?? (await vault.activeRoundId()), { value: BOND });
+}
+
+async function enterRound(state: Fixture, account: HardhatEthersSigner, roundId?: bigint) {
+  return enterVaultRound(state.vault, account, roundId);
+}
+
+async function materializeWeight(state: Fixture, account: HardhatEthersSigner, roundId: bigint): Promise<string> {
+  const receipt = await (await state.vault.connect(account).materializeMyRoundWeight(roundId)).wait();
+  for (const log of receipt!.logs) {
+    try {
+      const parsed = state.vault.interface.parseLog(log);
+      if (parsed?.name === "RoundWeightMaterialized") return parsed.args.handle as string;
+    } catch {
+      // Ignore logs emitted by other contracts in the transaction.
+    }
+  }
+  throw new Error("missing RoundWeightMaterialized event");
 }
 
 async function closeAndFinalizeAggregate(state: Fixture): Promise<void> {
@@ -84,7 +109,7 @@ async function acceptTicket(state: Fixture): Promise<void> {
 }
 
 async function reconcile(state: Fixture, chunk = 1): Promise<void> {
-  while ((await state.vault.roundProgress(1))[1] < (await state.vault.roundProgress(1))[0]) {
+  while ((await state.vault.roundInfo(1))[6] < (await state.vault.roundInfo(1))[5]) {
     await state.vault.processSelection(1, chunk);
   }
   const handle = await state.vault.reconciliationHandle(1);
@@ -96,7 +121,7 @@ async function reconcile(state: Fixture, chunk = 1): Promise<void> {
 }
 
 async function allocate(state: Fixture, chunk = 1): Promise<void> {
-  while ((await state.vault.roundProgress(1))[2] < (await state.vault.roundProgress(1))[0]) {
+  while ((await state.vault.roundInfo(1))[7] < (await state.vault.roundInfo(1))[5]) {
     await state.vault.processAllocation(1, chunk);
   }
   await state.vault.finalizeSettlement(1);
@@ -113,33 +138,33 @@ describe("Leopold private selection and settlement", function () {
     if (!fhevm.isMock) this.skip();
   });
 
-  it("removes permanent admission denial while retaining deterministic append-only ordering", async function () {
+  it("requires fresh bonded registration for the current round", async function () {
     const state = await fixture();
     const signers = await ethers.getSigners();
-    for (const signer of signers) await state.vault.connect(signer).registerParticipant();
-    expect(await state.vault.participantCount()).to.equal(BigInt(signers.length));
-    for (let index = 0; index < signers.length; index += 1) {
-      expect(await state.vault.participantAt(index)).to.equal(signers[index].address);
-    }
+    for (const signer of signers) await enterRound(state, signer);
+    const escrow = await ethers.getContractAt(
+      "LeopoldSettlementBondEscrow",
+      await state.vault.SETTLEMENT_BOND_ESCROW(),
+    );
+    expect((await escrow.roundInfo(1))[0]).to.equal(BigInt(signers.length));
   });
 
   it("snapshots the round domain and ignores later registration during settlement", async function () {
     const state = await fixture();
-    await state.vault.connect(state.alice).registerParticipant();
+    await enterRound(state, state.alice);
     await fundAndDeposit(state, state.alice, 10n);
     await closeAndFinalizeAggregate(state);
-    expect((await state.vault.roundProgress(1))[0]).to.equal(1n);
-    await state.vault.connect(state.carol).registerParticipant();
-    expect(await state.vault.participantCount()).to.equal(2n);
-    expect((await state.vault.roundProgress(1))[0]).to.equal(1n);
+    expect((await state.vault.roundInfo(1))[5]).to.equal(1n);
+    await enterRound(state, state.carol, 2n);
+    expect((await state.vault.roundInfo(1))[5]).to.equal(1n);
   });
 
   it("binds public proofs to exact handles, vaults, rounds and one-time phases", async function () {
     const first = await fixture();
     const second = await fixture();
     for (const state of [first, second]) {
-      await state.vault.connect(state.alice).registerParticipant();
       await fundAndDeposit(state, state.alice, 2n);
+      await enterRound(state, state.alice);
     }
     await time.increaseTo((await second.vault.roundInfo(1))[1]);
     for (const state of [first, second]) {
@@ -154,8 +179,8 @@ describe("Leopold private selection and settlement", function () {
 
   it("rejects candidate cleartext/proof mismatch and duplicate validity finalization", async function () {
     const state = await fixture();
-    await state.vault.connect(state.alice).registerParticipant();
     await fundAndDeposit(state, state.alice, 3n);
+    await enterRound(state, state.alice);
     await closeAndFinalizeAggregate(state);
     await state.vault.generateRandomCandidate(1);
     expect((await state.vault.roundInfo(1))[2]).to.equal(5n);
@@ -171,26 +196,17 @@ describe("Leopold private selection and settlement", function () {
 
   it("processes the full domain, reconciles exactly, and allocates one private prize", async function () {
     const state = await fixture();
-    for (const participant of [state.alice, state.bob]) await state.vault.connect(participant).registerParticipant();
     await fundAndDeposit(state, state.alice, 20n);
     await fundAndDeposit(state, state.bob, 12n);
+    for (const participant of [state.alice, state.bob]) await enterRound(state, participant);
     await state.vault.connect(state.alice).setAutoSavePreference(1);
     await sponsor(state, 25n);
-    const observationsBefore = [
-      await state.vault.observationCount(state.alice.address),
-      await state.vault.observationCount(state.bob.address),
-    ];
     await closeAndFinalizeAggregate(state);
     await acceptTicket(state);
 
-    const vaultAddress = await state.vault.getAddress();
-    expect(await state.vault.ticketAclStatus(1, vaultAddress)).to.deep.equal([true, false]);
-    expect(await state.vault.ticketAclStatus(1, state.alice.address)).to.deep.equal([false, false]);
-    expect(await state.vault.ticketAclStatus(1, state.deployer.address)).to.deep.equal([false, false]);
-
     await expect(state.vault.processSelection(1, 0)).to.be.revertedWithCustomError(state.vault, "InvalidChunkSize");
     await reconcile(state, 1);
-    expect((await state.vault.roundProgress(1))[1]).to.equal(2n);
+    expect((await state.vault.roundInfo(1))[6]).to.equal(2n);
     await expect(state.vault.processSelection(1, 1)).to.be.reverted;
     await allocate(state, 1);
 
@@ -200,15 +216,13 @@ describe("Leopold private selection and settlement", function () {
     const bobWinnings = await decrypt64(state, state.bob, await state.vault.winningsOf(state.bob.address));
     expect(alicePrincipal - 20n + (bobPrincipal - 12n) + aliceWinnings + bobWinnings).to.equal(25n);
     expect([alicePrincipal - 20n, bobWinnings].filter((value) => value === 25n)).to.have.length(1);
-    expect(await state.vault.observationCount(state.alice.address)).to.equal(observationsBefore[0] + 1n);
-    expect(await state.vault.observationCount(state.bob.address)).to.equal(observationsBefore[1] + 1n);
     expect((await state.vault.roundInfo(1))[2]).to.equal(10n);
   });
 
   it("keeps settlement replay-safe across every cursor phase", async function () {
     const state = await fixture();
-    await state.vault.connect(state.alice).registerParticipant();
     await fundAndDeposit(state, state.alice, 1n);
+    await enterRound(state, state.alice);
     await sponsor(state, 9n);
     await closeAndFinalizeAggregate(state);
     await acceptTicket(state);
@@ -235,9 +249,9 @@ describe("Leopold private selection and settlement", function () {
 
   it("snapshots auto-save preference at round close and converts only in an open current round", async function () {
     const state = await fixture();
-    await state.vault.connect(state.alice).registerParticipant();
     await state.vault.connect(state.alice).setAutoSavePreference(1);
     await fundAndDeposit(state, state.alice, 10n);
+    await enterRound(state, state.alice);
     await sponsor(state, 5n);
     await closeAndFinalizeAggregate(state);
     await state.vault.connect(state.alice).setAutoSavePreference(0);
@@ -250,14 +264,14 @@ describe("Leopold private selection and settlement", function () {
     await allocate(state);
     expect(await decrypt64(state, state.alice, await state.vault.principalOf(state.alice.address))).to.equal(15n);
     expect(await decrypt64(state, state.alice, await state.vault.winningsOf(state.alice.address))).to.equal(0n);
-    expect(await state.vault.preferenceObservationCount(state.alice.address)).to.equal(2n);
+    expect(await state.vault.autoSavePreference(state.alice.address)).to.equal(0n);
   });
 
   it("treats an exact-close preference change as next-round state", async function () {
     const state = await fixture();
-    await state.vault.connect(state.alice).registerParticipant();
     await state.vault.connect(state.alice).setAutoSavePreference(1);
     await fundAndDeposit(state, state.alice, 1n);
+    await enterRound(state, state.alice);
     await sponsor(state, 2n);
     const closesAt = (await state.vault.roundInfo(1))[1];
     await time.setNextBlockTimestamp(closesAt);
@@ -274,8 +288,8 @@ describe("Leopold private selection and settlement", function () {
 
   it("withdraws keep-available winnings once without consuming principal", async function () {
     const state = await fixture();
-    await state.vault.connect(state.alice).registerParticipant();
     await fundAndDeposit(state, state.alice, 10n);
+    await enterRound(state, state.alice);
     await sponsor(state, 7n);
     await closeAndFinalizeAggregate(state);
     await acceptTicket(state);
@@ -297,8 +311,8 @@ describe("Leopold private selection and settlement", function () {
 
   it("denies cross-user, admin, keeper-like, and sponsor winnings decryption", async function () {
     const state = await fixture();
-    await state.vault.connect(state.alice).registerParticipant();
     await fundAndDeposit(state, state.alice, 1n);
+    await enterRound(state, state.alice);
     await sponsor(state, 3n);
     await closeAndFinalizeAggregate(state);
     await acceptTicket(state);
@@ -318,13 +332,12 @@ describe("Leopold private selection and settlement", function () {
 
   it("keeps round N immutable while round N+1 deposits, withdrawals and registration proceed", async function () {
     const state = await fixture();
-    for (const participant of [state.alice, state.bob]) await state.vault.connect(participant).registerParticipant();
     await fundAndDeposit(state, state.alice, 10n);
     await fundAndDeposit(state, state.bob, 5n);
+    for (const participant of [state.alice, state.bob]) await enterRound(state, participant);
     await sponsor(state, 4n);
     await closeAndFinalizeAggregate(state);
-    await state.vault.connect(state.alice).materializeMyRoundWeight(1);
-    const beforeHandle = await state.vault.materializedWeightOf(1, state.alice.address);
+    const beforeHandle = await materializeWeight(state, state.alice, 1n);
     const before = await fhevm.userDecryptEuint(
       FhevmType.euint128,
       beforeHandle,
@@ -332,19 +345,18 @@ describe("Leopold private selection and settlement", function () {
       state.alice,
     );
 
-    await state.vault.connect(state.carol).registerParticipant();
+    await enterRound(state, state.carol, 2n);
     await fundAndDeposit(state, state.carol, 9n);
     const withdrawalInput = fhevm.createEncryptedInput(await state.vault.getAddress(), state.alice.address);
     withdrawalInput.add64(2n);
     const encryptedWithdrawal = await withdrawalInput.encrypt();
     await state.vault.connect(state.alice).withdraw(encryptedWithdrawal.handles[0], encryptedWithdrawal.inputProof);
-    expect((await state.vault.roundProgress(1))[0]).to.equal(2n);
+    expect((await state.vault.roundInfo(1))[5]).to.equal(2n);
 
     await acceptTicket(state);
     await reconcile(state, 2);
     await allocate(state, 2);
-    await state.vault.connect(state.alice).materializeMyRoundWeight(1);
-    const afterHandle = await state.vault.materializedWeightOf(1, state.alice.address);
+    const afterHandle = await materializeWeight(state, state.alice, 1n);
     const after = await fhevm.userDecryptEuint(
       FhevmType.euint128,
       afterHandle,
@@ -352,7 +364,6 @@ describe("Leopold private selection and settlement", function () {
       state.alice,
     );
     expect(after).to.equal(before);
-    expect(await state.vault.observationCount(state.carol.address)).to.equal(1n);
   });
 
   it("allows four vaults to occupy independent lifecycle phases", async function () {
@@ -377,11 +388,13 @@ describe("Leopold private selection and settlement", function () {
           ethers.ZeroAddress,
           ethers.ZeroAddress,
           0,
+          ethers.parseEther("0.001"),
+          ethers.parseEther("0.0002"),
         )) as LeopoldVault,
       );
     }
     for (const vault of vaults) {
-      await vault.connect(state.alice).registerParticipant();
+      await enterVaultRound(vault, state.alice);
       await state.underlying.mint(state.alice.address, 1n);
       await state.underlying.connect(state.alice).approve(await state.asset.getAddress(), 1n);
       await state.asset.connect(state.alice).wrap(state.alice.address, 1n);

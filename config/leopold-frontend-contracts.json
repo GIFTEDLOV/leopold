@@ -1,0 +1,195 @@
+{
+  "schema": "leopold.frontend-contract-manifest.v1",
+  "network": {
+    "name": "ethereum-sepolia",
+    "chainId": 11155111
+  },
+  "deploymentStatus": "FINAL_CLOSURE_BYTECODE_NOT_YET_OFFICIALLY_DEPLOYED",
+  "settlementBondProfiles": {
+    "demoSepolia": {
+      "bondWei": "5000000000000000",
+      "rewardPerParticipantPassWei": "1250000000000000",
+      "refundAfterTwoPassesWei": "2500000000000000",
+      "note": "Testnet UX profile only; Sepolia ETH has no production Sybil-security meaning."
+    },
+    "productionIntent": {
+      "formula": "rewardPerPass >= ceil(max(singlePassGas,chunkGas/chunkParticipants)+fixedFinalizationGas/2)*gasPriceCeiling*(1+safetyMargin); bond > 2*rewardPerPass + capitalCommitmentFloor",
+      "deploymentReviewRequired": true
+    }
+  },
+  "contracts": {
+    "canonicalCircleUsdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "lcUsdc": null,
+    "registry": null,
+    "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e"
+  },
+  "officialVaults": [
+    {
+      "id": 1,
+      "type": "DAILY",
+      "name": "Daily",
+      "roundDurationSeconds": 86400,
+      "vault": null,
+      "adapter": null,
+      "bondEscrow": null
+    },
+    {
+      "id": 2,
+      "type": "WEEKLY",
+      "name": "Weekly",
+      "roundDurationSeconds": 604800,
+      "vault": null,
+      "adapter": null,
+      "bondEscrow": null
+    },
+    {
+      "id": 3,
+      "type": "MONTHLY",
+      "name": "Monthly",
+      "roundDurationSeconds": 2592000,
+      "vault": null,
+      "adapter": null,
+      "bondEscrow": null
+    },
+    {
+      "id": 4,
+      "type": "BOOST",
+      "name": "Boost",
+      "roundDurationSeconds": 604800,
+      "vault": null,
+      "adapter": null,
+      "bondEscrow": null
+    }
+  ],
+  "reads": [
+    { "signature": "officialVault(uint8)", "privacy": "PUBLIC" },
+    { "signature": "roundInfo(uint256)", "privacy": "PUBLIC", "asynchronousStatus": true },
+    { "signature": "eligibilityStart(uint256,address)", "privacy": "PUBLIC" },
+    { "signature": "SETTLEMENT_BOND_ESCROW()", "privacy": "PUBLIC" },
+    { "signature": "BOND_AMOUNT()", "contract": "LeopoldSettlementBondEscrow", "privacy": "PUBLIC" },
+    { "signature": "REWARD_PER_PARTICIPANT_PASS()", "contract": "LeopoldSettlementBondEscrow", "privacy": "PUBLIC" },
+    {
+      "signature": "REFUND_PER_COMPLETED_PARTICIPANT()",
+      "contract": "LeopoldSettlementBondEscrow",
+      "privacy": "PUBLIC"
+    },
+    { "signature": "isRegistered(uint256,address)", "contract": "LeopoldSettlementBondEscrow", "privacy": "PUBLIC" },
+    {
+      "signature": "roundInfo(uint256)",
+      "contract": "LeopoldSettlementBondEscrow",
+      "privacy": "PUBLIC",
+      "asynchronousStatus": true
+    },
+    { "signature": "settlementRewardCredit(address)", "contract": "LeopoldSettlementBondEscrow", "privacy": "PUBLIC" },
+    { "signature": "principalOf(address)", "privacy": "PRIVATE_HANDLE", "requiresWalletUserDecryption": true },
+    { "signature": "winningsOf(address)", "privacy": "PRIVATE_HANDLE", "requiresWalletUserDecryption": true },
+    { "signature": "aggregateTwabHandle(uint256)", "privacy": "PUBLIC_DECRYPTION_HANDLE", "infrastructureOnly": true },
+    {
+      "signature": "candidateValidityHandle(uint256)",
+      "privacy": "PUBLIC_DECRYPTION_HANDLE",
+      "infrastructureOnly": true
+    },
+    { "signature": "reconciliationHandle(uint256)", "privacy": "PUBLIC_DECRYPTION_HANDLE", "infrastructureOnly": true },
+    {
+      "event": "RoundWeightMaterialized(uint256,address,bytes32)",
+      "privacy": "PRIVATE_HANDLE",
+      "requiresWalletUserDecryption": true
+    },
+    {
+      "event": "StrategyAmountRequested(uint256,bytes32)",
+      "privacy": "PUBLIC_DECRYPTION_HANDLE",
+      "infrastructureOnly": true
+    },
+    { "event": "StrategyUnwrapRequested(uint256,bytes32)", "privacy": "PUBLIC", "infrastructureOnly": true }
+  ],
+  "writes": {
+    "user": [
+      "confidentialTransferAndCall(address,bytes32,bytes,bytes)",
+      "LeopoldSettlementBondEscrow.registerForRound(uint256)",
+      "LeopoldSettlementBondEscrow.claimBondRefund(uint256)",
+      "LeopoldSettlementBondEscrow.withdrawSettlementRewards()",
+      "withdraw(bytes32,bytes)",
+      "withdrawWinnings(bytes32,bytes)",
+      "materializeMyRoundWeight(uint256)",
+      "setAutoSavePreference(uint8)",
+      "approve(address,uint256)",
+      "wrap(address,uint256)",
+      "unwrap(address,address,bytes32,bytes)",
+      "finalizeUnwrap(bytes32,uint64,bytes)"
+    ],
+    "permissionlessInfrastructure": [
+      "closeRound()",
+      "finalizeAggregate(uint256,bytes,bytes)",
+      "generateRandomCandidate(uint256)",
+      "finalizeCandidateValidity(uint256,bytes,bytes)",
+      "processSelection(uint256,uint256)",
+      "finalizeSelectionReconciliation(uint256,bytes,bytes)",
+      "recoverFailedReconciliation(uint256)",
+      "processAllocation(uint256,uint256)",
+      "finalizeSettlement(uint256)",
+      "settleEmptyRound(uint256)",
+      "openStrategyEpoch(uint8)",
+      "requestStrategyAmount(uint256)",
+      "finalizeStrategyDeployment(uint256,uint64,bytes)",
+      "finalizeStrategyReplenishment(uint256,bytes,bytes)",
+      "harvestStrategyYield()",
+      "cancelAgingStrategyEpoch(uint256)",
+      "cancelExpiredStrategyEpoch(uint256,uint64,bytes)",
+      "emergencyUnwindStrategy()"
+    ]
+  },
+  "asynchronousOperations": [
+    "PUBLIC_DECRYPTION_PROOF",
+    "WRAPPER_UNWRAP_FINALIZATION",
+    "PRIVATE_DRAW_SETTLEMENT",
+    "STRATEGY_EPOCH",
+    "REPLENISHMENT"
+  ],
+  "normalFlows": {
+    "makePrivate": { "walletTransactions": 2, "sequence": ["USDC.approve(lcUSDC)", "lcUSDC.wrap(user,amount)"] },
+    "saveFirstTime": { "walletTransactions": 1, "sequence": ["lcUSDC.confidentialTransferAndCall(vault,...)"] },
+    "saveReturning": { "walletTransactions": 1, "sequence": ["lcUSDC.confidentialTransferAndCall(vault,...)"] },
+    "enterPrizeRound": {
+      "walletTransactions": 1,
+      "sequence": ["bondEscrow.registerForRound(roundId,{value:BOND_AMOUNT})"],
+      "public": true
+    },
+    "claimBondRefund": {
+      "walletTransactions": 1,
+      "sequence": ["bondEscrow.claimBondRefund(roundId)"]
+    },
+    "withdrawPrincipal": { "walletTransactions": 1, "sequence": ["vault.withdraw(encryptedAmount,inputProof)"] },
+    "withdrawWinnings": { "walletTransactions": 1, "sequence": ["vault.withdrawWinnings(encryptedAmount,inputProof)"] },
+    "makePublic": {
+      "walletTransactions": 2,
+      "sequence": [
+        "lcUSDC.unwrap(user,user,encryptedAmount,inputProof)",
+        "lcUSDC.finalizeUnwrap(requestId,amount,publicProof)"
+      ]
+    },
+    "privateEligibilityFirstRead": {
+      "walletTransactions": 1,
+      "sequence": [
+        "vault.materializeMyRoundWeight(roundId)",
+        "read RoundWeightMaterialized handle",
+        "wallet user-decrypt offchain"
+      ]
+    },
+    "privateResult": { "walletTransactions": 0, "sequence": ["read winningsOf(user)", "wallet user-decrypt offchain"] },
+    "strategy": { "walletTransactions": 0, "sequence": ["protocol infrastructure only"] }
+  },
+  "settlementUi": {
+    "label": "Finalizing private draw",
+    "progress": "derive selection/allocation cursors and participant snapshot from roundInfo",
+    "hide": [
+      "FHE",
+      "ciphertext handles",
+      "Compound",
+      "Comet",
+      "lcUSDC jargon",
+      "strategy epochs",
+      "settlement chunks",
+      "public decryption proofs"
+    ]
+  }
+}

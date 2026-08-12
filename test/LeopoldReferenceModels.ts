@@ -113,16 +113,23 @@ describe("Leopold deterministic reference models", function () {
     accounting.reservePrize(40n, 60n);
     accounting.allocateWinnings(100n);
     accounting.autoSave(30n);
+    accounting.withdrawWinnings(20n);
     expect(accounting.state).to.deep.equal({
       principalLiability: 1_030n,
       liquidPrincipal: 530n,
       deployedPrincipal: 500n,
       principalInTransition: 0n,
       strategyShortfall: 0n,
+      liquidPrizeAssets: 50n,
       realizedSurplus: 0n,
       reservedPrize: 0n,
       sponsoredPrize: 0n,
-      winningsLiability: 70n,
+      winningsLiability: 50n,
+      harvestedYield: 40n,
+      sponsorContributions: 60n,
+      allocatedWinnings: 100n,
+      withdrawnWinnings: 20n,
+      autoSavedWinnings: 30n,
     });
     expect(() => accounting.withdrawPrincipal(531n)).to.throw("insufficient principal liquidity");
   });

@@ -17,9 +17,11 @@ Findings corrected in scope:
    now clamped to public adapter basis before declassification.
 4. Global `viaIR` changed unrelated SG-2 behavior. Size-oriented compilation is isolated to LeopoldVault and its
    registry dependency; SG-2 regression passes under original settings.
-5. Integrated runtime approached EIP-170. A nonessential multi-field getter was removed. Final runtime is 24,496 bytes,
-   leaving only 80 bytes; any later vault growth is a hard remeasurement gate.
+5. Integrated runtime approached EIP-170. The CP1 runtime was 24,496 bytes with only 80 bytes remaining. The
+   pre-frontend bond-enabled candidate is 23,539 bytes with a deterministic 23,552-byte ceiling and 1,037 current
+   headroom.
 
 Residuals: Comet governance/proxy and pause risk; public aggregate inference at low participation; relayer/proof
-liveness; six-decimal rounding; 75% calibration needs real usage; runtime margin is extremely narrow; settlement remains
-linear at four participants per transaction; dependency HOLD_PIN and Stage-0 risks remain open.
+liveness; six-decimal rounding; 75% calibration needs real usage; settlement Sybil economics remain unresolved;
+settlement remains four participants per transaction over a fresh, round-scoped bonded set; dependency HOLD_PIN and
+Stage-0 risks remain open.

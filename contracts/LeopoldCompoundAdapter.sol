@@ -65,8 +65,13 @@ contract LeopoldCompoundAdapter is ILeopoldYieldAdapter, ReentrancyGuard {
         return principal == expectedCometPrincipal;
     }
 
+    function marketIntegrity() public view returns (bool) {
+        return COMET.baseToken() == asset && COMET.baseScale() == 1_000_000;
+    }
+
     function deployAssets(uint256 amount) external override onlyVault nonReentrant returns (uint256 deployed) {
         if (paused) revert StrategyPaused();
+        _requireMarketIntegrity();
         if (COMET.isSupplyPaused()) revert CompoundPaused();
         if (!positionIntegrity()) revert UnexpectedPositionMutation();
         if (currentShortfall() > COMET_ROUNDING_TOLERANCE) revert InsufficientManagedAssets();
@@ -85,6 +90,7 @@ contract LeopoldCompoundAdapter is ILeopoldYieldAdapter, ReentrancyGuard {
     }
 
     function withdrawPrincipal(uint256 amount) external override onlyVault nonReentrant returns (uint256 recovered) {
+        _requireMarketIntegrity();
         if (COMET.isWithdrawPaused()) revert CompoundPaused();
         if (!positionIntegrity()) revert UnexpectedPositionMutation();
         if (amount > deployedPrincipalBasis || amount > managedAssets()) revert InsufficientManagedAssets();
@@ -96,6 +102,7 @@ contract LeopoldCompoundAdapter is ILeopoldYieldAdapter, ReentrancyGuard {
 
     function harvest() external override onlyVault nonReentrant returns (uint256 realizedSurplus) {
         if (paused) revert StrategyPaused();
+        _requireMarketIntegrity();
         if (!positionIntegrity()) revert UnexpectedPositionMutation();
         uint256 managed = managedAssets();
         if (managed <= deployedPrincipalBasis) return 0;
@@ -132,5 +139,9 @@ contract LeopoldCompoundAdapter is ILeopoldYieldAdapter, ReentrancyGuard {
 
     function _snapshotPrincipal() private {
         (expectedCometPrincipal, , , , ) = COMET.userBasic(address(this));
+    }
+
+    function _requireMarketIntegrity() private view {
+        if (!marketIntegrity()) revert InvalidConfiguration();
     }
 }
