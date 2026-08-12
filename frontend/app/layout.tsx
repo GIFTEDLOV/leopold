@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Providers } from "@/components/providers";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Zama SDK Compatibility Probe",
-  description: "Next.js and Zama SDK compatibility validation"
+  title: "Leopold — Private Prize Savings",
+  description: "Save privately. Win privately. Withdraw anytime.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

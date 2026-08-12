@@ -3,8 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { SG5_LIVE_ACK, SG5_PAGE_ENABLE } from "./lib/sg5/protocol";
 
 const live = process.env.SG5_LIVE_ACK === SG5_LIVE_ACK;
-const outputDir = process.env.SG5_PLAYWRIGHT_OUTPUT_DIR;
-if (!outputDir) throw new Error("SG-5 Playwright requires a private output directory");
+const outputDir = process.env.SG5_PLAYWRIGHT_OUTPUT_DIR ?? "/tmp/leopold-playwright";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -38,6 +37,9 @@ export default defineConfig({
           url: "http://localhost:3000/api/sg5-health",
           reuseExistingServer: false,
           timeout: 120_000,
-          env: { SG5_PROBE_PAGE: SG5_PAGE_ENABLE, ...(live ? { SG5_LIVE_ACK } : {}) },
+          env: {
+            SG5_PROBE_PAGE: SG5_PAGE_ENABLE,
+            ...(live ? { SG5_LIVE_ACK } : { NEXT_PUBLIC_LEOPOLD_DEV_FIXTURE: "1" }),
+          },
         },
 });

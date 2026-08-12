@@ -10,13 +10,9 @@ type CompatibilityProbe = {
 
 const probe: CompatibilityProbe = {
   sdk: null,
-  providerProps: null
+  providerProps: null,
 };
 
 export function ZamaImportProbe() {
-  return (
-    <p data-testid="zama-import-probe">
-      Zama SDK type imports compiled: {String(probe.sdk === null)}
-    </p>
-  );
+  return <p data-testid="zama-import-probe">Zama SDK type imports compiled: {String(probe.sdk === null)}</p>;
 }

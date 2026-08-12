@@ -34,8 +34,12 @@ export function SG5ProbeClient({ mode }: Props) {
       } catch (error) {
         if (active && error instanceof Error && error.message === "SG5_WRONG_NETWORK_REFUSED") setWrongNetwork(true);
         else if (active) {
-          const name = error instanceof Error && /^[A-Za-z][A-Za-z0-9_]*Error$/u.test(error.name) ? error.name : "UNKNOWN";
-          const status = error && typeof error === "object" && "statusCode" in error && typeof error.statusCode === "number" ? `:${error.statusCode}` : "";
+          const name =
+            error instanceof Error && /^[A-Za-z][A-Za-z0-9_]*Error$/u.test(error.name) ? error.name : "UNKNOWN";
+          const status =
+            error && typeof error === "object" && "statusCode" in error && typeof error.statusCode === "number"
+              ? `:${error.statusCode}`
+              : "";
           const diagnostic = `${name}${status}`;
           setFailureClass(diagnostic);
           console.info(`SG5_FAILURE_CLASS:${diagnostic}`);
@@ -52,7 +56,9 @@ export function SG5ProbeClient({ mode }: Props) {
   return (
     <main style={{ fontFamily: "monospace", margin: "2rem", maxWidth: "72rem" }}>
       <h1>SG-5 local capability probe — non-production</h1>
-      <p data-testid="sg5-banner">Internal SG-5 capability route. The automated test wallet is isolated from the frontend.</p>
+      <p data-testid="sg5-banner">
+        Internal SG-5 capability route. The automated test wallet is isolated from the frontend.
+      </p>
       <p data-testid="sg5-mode">{mode}</p>
       {wrongNetwork ? <p data-testid="sg5-wrong-network-refused">WRONG_NETWORK_REFUSED</p> : null}
       {wrongNetwork ? <p data-testid="sg5-no-transaction">NO_TRANSACTION_ATTEMPTED</p> : null}
