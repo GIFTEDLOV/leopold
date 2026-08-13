@@ -4,7 +4,7 @@
     "name": "ethereum-sepolia",
     "chainId": 11155111
   },
-  "deploymentStatus": "FINAL_CLOSURE_BYTECODE_NOT_YET_OFFICIALLY_DEPLOYED",
+  "deploymentStatus": "OFFICIAL_SEPOLIA_DEPLOYED",
   "settlementBondProfiles": {
     "demoSepolia": {
       "bondWei": "5000000000000000",
@@ -19,8 +19,8 @@
   },
   "contracts": {
     "canonicalCircleUsdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-    "lcUsdc": null,
-    "registry": null,
+    "lcUsdc": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+    "registry": "0x08560A59A28B9e3b7F5fe7C3cce17ddD9F115530",
     "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e"
   },
   "officialVaults": [
@@ -29,67 +29,112 @@
       "type": "DAILY",
       "name": "Daily",
       "roundDurationSeconds": 86400,
-      "vault": null,
-      "adapter": null,
-      "bondEscrow": null
+      "vault": "0xa84C40BBeD3010D0D4CD44465920d5156fa5E6c4",
+      "adapter": "0x99dAdA9526A58f3BDdd44171441980e3A61E4c2F",
+      "bondEscrow": "0x3c80D1Db7718c787BCfb9be6A16dB4b4AdcB5755"
     },
     {
       "id": 2,
       "type": "WEEKLY",
       "name": "Weekly",
       "roundDurationSeconds": 604800,
-      "vault": null,
-      "adapter": null,
-      "bondEscrow": null
+      "vault": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+      "adapter": "0xE88712Affce2CDe86dEBcb78A6bd985c4ad5A3aA",
+      "bondEscrow": "0xfa8718a6a238749c35eE9D2daBFF87E65253fd10"
     },
     {
       "id": 3,
       "type": "MONTHLY",
       "name": "Monthly",
       "roundDurationSeconds": 2592000,
-      "vault": null,
-      "adapter": null,
-      "bondEscrow": null
+      "vault": "0x1136D6c399d09Fa66474582DE6E4941bA3303ad6",
+      "adapter": "0x7d457e52195c4ab18f3Fc1Bc5b3B908D035fC996",
+      "bondEscrow": "0x21088B76dD21AF354E74f0e9848346b7780D70db"
     },
     {
       "id": 4,
       "type": "BOOST",
       "name": "Boost",
       "roundDurationSeconds": 604800,
-      "vault": null,
-      "adapter": null,
-      "bondEscrow": null
+      "vault": "0x98D971557843CE17dc1387d2256Ab3dbAaC204f9",
+      "adapter": "0x0dB787ae292C880ABBB6F733ad3d4d5A7098ECf1",
+      "bondEscrow": "0x6E78CA9E693c4ad73c40AA967aab25C3Fd772c9a"
     }
   ],
   "reads": [
-    { "signature": "officialVault(uint8)", "privacy": "PUBLIC" },
-    { "signature": "roundInfo(uint256)", "privacy": "PUBLIC", "asynchronousStatus": true },
-    { "signature": "eligibilityStart(uint256,address)", "privacy": "PUBLIC" },
-    { "signature": "SETTLEMENT_BOND_ESCROW()", "privacy": "PUBLIC" },
-    { "signature": "BOND_AMOUNT()", "contract": "LeopoldSettlementBondEscrow", "privacy": "PUBLIC" },
-    { "signature": "REWARD_PER_PARTICIPANT_PASS()", "contract": "LeopoldSettlementBondEscrow", "privacy": "PUBLIC" },
+    {
+      "signature": "officialVault(uint8)",
+      "privacy": "PUBLIC"
+    },
+    {
+      "signature": "roundInfo(uint256)",
+      "privacy": "PUBLIC",
+      "asynchronousStatus": true
+    },
+    {
+      "signature": "eligibilityStart(uint256,address)",
+      "privacy": "PUBLIC"
+    },
+    {
+      "signature": "SETTLEMENT_BOND_ESCROW()",
+      "privacy": "PUBLIC"
+    },
+    {
+      "signature": "BOND_AMOUNT()",
+      "contract": "LeopoldSettlementBondEscrow",
+      "privacy": "PUBLIC"
+    },
+    {
+      "signature": "REWARD_PER_PARTICIPANT_PASS()",
+      "contract": "LeopoldSettlementBondEscrow",
+      "privacy": "PUBLIC"
+    },
     {
       "signature": "REFUND_PER_COMPLETED_PARTICIPANT()",
       "contract": "LeopoldSettlementBondEscrow",
       "privacy": "PUBLIC"
     },
-    { "signature": "isRegistered(uint256,address)", "contract": "LeopoldSettlementBondEscrow", "privacy": "PUBLIC" },
+    {
+      "signature": "isRegistered(uint256,address)",
+      "contract": "LeopoldSettlementBondEscrow",
+      "privacy": "PUBLIC"
+    },
     {
       "signature": "roundInfo(uint256)",
       "contract": "LeopoldSettlementBondEscrow",
       "privacy": "PUBLIC",
       "asynchronousStatus": true
     },
-    { "signature": "settlementRewardCredit(address)", "contract": "LeopoldSettlementBondEscrow", "privacy": "PUBLIC" },
-    { "signature": "principalOf(address)", "privacy": "PRIVATE_HANDLE", "requiresWalletUserDecryption": true },
-    { "signature": "winningsOf(address)", "privacy": "PRIVATE_HANDLE", "requiresWalletUserDecryption": true },
-    { "signature": "aggregateTwabHandle(uint256)", "privacy": "PUBLIC_DECRYPTION_HANDLE", "infrastructureOnly": true },
+    {
+      "signature": "settlementRewardCredit(address)",
+      "contract": "LeopoldSettlementBondEscrow",
+      "privacy": "PUBLIC"
+    },
+    {
+      "signature": "principalOf(address)",
+      "privacy": "PRIVATE_HANDLE",
+      "requiresWalletUserDecryption": true
+    },
+    {
+      "signature": "winningsOf(address)",
+      "privacy": "PRIVATE_HANDLE",
+      "requiresWalletUserDecryption": true
+    },
+    {
+      "signature": "aggregateTwabHandle(uint256)",
+      "privacy": "PUBLIC_DECRYPTION_HANDLE",
+      "infrastructureOnly": true
+    },
     {
       "signature": "candidateValidityHandle(uint256)",
       "privacy": "PUBLIC_DECRYPTION_HANDLE",
       "infrastructureOnly": true
     },
-    { "signature": "reconciliationHandle(uint256)", "privacy": "PUBLIC_DECRYPTION_HANDLE", "infrastructureOnly": true },
+    {
+      "signature": "reconciliationHandle(uint256)",
+      "privacy": "PUBLIC_DECRYPTION_HANDLE",
+      "infrastructureOnly": true
+    },
     {
       "event": "RoundWeightMaterialized(uint256,address,bytes32)",
       "privacy": "PRIVATE_HANDLE",
@@ -100,7 +145,11 @@
       "privacy": "PUBLIC_DECRYPTION_HANDLE",
       "infrastructureOnly": true
     },
-    { "event": "StrategyUnwrapRequested(uint256,bytes32)", "privacy": "PUBLIC", "infrastructureOnly": true }
+    {
+      "event": "StrategyUnwrapRequested(uint256,bytes32)",
+      "privacy": "PUBLIC",
+      "infrastructureOnly": true
+    }
   ],
   "writes": {
     "user": [
@@ -146,9 +195,18 @@
     "REPLENISHMENT"
   ],
   "normalFlows": {
-    "makePrivate": { "walletTransactions": 2, "sequence": ["USDC.approve(lcUSDC)", "lcUSDC.wrap(user,amount)"] },
-    "saveFirstTime": { "walletTransactions": 1, "sequence": ["lcUSDC.confidentialTransferAndCall(vault,...)"] },
-    "saveReturning": { "walletTransactions": 1, "sequence": ["lcUSDC.confidentialTransferAndCall(vault,...)"] },
+    "makePrivate": {
+      "walletTransactions": 2,
+      "sequence": ["USDC.approve(lcUSDC)", "lcUSDC.wrap(user,amount)"]
+    },
+    "saveFirstTime": {
+      "walletTransactions": 1,
+      "sequence": ["lcUSDC.confidentialTransferAndCall(vault,...)"]
+    },
+    "saveReturning": {
+      "walletTransactions": 1,
+      "sequence": ["lcUSDC.confidentialTransferAndCall(vault,...)"]
+    },
     "enterPrizeRound": {
       "walletTransactions": 1,
       "sequence": ["bondEscrow.registerForRound(roundId,{value:BOND_AMOUNT})"],
@@ -158,8 +216,14 @@
       "walletTransactions": 1,
       "sequence": ["bondEscrow.claimBondRefund(roundId)"]
     },
-    "withdrawPrincipal": { "walletTransactions": 1, "sequence": ["vault.withdraw(encryptedAmount,inputProof)"] },
-    "withdrawWinnings": { "walletTransactions": 1, "sequence": ["vault.withdrawWinnings(encryptedAmount,inputProof)"] },
+    "withdrawPrincipal": {
+      "walletTransactions": 1,
+      "sequence": ["vault.withdraw(encryptedAmount,inputProof)"]
+    },
+    "withdrawWinnings": {
+      "walletTransactions": 1,
+      "sequence": ["vault.withdrawWinnings(encryptedAmount,inputProof)"]
+    },
     "makePublic": {
       "walletTransactions": 2,
       "sequence": [
@@ -175,8 +239,14 @@
         "wallet user-decrypt offchain"
       ]
     },
-    "privateResult": { "walletTransactions": 0, "sequence": ["read winningsOf(user)", "wallet user-decrypt offchain"] },
-    "strategy": { "walletTransactions": 0, "sequence": ["protocol infrastructure only"] }
+    "privateResult": {
+      "walletTransactions": 0,
+      "sequence": ["read winningsOf(user)", "wallet user-decrypt offchain"]
+    },
+    "strategy": {
+      "walletTransactions": 0,
+      "sequence": ["protocol infrastructure only"]
+    }
   },
   "settlementUi": {
     "label": "Finalizing private draw",
@@ -191,5 +261,21 @@
       "settlement chunks",
       "public decryption proofs"
     ]
+  },
+  "faucet": {
+    "name": "Compound III Sepolia USDC faucet",
+    "address": "0x68793eA49297eB75DFB4610B68e076D2A5c7646C",
+    "provenTransaction": "0x63829c8633304e200a62bdd0af068374687b8163afc6673988fbe8f4426357da",
+    "asset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+  },
+  "officialDeployment": {
+    "chainId": 11155111,
+    "deployer": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+    "bondWei": "5000000000000000",
+    "rewardPerParticipantPassWei": "1250000000000000",
+    "refundAfterTwoPassesWei": "2500000000000000",
+    "strategyEpochAgeSeconds": 60,
+    "freezeCommit": "182787317e5b1f024d8f7f28b8bd3bef495224c1",
+    "frontendCommit": "3f396e080e70d130be58107128a1acac3c44f60d"
   }
 }

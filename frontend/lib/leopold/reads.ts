@@ -114,7 +114,7 @@ export async function validateConfiguredDeployment(client: PublicClient, config:
       adapter,
       escrow,
       vault,
-      lcUsdc,
+      CANONICAL_USDC,
       expectedComet,
     ].map((value) => value.toLowerCase());
     if (

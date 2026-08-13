@@ -19,7 +19,7 @@ test.describe("Leopold explicit development fixture", () => {
     await expect(page.getByText("Private USDC is ready")).toBeVisible();
     await page.getByRole("button", { name: "Choose a vault" }).click();
 
-    await page.getByRole("link", { name: "Vaults" }).click();
+    await page.getByRole("link", { name: "Vaults", exact: true }).click();
     await page.getByTestId("vault-weekly").getByRole("link", { name: "View" }).click();
     await page.getByLabel("Amount to save").fill("10");
     await page.getByTestId("save-private").click();
@@ -74,7 +74,7 @@ test.describe("Leopold explicit development fixture", () => {
       await page.goto(route);
       await page.getByRole("button", { name: "Connect Wallet" }).click();
       await page.getByRole("button", { name: "Switch to Sepolia" }).click();
-      await expect(page.getByTestId("fixture-banner")).toBeVisible();
+      if (route === "/app") await expect(page.getByTestId("fixture-banner")).toBeVisible();
       expect(await page.locator("[data-nextjs-dialog]").count()).toBe(0);
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),

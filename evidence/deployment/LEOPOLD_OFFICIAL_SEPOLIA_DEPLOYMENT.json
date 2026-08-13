@@ -1,0 +1,557 @@
+{
+  "schema": "leopold.official-sepolia-deployment.v1",
+  "capturedUtc": "2026-08-12T18:16:41.173Z",
+  "chain": {
+    "name": "ethereum-sepolia",
+    "chainId": "11155111"
+  },
+  "deployer": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+  "source": {
+    "freezeCommit": "182787317e5b1f024d8f7f28b8bd3bef495224c1",
+    "frontendCommit": "3f396e080e70d130be58107128a1acac3c44f60d"
+  },
+  "external": {
+    "canonicalCircleUsdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+    "compoundFaucet": "0x68793eA49297eB75DFB4610B68e076D2A5c7646C",
+    "faucetEvidenceTransaction": "0x63829c8633304e200a62bdd0af068374687b8163afc6673988fbe8f4426357da"
+  },
+  "configuration": {
+    "firstRoundOpensAt": 1786553292,
+    "strategyGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+    "strategyEpochAgeSeconds": 60,
+    "bondWei": "5000000000000000",
+    "rewardPerParticipantPassWei": "1250000000000000",
+    "refundAfterTwoPassesWei": "2500000000000000",
+    "durations": [
+      {
+        "name": "Daily",
+        "seconds": 86400
+      },
+      {
+        "name": "Weekly",
+        "seconds": 604800
+      },
+      {
+        "name": "Monthly",
+        "seconds": 2592000
+      },
+      {
+        "name": "Boost",
+        "seconds": 604800
+      }
+    ]
+  },
+  "deployments": {
+    "lcUsdc": {
+      "address": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+      "transaction": {
+        "hash": "0x58e763e8cd41087880a6a57c98621a39c03f182963ab827ccc1780eb29678058",
+        "block": 11474458,
+        "gasUsed": "2491218"
+      },
+      "constructor": []
+    },
+    "vaults": [
+      {
+        "name": "Daily",
+        "address": "0xa84C40BBeD3010D0D4CD44465920d5156fa5E6c4",
+        "transaction": {
+          "hash": "0x6833642227cef2c78f944e709ee89bf48e8ffa8642c8d808cce6eae8deafc345",
+          "block": 11474459,
+          "gasUsed": "7706618"
+        },
+        "constructor": {
+          "vaultId": 1,
+          "vaultType": 0,
+          "vaultName": "Daily",
+          "roundDurationSeconds": 86400,
+          "asset": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+          "firstRoundOpensAt": 1786553292,
+          "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+          "strategyGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+          "minimumStrategyEpochAge": 60,
+          "settlementBondAmountWei": "5000000000000000",
+          "settlementRewardPerParticipantPassWei": "1250000000000000"
+        },
+        "adapter": {
+          "address": "0x99dAdA9526A58f3BDdd44171441980e3A61E4c2F",
+          "creationTransaction": {
+            "hash": "0x6833642227cef2c78f944e709ee89bf48e8ffa8642c8d808cce6eae8deafc345",
+            "block": 11474459,
+            "gasUsed": "7706618"
+          }
+        },
+        "bondEscrow": {
+          "address": "0x3c80D1Db7718c787BCfb9be6A16dB4b4AdcB5755",
+          "creationTransaction": {
+            "hash": "0x6833642227cef2c78f944e709ee89bf48e8ffa8642c8d808cce6eae8deafc345",
+            "block": 11474459,
+            "gasUsed": "7706618"
+          }
+        }
+      },
+      {
+        "name": "Weekly",
+        "address": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+        "transaction": {
+          "hash": "0x43dfedeb2bd9095a3b4bcb18386160a8dc2b59d5cc8f214ad358fa45f314ebed",
+          "block": 11474460,
+          "gasUsed": "7706646"
+        },
+        "constructor": {
+          "vaultId": 2,
+          "vaultType": 1,
+          "vaultName": "Weekly",
+          "roundDurationSeconds": 604800,
+          "asset": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+          "firstRoundOpensAt": 1786553292,
+          "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+          "strategyGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+          "minimumStrategyEpochAge": 60,
+          "settlementBondAmountWei": "5000000000000000",
+          "settlementRewardPerParticipantPassWei": "1250000000000000"
+        },
+        "adapter": {
+          "address": "0xE88712Affce2CDe86dEBcb78A6bd985c4ad5A3aA",
+          "creationTransaction": {
+            "hash": "0x43dfedeb2bd9095a3b4bcb18386160a8dc2b59d5cc8f214ad358fa45f314ebed",
+            "block": 11474460,
+            "gasUsed": "7706646"
+          }
+        },
+        "bondEscrow": {
+          "address": "0xfa8718a6a238749c35eE9D2daBFF87E65253fd10",
+          "creationTransaction": {
+            "hash": "0x43dfedeb2bd9095a3b4bcb18386160a8dc2b59d5cc8f214ad358fa45f314ebed",
+            "block": 11474460,
+            "gasUsed": "7706646"
+          }
+        }
+      },
+      {
+        "name": "Monthly",
+        "address": "0x1136D6c399d09Fa66474582DE6E4941bA3303ad6",
+        "transaction": {
+          "hash": "0xc9d7f016a9c0762bbc030f3c12b4d44deca09c1d7a4d88d04f78d5e0b4c76539",
+          "block": 11474461,
+          "gasUsed": "7706646"
+        },
+        "constructor": {
+          "vaultId": 3,
+          "vaultType": 2,
+          "vaultName": "Monthly",
+          "roundDurationSeconds": 2592000,
+          "asset": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+          "firstRoundOpensAt": 1786553292,
+          "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+          "strategyGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+          "minimumStrategyEpochAge": 60,
+          "settlementBondAmountWei": "5000000000000000",
+          "settlementRewardPerParticipantPassWei": "1250000000000000"
+        },
+        "adapter": {
+          "address": "0x7d457e52195c4ab18f3Fc1Bc5b3B908D035fC996",
+          "creationTransaction": {
+            "hash": "0xc9d7f016a9c0762bbc030f3c12b4d44deca09c1d7a4d88d04f78d5e0b4c76539",
+            "block": 11474461,
+            "gasUsed": "7706646"
+          }
+        },
+        "bondEscrow": {
+          "address": "0x21088B76dD21AF354E74f0e9848346b7780D70db",
+          "creationTransaction": {
+            "hash": "0xc9d7f016a9c0762bbc030f3c12b4d44deca09c1d7a4d88d04f78d5e0b4c76539",
+            "block": 11474461,
+            "gasUsed": "7706646"
+          }
+        }
+      },
+      {
+        "name": "Boost",
+        "address": "0x98D971557843CE17dc1387d2256Ab3dbAaC204f9",
+        "transaction": {
+          "hash": "0x1a44fc23b5e6b7ccf114171b8afd650a530afc9985a6614a90fa19ceff54524f",
+          "block": 11474462,
+          "gasUsed": "7706634"
+        },
+        "constructor": {
+          "vaultId": 4,
+          "vaultType": 3,
+          "vaultName": "Boost",
+          "roundDurationSeconds": 604800,
+          "asset": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+          "firstRoundOpensAt": 1786553292,
+          "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+          "strategyGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+          "minimumStrategyEpochAge": 60,
+          "settlementBondAmountWei": "5000000000000000",
+          "settlementRewardPerParticipantPassWei": "1250000000000000"
+        },
+        "adapter": {
+          "address": "0x0dB787ae292C880ABBB6F733ad3d4d5A7098ECf1",
+          "creationTransaction": {
+            "hash": "0x1a44fc23b5e6b7ccf114171b8afd650a530afc9985a6614a90fa19ceff54524f",
+            "block": 11474462,
+            "gasUsed": "7706634"
+          }
+        },
+        "bondEscrow": {
+          "address": "0x6E78CA9E693c4ad73c40AA967aab25C3Fd772c9a",
+          "creationTransaction": {
+            "hash": "0x1a44fc23b5e6b7ccf114171b8afd650a530afc9985a6614a90fa19ceff54524f",
+            "block": 11474462,
+            "gasUsed": "7706634"
+          }
+        }
+      }
+    ],
+    "registry": {
+      "address": "0x08560A59A28B9e3b7F5fe7C3cce17ddD9F115530",
+      "transaction": {
+        "hash": "0x524122313df8823f21d7da797f3b260247eaa754ead44f1a6484276bef62404f",
+        "block": 11474463,
+        "gasUsed": "1154207"
+      },
+      "constructor": {
+        "vaults": [
+          "0xa84C40BBeD3010D0D4CD44465920d5156fa5E6c4",
+          "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+          "0x1136D6c399d09Fa66474582DE6E4941bA3303ad6",
+          "0x98D971557843CE17dc1387d2256Ab3dbAaC204f9"
+        ],
+        "initialOwner": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+        "expectedBondAmountWei": "5000000000000000",
+        "expectedRewardPerParticipantPassWei": "1250000000000000"
+      }
+    }
+  },
+  "runtimeBytecode": {
+    "lcUSDC": {
+      "address": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+      "liveRuntimeBytes": 10565,
+      "liveRuntimeSha256": "ff366b4416357e95d7ce04dafe8eb3a8ed21aa134e26d814a7a911f02b86ed0f",
+      "liveRuntimeKeccak256": "0xd29d727225b6475fb2df5b3bf11c120663571fb52d1d1fc01d4e9664908732ff",
+      "normalizedRuntimeSha256": "3346df4a1411a5170f3a3ff189dd4828805897f85d6766970eac75b73b7ca438",
+      "expectedFrozenRuntimeSha256": "3346df4a1411a5170f3a3ff189dd4828805897f85d6766970eac75b73b7ca438",
+      "expectedCreationBytes": 12510,
+      "expectedRuntimeBytes": 10565,
+      "eip170Headroom": 14011,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldConfidentialUSDC.sol@074b3e100454a83926283dbeb012bba9.json",
+      "standaloneRuntimeBytes": 10565,
+      "standaloneRuntimeSha256": "3346df4a1411a5170f3a3ff189dd4828805897f85d6766970eac75b73b7ca438"
+    },
+    "DailyVault": {
+      "address": "0xa84C40BBeD3010D0D4CD44465920d5156fa5E6c4",
+      "liveRuntimeBytes": 23539,
+      "liveRuntimeSha256": "eda81f0b04055f28827d1b13a2d5b89d2702c4322de048f31c91708a0eb2b5f9",
+      "liveRuntimeKeccak256": "0x45d989faeb48b282d2884d8bbb4f695db48d63a28c14761b6930e922679e4d48",
+      "normalizedRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3",
+      "expectedFrozenRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3",
+      "expectedCreationBytes": 36147,
+      "expectedRuntimeBytes": 23539,
+      "eip170Headroom": 1037,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldVault.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 23539,
+      "standaloneRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3"
+    },
+    "DailyAdapter": {
+      "address": "0x99dAdA9526A58f3BDdd44171441980e3A61E4c2F",
+      "liveRuntimeBytes": 5346,
+      "liveRuntimeSha256": "a0daf22c848058fc5528031ae335067b11c03ea722fab226fd385028456b10ec",
+      "liveRuntimeKeccak256": "0xe48eab1fadd798efc4bb14418b27e3f9bbab27702b13772e63a1b4ee9f527df2",
+      "normalizedRuntimeSha256": "afc94be1c1a32fbe66aab9ffb54275dcfce5e1b260a526f50c425c7ad39d9392",
+      "expectedFrozenRuntimeSha256": "afc94be1c1a32fbe66aab9ffb54275dcfce5e1b260a526f50c425c7ad39d9392",
+      "expectedCreationBytes": 6087,
+      "expectedRuntimeBytes": 5346,
+      "eip170Headroom": 19230,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldCompoundAdapter.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 5535,
+      "standaloneRuntimeSha256": "ac244dfaf00045224206e4763438222c1e1336adfaac74086293e88d6872d45e"
+    },
+    "DailyEscrow": {
+      "address": "0x3c80D1Db7718c787BCfb9be6A16dB4b4AdcB5755",
+      "liveRuntimeBytes": 3378,
+      "liveRuntimeSha256": "9f66a6dc2f0ffb1cbdf3966c529a5302ad4786021c4aaa686759a1932fda1d1d",
+      "liveRuntimeKeccak256": "0x3476e7a2fafc66a78255974b2472bea0b1ab7aaf14a8d138ddc856e4a9018fdb",
+      "normalizedRuntimeSha256": "13a41a7603decbd54715647a03d1f5f801f509aa5c3a66327f9752e4ded97c52",
+      "expectedFrozenRuntimeSha256": "13a41a7603decbd54715647a03d1f5f801f509aa5c3a66327f9752e4ded97c52",
+      "expectedCreationBytes": 3765,
+      "expectedRuntimeBytes": 3378,
+      "eip170Headroom": 21198,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldSettlementBondEscrow.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 4270,
+      "standaloneRuntimeSha256": "6c0e4774830bfd27c0de17a5833d662cc167f6e8083b6769ffa2bbaedcc9ac18"
+    },
+    "WeeklyVault": {
+      "address": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+      "liveRuntimeBytes": 23539,
+      "liveRuntimeSha256": "cc6e48a2e7a6ee8fb8d32db5d0faa613e46a069d4a6c54a381aebb2dde248f55",
+      "liveRuntimeKeccak256": "0x489c3884094825c88b888704025a42dd93489cbaaffe0f0bc54e939450d83b9f",
+      "normalizedRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3",
+      "expectedFrozenRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3",
+      "expectedCreationBytes": 36147,
+      "expectedRuntimeBytes": 23539,
+      "eip170Headroom": 1037,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldVault.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 23539,
+      "standaloneRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3"
+    },
+    "WeeklyAdapter": {
+      "address": "0xE88712Affce2CDe86dEBcb78A6bd985c4ad5A3aA",
+      "liveRuntimeBytes": 5346,
+      "liveRuntimeSha256": "aeccb0a1f7e0b1158457e370f55174f96f10e556ce25d93187c0b13ce2731219",
+      "liveRuntimeKeccak256": "0xc28e42ac1295c7e9840be25120bdce929ac92be308ffbd57d8a131fe5c1ac6aa",
+      "normalizedRuntimeSha256": "afc94be1c1a32fbe66aab9ffb54275dcfce5e1b260a526f50c425c7ad39d9392",
+      "expectedFrozenRuntimeSha256": "afc94be1c1a32fbe66aab9ffb54275dcfce5e1b260a526f50c425c7ad39d9392",
+      "expectedCreationBytes": 6087,
+      "expectedRuntimeBytes": 5346,
+      "eip170Headroom": 19230,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldCompoundAdapter.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 5535,
+      "standaloneRuntimeSha256": "ac244dfaf00045224206e4763438222c1e1336adfaac74086293e88d6872d45e"
+    },
+    "WeeklyEscrow": {
+      "address": "0xfa8718a6a238749c35eE9D2daBFF87E65253fd10",
+      "liveRuntimeBytes": 3378,
+      "liveRuntimeSha256": "df4f32a2d7dc8182795d14062e75868a1fd9776f4b4878dd65c6fd38fd6ecfa9",
+      "liveRuntimeKeccak256": "0x2ffb744e0b4676363b3003b7c337b1a10345374f189e6272f25ff8ce7c296ee6",
+      "normalizedRuntimeSha256": "13a41a7603decbd54715647a03d1f5f801f509aa5c3a66327f9752e4ded97c52",
+      "expectedFrozenRuntimeSha256": "13a41a7603decbd54715647a03d1f5f801f509aa5c3a66327f9752e4ded97c52",
+      "expectedCreationBytes": 3765,
+      "expectedRuntimeBytes": 3378,
+      "eip170Headroom": 21198,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldSettlementBondEscrow.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 4270,
+      "standaloneRuntimeSha256": "6c0e4774830bfd27c0de17a5833d662cc167f6e8083b6769ffa2bbaedcc9ac18"
+    },
+    "MonthlyVault": {
+      "address": "0x1136D6c399d09Fa66474582DE6E4941bA3303ad6",
+      "liveRuntimeBytes": 23539,
+      "liveRuntimeSha256": "c1d9b211418eed53e11d248a57ec3a2d8bdb11e7cac5a0d8438ad98b348b9627",
+      "liveRuntimeKeccak256": "0x59494f90acfe230f75570d787c7dce915e2e53ffa50d8de25592e2523fd39ba7",
+      "normalizedRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3",
+      "expectedFrozenRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3",
+      "expectedCreationBytes": 36147,
+      "expectedRuntimeBytes": 23539,
+      "eip170Headroom": 1037,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldVault.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 23539,
+      "standaloneRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3"
+    },
+    "MonthlyAdapter": {
+      "address": "0x7d457e52195c4ab18f3Fc1Bc5b3B908D035fC996",
+      "liveRuntimeBytes": 5346,
+      "liveRuntimeSha256": "006ee8932c6a0a3bcb36dab5ee8db2b45f408ecbe3eb9b4277e272f6bf6071bb",
+      "liveRuntimeKeccak256": "0x492b7d83dc75932b5dbaaa567597188325b419d9f0105583d516a0aedc896ab7",
+      "normalizedRuntimeSha256": "afc94be1c1a32fbe66aab9ffb54275dcfce5e1b260a526f50c425c7ad39d9392",
+      "expectedFrozenRuntimeSha256": "afc94be1c1a32fbe66aab9ffb54275dcfce5e1b260a526f50c425c7ad39d9392",
+      "expectedCreationBytes": 6087,
+      "expectedRuntimeBytes": 5346,
+      "eip170Headroom": 19230,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldCompoundAdapter.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 5535,
+      "standaloneRuntimeSha256": "ac244dfaf00045224206e4763438222c1e1336adfaac74086293e88d6872d45e"
+    },
+    "MonthlyEscrow": {
+      "address": "0x21088B76dD21AF354E74f0e9848346b7780D70db",
+      "liveRuntimeBytes": 3378,
+      "liveRuntimeSha256": "c0748a0a3f040e6dca0d56c7615fe8f2d2bb0221e62d9e4f09a205d39bafa02a",
+      "liveRuntimeKeccak256": "0xf75185497d87b5461dea8a9a7b0e5df085944c0db7d3229cd9260a1858243e57",
+      "normalizedRuntimeSha256": "13a41a7603decbd54715647a03d1f5f801f509aa5c3a66327f9752e4ded97c52",
+      "expectedFrozenRuntimeSha256": "13a41a7603decbd54715647a03d1f5f801f509aa5c3a66327f9752e4ded97c52",
+      "expectedCreationBytes": 3765,
+      "expectedRuntimeBytes": 3378,
+      "eip170Headroom": 21198,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldSettlementBondEscrow.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 4270,
+      "standaloneRuntimeSha256": "6c0e4774830bfd27c0de17a5833d662cc167f6e8083b6769ffa2bbaedcc9ac18"
+    },
+    "BoostVault": {
+      "address": "0x98D971557843CE17dc1387d2256Ab3dbAaC204f9",
+      "liveRuntimeBytes": 23539,
+      "liveRuntimeSha256": "e59ed534cf3ec503316dd06af7fb90b781bb8d0ef75cb131c04f64b9e1715f96",
+      "liveRuntimeKeccak256": "0xa7a887735603c572d51766ef55f93a9d478e54961fc1a0730d1e2f89e5013833",
+      "normalizedRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3",
+      "expectedFrozenRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3",
+      "expectedCreationBytes": 36147,
+      "expectedRuntimeBytes": 23539,
+      "eip170Headroom": 1037,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldVault.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 23539,
+      "standaloneRuntimeSha256": "e3ad2c181dff40a9b35ea5764f2d2d51bf6b0a30ec17a67bda7bf48f238df7a3"
+    },
+    "BoostAdapter": {
+      "address": "0x0dB787ae292C880ABBB6F733ad3d4d5A7098ECf1",
+      "liveRuntimeBytes": 5346,
+      "liveRuntimeSha256": "39ac16858129ac3af77b7d988531d9e4de01d39f49534ceb5ffbd80872f42c0a",
+      "liveRuntimeKeccak256": "0x1fd8b0ba77123bf5bae26fa941f7d11448653dfd79023e98b65eaae6b98ab0b6",
+      "normalizedRuntimeSha256": "afc94be1c1a32fbe66aab9ffb54275dcfce5e1b260a526f50c425c7ad39d9392",
+      "expectedFrozenRuntimeSha256": "afc94be1c1a32fbe66aab9ffb54275dcfce5e1b260a526f50c425c7ad39d9392",
+      "expectedCreationBytes": 6087,
+      "expectedRuntimeBytes": 5346,
+      "eip170Headroom": 19230,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldCompoundAdapter.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 5535,
+      "standaloneRuntimeSha256": "ac244dfaf00045224206e4763438222c1e1336adfaac74086293e88d6872d45e"
+    },
+    "BoostEscrow": {
+      "address": "0x6E78CA9E693c4ad73c40AA967aab25C3Fd772c9a",
+      "liveRuntimeBytes": 3378,
+      "liveRuntimeSha256": "77a0d38450f66e2f86a8e53e8dc918f576883a374397bb18ef7a319a178e8127",
+      "liveRuntimeKeccak256": "0x59cffe233d57ec76534c84cbf02a51108c7659bb66ccde92924e80f983c640d1",
+      "normalizedRuntimeSha256": "13a41a7603decbd54715647a03d1f5f801f509aa5c3a66327f9752e4ded97c52",
+      "expectedFrozenRuntimeSha256": "13a41a7603decbd54715647a03d1f5f801f509aa5c3a66327f9752e4ded97c52",
+      "expectedCreationBytes": 3765,
+      "expectedRuntimeBytes": 3378,
+      "eip170Headroom": 21198,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldSettlementBondEscrow.sol@670f67df7742bcbb5772a96008d931f4.json",
+      "standaloneRuntimeBytes": 4270,
+      "standaloneRuntimeSha256": "6c0e4774830bfd27c0de17a5833d662cc167f6e8083b6769ffa2bbaedcc9ac18"
+    },
+    "registry": {
+      "address": "0x08560A59A28B9e3b7F5fe7C3cce17ddD9F115530",
+      "liveRuntimeBytes": 1334,
+      "liveRuntimeSha256": "28fed37e9e810740365fdb3f9fe532a4abc66ff5d63fe6d1035a3a8b8d494652",
+      "liveRuntimeKeccak256": "0x54437deba38bc3804cbe48e90106a53f53cbfc2dec2c389ea48ec1c66dc5837f",
+      "normalizedRuntimeSha256": "733f7f799f6977c0e6be8fc8a3e1a61d0f7cc284b28c7f2d368989ed97830ac8",
+      "expectedFrozenRuntimeSha256": "733f7f799f6977c0e6be8fc8a3e1a61d0f7cc284b28c7f2d368989ed97830ac8",
+      "expectedCreationBytes": 4744,
+      "expectedRuntimeBytes": 1334,
+      "eip170Headroom": 23242,
+      "matchesFrozenArtifact": true,
+      "expectedArtifactVariant": "contracts/LeopoldVaultRegistry.sol@b29b1b4413d6b6bf27135fd7ebae31ee.json",
+      "standaloneRuntimeBytes": 1334,
+      "standaloneRuntimeSha256": "733f7f799f6977c0e6be8fc8a3e1a61d0f7cc284b28c7f2d368989ed97830ac8"
+    }
+  },
+  "checks": {
+    "chainId": "11155111",
+    "deployer": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+    "registryOwner": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+    "wrapperUnderlying": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "wrapperDecimals": "6",
+    "wrapperRate": "1",
+    "registryOfficialVaultCount": "4",
+    "expectedBondAmount": "5000000000000000",
+    "expectedRewardPerParticipantPass": "1250000000000000",
+    "vault1": {
+      "officialVault": "0xa84C40BBeD3010D0D4CD44465920d5156fa5E6c4",
+      "vaultId": "1",
+      "vaultType": "0",
+      "vaultName": "Daily",
+      "roundDurationSeconds": "86400",
+      "asset": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+      "underlying": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "strategy": "0x99dAdA9526A58f3BDdd44171441980e3A61E4c2F",
+      "escrow": "0x3c80D1Db7718c787BCfb9be6A16dB4b4AdcB5755",
+      "adapterVault": "0xa84C40BBeD3010D0D4CD44465920d5156fa5E6c4",
+      "adapterAsset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "adapterComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+      "adapterGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+      "adapterMarketIntegrity": true,
+      "adapterPositionIntegrity": true,
+      "escrowVault": "0xa84C40BBeD3010D0D4CD44465920d5156fa5E6c4",
+      "escrowBondAmount": "5000000000000000",
+      "escrowRewardPerParticipantPass": "1250000000000000",
+      "escrowRefundAfterTwoPasses": "2500000000000000",
+      "escrowAccountedLiability": "0",
+      "activeRoundId": "1",
+      "roundState": "1"
+    },
+    "vault2": {
+      "officialVault": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+      "vaultId": "2",
+      "vaultType": "1",
+      "vaultName": "Weekly",
+      "roundDurationSeconds": "604800",
+      "asset": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+      "underlying": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "strategy": "0xE88712Affce2CDe86dEBcb78A6bd985c4ad5A3aA",
+      "escrow": "0xfa8718a6a238749c35eE9D2daBFF87E65253fd10",
+      "adapterVault": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+      "adapterAsset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "adapterComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+      "adapterGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+      "adapterMarketIntegrity": true,
+      "adapterPositionIntegrity": true,
+      "escrowVault": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+      "escrowBondAmount": "5000000000000000",
+      "escrowRewardPerParticipantPass": "1250000000000000",
+      "escrowRefundAfterTwoPasses": "2500000000000000",
+      "escrowAccountedLiability": "0",
+      "activeRoundId": "1",
+      "roundState": "1"
+    },
+    "vault3": {
+      "officialVault": "0x1136D6c399d09Fa66474582DE6E4941bA3303ad6",
+      "vaultId": "3",
+      "vaultType": "2",
+      "vaultName": "Monthly",
+      "roundDurationSeconds": "2592000",
+      "asset": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+      "underlying": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "strategy": "0x7d457e52195c4ab18f3Fc1Bc5b3B908D035fC996",
+      "escrow": "0x21088B76dD21AF354E74f0e9848346b7780D70db",
+      "adapterVault": "0x1136D6c399d09Fa66474582DE6E4941bA3303ad6",
+      "adapterAsset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "adapterComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+      "adapterGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+      "adapterMarketIntegrity": true,
+      "adapterPositionIntegrity": true,
+      "escrowVault": "0x1136D6c399d09Fa66474582DE6E4941bA3303ad6",
+      "escrowBondAmount": "5000000000000000",
+      "escrowRewardPerParticipantPass": "1250000000000000",
+      "escrowRefundAfterTwoPasses": "2500000000000000",
+      "escrowAccountedLiability": "0",
+      "activeRoundId": "1",
+      "roundState": "1"
+    },
+    "vault4": {
+      "officialVault": "0x98D971557843CE17dc1387d2256Ab3dbAaC204f9",
+      "vaultId": "4",
+      "vaultType": "3",
+      "vaultName": "Boost",
+      "roundDurationSeconds": "604800",
+      "asset": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+      "underlying": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "strategy": "0x0dB787ae292C880ABBB6F733ad3d4d5A7098ECf1",
+      "escrow": "0x6E78CA9E693c4ad73c40AA967aab25C3Fd772c9a",
+      "adapterVault": "0x98D971557843CE17dc1387d2256Ab3dbAaC204f9",
+      "adapterAsset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "adapterComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+      "adapterGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+      "adapterMarketIntegrity": true,
+      "adapterPositionIntegrity": true,
+      "escrowVault": "0x98D971557843CE17dc1387d2256Ab3dbAaC204f9",
+      "escrowBondAmount": "5000000000000000",
+      "escrowRewardPerParticipantPass": "1250000000000000",
+      "escrowRefundAfterTwoPasses": "2500000000000000",
+      "escrowAccountedLiability": "0",
+      "activeRoundId": "1",
+      "roundState": "1"
+    }
+  },
+  "topology": {
+    "officialVaultCount": 4,
+    "registryUsesOnlyListedVaults": true,
+    "allAdaptersArePerVault": true,
+    "allEscrowsArePerVault": true,
+    "proxyContractsUsed": false,
+    "historicalOrDisposableAddressesInManifest": false
+  },
+  "manifestSha256": "579da28f3fb61a5b4fe89174b1a1dda23b0af0baaf44743af33766d516683e9a"
+}

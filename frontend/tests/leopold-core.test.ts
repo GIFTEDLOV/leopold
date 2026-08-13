@@ -14,16 +14,33 @@ import { ROUND_STATE_LABELS } from "../lib/leopold/reads";
 import { transactionStageLabel } from "../lib/leopold/transactions";
 
 describe("Leopold frontend core", () => {
-  it("loads the frozen manifest and fails closed on missing official addresses", () => {
+  it("loads the official Sepolia manifest", () => {
     expect(leopoldConfig.chainId).toBe(LEOPOLD_CHAIN_ID);
     expect(leopoldConfig.canonicalUsdc.address).toBe(CANONICAL_USDC);
-    expect(leopoldConfig.lcUsdc.status).toBe("missing");
-    expect(leopoldConfig.registry.status).toBe("missing");
-    expect(leopoldConfig.ready).toBe(false);
+    expect(leopoldConfig.lcUsdc.status).toBe("configured");
+    expect(leopoldConfig.registry.status).toBe("configured");
+    expect(leopoldConfig.ready).toBe(true);
     expect(leopoldConfig.vaults).toHaveLength(4);
     expect(leopoldConfig.vaults.map((vault) => vault.roundDurationSeconds)).toEqual([
       86_400, 604_800, 2_592_000, 604_800,
     ]);
+  });
+
+  it("fails closed on a manifest with missing official addresses", () => {
+    const missing = structuredClone(rawManifest) as RawLeopoldManifest;
+    missing.contracts.lcUsdc = null;
+    missing.contracts.registry = null;
+    missing.contracts.compoundComet = null;
+    missing.officialVaults = missing.officialVaults.map((vault) => ({
+      ...vault,
+      vault: null,
+      adapter: null,
+      bondEscrow: null,
+    }));
+    const config = loadLeopoldConfig(missing);
+    expect(config.lcUsdc.status).toBe("missing");
+    expect(config.registry.status).toBe("missing");
+    expect(config.ready).toBe(false);
   });
 
   it("classifies an invalid and wrong-chain manifest without accepting addresses", () => {

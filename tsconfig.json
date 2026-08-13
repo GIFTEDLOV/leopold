@@ -34,6 +34,7 @@
     "scripts/deploy-sg5-browser-probe.ts",
     "scripts/sg5-protocol.ts",
     "scripts/validate-sg4-randomness-evidence.ts",
-    "scripts/verify-sg4-randomness-receipts.ts"
+    "scripts/verify-sg4-randomness-receipts.ts",
+    "scripts/deploy-leopold-official.ts"
   ]
 }

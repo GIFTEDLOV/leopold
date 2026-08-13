@@ -1,0 +1,235 @@
+{
+  "schema": "zama-szn4.leopold-live-browser-e2e.v1",
+  "status": "PARTIAL",
+  "execution": "OFFICIAL_SEPOLIA_DEPLOYMENT_FINANCIAL_SMOKE",
+  "capturedUtc": "2026-08-12",
+  "chain": {
+    "name": "ethereum-sepolia",
+    "chainId": "11155111"
+  },
+  "source": {
+    "freezeCommit": "182787317e5b1f024d8f7f28b8bd3bef495224c1",
+    "frontendCommit": "3f396e080e70d130be58107128a1acac3c44f60d",
+    "officialDeploymentEvidence": "evidence/deployment/LEOPOLD_OFFICIAL_SEPOLIA_DEPLOYMENT.json"
+  },
+  "manifestSha256": "579da28f3fb61a5b4fe89174b1a1dda23b0af0baaf44743af33766d516683e9a",
+  "officialDeploymentEvidenceSha256": "173e21ec27700c6adf74a33c87d07bbd618c078052913e79f4a2102b749d994d",
+  "deployerAndTestWallet": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+  "browser": {
+    "engine": "Google Chrome for Testing",
+    "version": "151.0.7922.34",
+    "playwright": "1.62.1",
+    "automation": "Playwright direct fallback; agent-browser executable unavailable",
+    "url": "http://localhost:3000",
+    "hostDependencyResolution": "User-space Chromium shared libraries; no sudo or host changes"
+  },
+  "relayerPreflight": {
+    "endpoint": "https://relayer.testnet.zama.org/v2/keyurl",
+    "httpStatus": 200,
+    "metadataStatus": "succeeded",
+    "browserPrivateReveal": "PASS",
+    "nodeMinimalSdkProbe": "TIMEOUT",
+    "asyncUnwrapCompletion": "TIMEOUT"
+  },
+  "browserActions": [
+    {
+      "stage": "connectSepolia",
+      "result": "PASS",
+      "detail": "Protected Sepolia test wallet connected on Ethereum Sepolia."
+    },
+    {
+      "stage": "canonicalUsdcFundingSurface",
+      "result": "PARTIAL",
+      "detail": "The official faucet path was opened and attempted; the wallet already held canonical Circle USDC and no new faucet receipt was observed. No substitute token was used."
+    },
+    {
+      "stage": "publicUsdcBalance",
+      "result": "PASS",
+      "detail": "The Add Money view read the canonical public USDC balance and displayed 1.943648 USDC before the private conversion."
+    },
+    {
+      "stage": "makePrivate",
+      "result": "PASS",
+      "amount": "1 USDC",
+      "transactions": [
+        {
+          "kind": "USDC approval",
+          "hash": "0xda182d92a873fb8af28fabcc2ff47b778dedb31fd5b75e8635ef75dbf60b6ecc",
+          "block": 11475812,
+          "status": 1,
+          "to": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+        },
+        {
+          "kind": "lcUSDC wrap",
+          "hash": "0x9e8af67f8fd75d07462eb48afbd2324d7a5e7c9cc52c1e2ebcd08fac505a3409",
+          "block": 11475813,
+          "status": 1,
+          "to": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8"
+        }
+      ]
+    },
+    {
+      "stage": "privateBalanceHidden",
+      "result": "PASS",
+      "detail": "The dashboard showed the private amount masked before wallet authorization."
+    },
+    {
+      "stage": "privateBalanceReveal",
+      "result": "PASS",
+      "detail": "The authorized wallet revealed 1 USDC in the browser. No confidential handle was written to evidence."
+    },
+    {
+      "stage": "weeklySave",
+      "result": "PASS",
+      "amount": "0.5 USDC",
+      "transaction": {
+        "hash": "0x00f6acab4e561126eb8c5669ccb0685d165bd2a984397302aa88c012b39ce5e4",
+        "block": 11475871,
+        "status": 1,
+        "to": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8"
+      }
+    },
+    {
+      "stage": "weeklyPrizeRegistration",
+      "result": "PASS",
+      "roundId": 1,
+      "bondWei": "5000000000000000",
+      "transaction": {
+        "hash": "0xbfd0032cc20b9452ddce4c2e95d5930b02046a181379ded5c10b41a19b749275",
+        "block": 11475872,
+        "status": 1,
+        "to": "0xfa8718a6a238749c35eE9D2daBFF87E65253fd10",
+        "valueWei": "5000000000000000"
+      }
+    },
+    {
+      "stage": "registrationTimeEligibility",
+      "result": "PASS",
+      "detail": "The live vault returned a nonzero eligibility start at registration; earlier savings were not treated as eligible. Exact private eligibility weight was not decrypted into public evidence.",
+      "eligibilityStartUnix": 1786570716
+    },
+    {
+      "stage": "weeklyWithdraw",
+      "result": "PASS",
+      "amount": "0.5 USDC",
+      "transaction": {
+        "hash": "0x0c0f94db19e3540379d64ec70a365f83a06016c7bcf7b4ab867155a1972efbf4",
+        "block": 11475877,
+        "status": 1,
+        "to": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244"
+      }
+    },
+    {
+      "stage": "makePublic",
+      "result": "PARTIAL",
+      "detail": "The asynchronous unwrap flow did not reach Complete within the 180-second browser wait. No completion receipt was observed and no false completion was shown."
+    }
+  ],
+  "liveOfficialStateAfterSmoke": {
+    "weeklyVault": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+    "activeRoundId": 1,
+    "roundState": "OPEN",
+    "roundDurationSeconds": 604800,
+    "roundOpensAtUnix": 1786553292,
+    "roundClosesAtUnix": 1787158092,
+    "aggregateWeight": "0",
+    "publicPrize": "0",
+    "escrowRegistered": true,
+    "escrowDepositedWei": "5000000000000000",
+    "escrowRewardsWei": "0",
+    "escrowRefundsWei": "0",
+    "escrowFinalized": false
+  },
+  "draw": {
+    "officialWeeklyRound": "NOT_COMPLETED",
+    "reason": "The frozen official Weekly duration is seven days. No safe frozen acceleration mechanism was available, so close, ticket generation, settlement, result reveal, refund, and reward were not fabricated.",
+    "operatorProgression": "NONE"
+  },
+  "bondEconomics": {
+    "bondWei": "5000000000000000",
+    "rewardPerParticipantPassWei": "1250000000000000",
+    "normalTwoPassRefundWei": "2500000000000000",
+    "liveExactBondPayment": "PASS",
+    "refundClaim": "NOT_RUN; round remains open",
+    "rewardClaim": "NOT_RUN; no settlement occurred"
+  },
+  "round2Isolation": {
+    "liveResult": "NOT_PROVEN",
+    "reason": "Round 1 was intentionally left open to respect the frozen seven-day duration; the contract suite contains the isolation regression, but no disposable short-round deployment was made official or used here."
+  },
+  "privacy": {
+    "publicRegistrationAndBond": "OBSERVED",
+    "privateBalanceMaskedBeforeReveal": "OBSERVED",
+    "privateBalanceAuthorizedReveal": "OBSERVED",
+    "exactPrivateTwabPublicLeak": "NOT_OBSERVED",
+    "publicWinnerLeakage": "NOT_APPLICABLE; no draw settled",
+    "crossWalletUnauthorizedDecrypt": "NOT_RUN in this official financial smoke; no unauthorized value was exposed"
+  },
+  "strategy": {
+    "officialTopology": "PASS",
+    "separateWeeklyAdapter": "0xE88712Affce2CDe86dEBcb78A6bd985c4ad5A3aA",
+    "directCompoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+    "individualBalanceLeakage": "NOT_OBSERVED",
+    "interestAccrual": "NOT_WAITED_FOR"
+  },
+  "errorPaths": {
+    "relayerTimeout": "OBSERVED; no false completion and no automatic duplicate transaction",
+    "wrongNetwork": "NOT_RUN against the funded official wallet",
+    "insufficientEthBond": "NOT_RUN to avoid fund-risk",
+    "insufficientUsdc": "NOT_RUN to avoid fund-risk",
+    "duplicateEntryClosedRoundRefundBeforeAvailable": "NOT_RUN; contract and fixture coverage remain separate",
+    "rejectedSignature": "NOT_RUN"
+  },
+  "routes": {
+    "checked": [
+      "/",
+      "/app",
+      "/app/vaults",
+      "/app/vaults/weekly",
+      "/app/prizes",
+      "/app/rewards",
+      "/app/activity",
+      "/app/profile",
+      "/app/help",
+      "/transparency",
+      "/ops"
+    ],
+    "httpStatus": 200,
+    "officialConfigWarnings": false,
+    "historicalOrDisposableLabels": false
+  },
+  "screenshots": [
+    "evidence/deployment/screenshots/landing.png",
+    "evidence/deployment/screenshots/app.png",
+    "evidence/deployment/screenshots/app-vaults.png",
+    "evidence/deployment/screenshots/app-vaults-weekly.png",
+    "evidence/deployment/screenshots/app-prizes.png",
+    "evidence/deployment/screenshots/app-rewards.png",
+    "evidence/deployment/screenshots/app-activity.png",
+    "evidence/deployment/screenshots/app-profile.png",
+    "evidence/deployment/screenshots/app-help.png",
+    "evidence/deployment/screenshots/transparency.png",
+    "evidence/deployment/screenshots/ops.png",
+    "evidence/deployment/screenshots/live-add-money.png",
+    "evidence/deployment/screenshots/live-make-private-review.png",
+    "evidence/deployment/screenshots/live-make-private-complete.png",
+    "evidence/deployment/screenshots/live-private-balance-hidden.png",
+    "evidence/deployment/screenshots/live-private-balance-reveal-attempt.png",
+    "evidence/deployment/screenshots/live-weekly-live.png",
+    "evidence/deployment/screenshots/live-weekly-save-complete.png",
+    "evidence/deployment/screenshots/live-weekly-entered.png",
+    "evidence/deployment/screenshots/live-weekly-withdraw-complete.png"
+  ],
+  "regressions": {
+    "fixtureE2e": "2 passed, 2 skipped (SG5 live acknowledgement not supplied)",
+    "frontendUnit": "22 passed",
+    "frontendTypecheck": "PASS",
+    "frontendLint": "PASS",
+    "frontendBuild": "PASS",
+    "keeperUnit": "6 passed",
+    "keeperBuild": "PASS",
+    "keeperFixtureProbe": "PASS on permissioned rerun; the unpermissioned run was blocked by sandbox IPC pipe EPERM",
+    "deploymentIntegrity": "PASS; existing official deployment read-only validation",
+    "fullCheckAll": "562 contract/security tests passed, 1 pending; root lint/typecheck/prettier, frontend typecheck/lint/unit/build, and keeper typecheck/lint/unit/build passed"
+  }
+}
