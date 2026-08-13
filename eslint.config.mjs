@@ -64,4 +64,15 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "_", varsIgnorePattern: "_" }],
     },
   },
+  {
+    files: ["scripts/leopold-live-closure.ts", "scripts/leopold-live-unshield.ts"],
+    languageOptions: {
+      parserOptions: {
+        project: false,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "off",
+    },
+  },
 );

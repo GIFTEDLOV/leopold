@@ -99,3 +99,25 @@ deployment evidence SHA-256 is `173e21ec27700c6adf74a33c87d07bbd618c078052913e79
 - Full contract/security suite: `562 passing`, `1 pending`.
 
 No unified authentication work was started.
+
+## Closure addendum — disposable short-round proof
+
+The official result above remains the authoritative classification for the frozen official Weekly financial smoke: the
+official Weekly vault was not closed, and its `604800`-second duration was not altered. The previously unproven live
+boundaries were subsequently closed in a separate disposable environment using the same frozen bytecode. Disposable
+addresses were not written to the official manifest or official deployment evidence.
+
+The disposable run passed:
+
+- complete Round-1 close, aggregate proof, candidate generation/validation, selection, reconciliation, allocation, and
+  finalization;
+- authorized private results for Wallet A and Wallet B, with one private winner and no published value or wallet;
+- exact two-pass bond rewards and `0.0025 ETH` refunds, including duplicate-withdrawal rejection;
+- Round-2 isolation: only Wallet A registered, with terminal cursors `registered=1`, `selection=1`, `allocation=1`;
+- cross-wallet unauthorized decrypt rejection; and
+- asynchronous Make Public completion through `unwrap` → public decrypt → `finalizeUnwrap`, returning `100` canonical
+  USDC base units in the disposable proof.
+
+See the separate [LEOPOLD_LIVE_E2E_CLOSURE_REPORT.md](LEOPOLD_LIVE_E2E_CLOSURE_REPORT.md) and
+[LEOPOLD_LIVE_E2E_CLOSURE.json](../../evidence/deployment/LEOPOLD_LIVE_E2E_CLOSURE.json). The frontend now includes the
+phase-two `finalizeUnwrap` action; relayer failure still remains a non-complete private-processing state.

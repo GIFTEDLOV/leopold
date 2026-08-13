@@ -1,10 +1,10 @@
 "use client";
 
-import type { Address, PublicClient, WalletClient } from "viem";
+import { parseEventLogs, type Address, type PublicClient, type WalletClient } from "viem";
 
 import { bondEscrowAbi, confidentialUsdcAbi, erc20Abi, vaultAbi } from "./abis";
 import { CANONICAL_USDC } from "./config";
-import { encryptPrivateAmount } from "./zama";
+import { decryptPublicValue, encryptPrivateAmount } from "./zama";
 
 const COMPOUND_FAUCET = "0x68793eA49297eB75DFB4610B68e076D2A5c7646C" as Address;
 const PROVEN_FAUCET_TRANSACTION = "0x63829c8633304e200a62bdd0af068374687b8163afc6673988fbe8f4426357da" as const;
@@ -138,13 +138,31 @@ export async function requestMakePublic(
   amount: bigint,
 ): Promise<`0x${string}`> {
   const encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, lcUsdc, amount);
-  return writeAndConfirm(clients, {
+  const requestHash = await writeAndConfirm(clients, {
     account: clients.account,
     chain: undefined,
     address: lcUsdc,
     abi: confidentialUsdcAbi,
     functionName: "unwrap",
     args: [clients.account, clients.account, encrypted.encryptedValue, encrypted.inputProof],
+  });
+  const receipt = await clients.publicClient.getTransactionReceipt({ hash: requestHash });
+  const [requestEvent] = parseEventLogs({
+    abi: confidentialUsdcAbi,
+    eventName: "UnwrapRequested",
+    logs: receipt.logs,
+  });
+  if (!requestEvent) throw new Error("UNWRAP_REQUEST_ID_UNAVAILABLE");
+  const requestId = requestEvent.args.unwrapRequestId;
+  const publicDecryption = await decryptPublicValue(clients.ethereum, clients.account, requestId);
+  if (publicDecryption.clear > 0xffffffffffffffffn) throw new Error("RELAYER_PUBLIC_CLEAR_OUT_OF_RANGE");
+  return writeAndConfirm(clients, {
+    account: clients.account,
+    chain: undefined,
+    address: lcUsdc,
+    abi: confidentialUsdcAbi,
+    functionName: "finalizeUnwrap",
+    args: [requestId, publicDecryption.clear, publicDecryption.decryptionProof],
   });
 }
 

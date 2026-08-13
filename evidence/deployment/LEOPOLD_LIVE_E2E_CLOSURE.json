@@ -1,0 +1,170 @@
+{
+  "schema": "leopold.live-e2e-closure.v1",
+  "capturedUtc": "2026-08-13T15:05:50.460Z",
+  "classification": {
+    "officialDeployment": "COMPLETE",
+    "officialFinancialSmoke": "PASSED FOR SAVE, REGISTRATION, ELIGIBILITY, WITHDRAWAL; OFFICIAL WEEKLY DRAW NOT CLOSED",
+    "disposableShortRoundDrawE2E": "PASSED",
+    "externalRelayer": "RESPONSIVE; BROWSER FHE ENCRYPTION, PUBLIC DECRYPTION, AND FINALIZE UNSHIELD COMPLETED"
+  },
+  "network": { "name": "sepolia", "chainId": "11155111" },
+  "browser": {
+    "engine": "Chrome for Testing",
+    "version": "151.0.7922.34",
+    "playwright": "1.62.1",
+    "url": "http://localhost:3000"
+  },
+  "officialIsolation": {
+    "manifestTouched": false,
+    "manifestSha256": "579da28f3fb61a5b4fe89174b1a1dda23b0af0baaf44743af33766d516683e9a",
+    "officialWeekly": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+    "officialWeeklyDurationSeconds": 604800,
+    "externalOnly": {
+      "canonicalUsdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e"
+    }
+  },
+  "wallets": {
+    "walletA": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+    "walletB": "0x48E0D3bA7094d0D43c7f34491CB740c8D74d9265",
+    "privateKeysRecorded": false
+  },
+  "disposableTopology": {
+    "label": "DISPOSABLE E2E ONLY — NOT OFFICIAL LEOPOLD",
+    "wrapper": "0x02985F1D3A27c2cc231bD13Bd01f880dbD75306f",
+    "vault": "0xD0a5fc945E721eFD7E0A14B40Eaa27Ac620C713A",
+    "escrow": "0x5145c624e4620f0bD27a9Acc0EEfE0BBe2e4Aaa3",
+    "adapter": "0x841Dc9Caf3aF98a57e9551D65a584E7dc0Ae16Af",
+    "durationSeconds": 900,
+    "wrapperDeployment": "0xb163c096fe05a81cc5ecf3d29538dc25370b76132f2d4b55dd7cdc73979385ec",
+    "vaultDeployment": "0x8fc88a91c900650e339204174bf12acb4a8b3d0904ffaf53adbdbede91994b33"
+  },
+  "economics": {
+    "bondWei": "5000000000000000",
+    "rewardPerParticipantPassWei": "1250000000000000",
+    "refundPerCompletedParticipantWei": "2500000000000000",
+    "round1Participants": 2,
+    "round1RewardCreditPerProgressorWei": "2500000000000000"
+  },
+  "round1": {
+    "participants": 2,
+    "registrationTimeAnchorsRead": true,
+    "publicAggregateT": "1524000",
+    "state": "SETTLED",
+    "selectionCursor": 2,
+    "allocationCursor": 2,
+    "close": "0xb192cdb3b1399cef94492dc376b3a1435245cf351a56740207443bd75959d6a8",
+    "aggregateFinalization": "0xf194572379500b5b17ce533b3675ca3314ab36865361cca07877ace56951c678",
+    "candidateGeneration": "0xa3d4218d90c4f01574ad0f3b7599aa47c665c2cac4749184892c2be6ec2f865e",
+    "candidateValidity": "0xee80ab79e337105fd5e93cd819b442c11b27b2d000f530a6aa2548553c0ca140",
+    "selection": "0xa9f31911033b37513f555163651790555401173af3762f56f7de2e500fdd878d",
+    "reconciliation": "0x0e91a4c808b0a208546c43c636c10de47690630285ad5df5a7900e1da65ec2ae",
+    "allocation": "0x3e796e88ebf7f2ac65d67f17079adfb446ec19b4b2a393fbd729003b3fb41787",
+    "finalization": "0xe2eef1af63d135496e9804a4b24fcfc4bfe037e464578fc7ca11b40e5a543615"
+  },
+  "round2Isolation": {
+    "walletARegistered": true,
+    "walletBRegistered": false,
+    "registered": 1,
+    "selectionProcessed": 1,
+    "allocationProcessed": 1,
+    "publicAggregateT": "702000",
+    "state": "SETTLED",
+    "registration": "0x3b227970d26e29aeeaa119fd093953bbc885f310446e7962edc31b9ae4614a15",
+    "close": "0x95e79d427fdf2f8e19699dbc3cfe096cc9d237872b328e86c6c940ac763f1307",
+    "finalization": "0xd39932683e27f4a285766a1de527fc1691ddf29de81e2d72ccf12ef0922f9598"
+  },
+  "privateResults": {
+    "walletAAuthorized": true,
+    "walletBAuthorized": true,
+    "singleWinnerVerified": true,
+    "valuesPublished": false,
+    "crossWalletDecryptRejected": true
+  },
+  "privacyReview": {
+    "publicAggregateOnly": true,
+    "individualTwabPubliclyDecrypted": false,
+    "acceptedTicketPubliclyDecrypted": false,
+    "winnerAddressEvent": false,
+    "winnerIndexPublicState": false,
+    "winnerSpecificBondRule": false
+  },
+  "bondReview": {
+    "exactBondPayment": true,
+    "round1RefundsClaimed": 2,
+    "round1RewardsWithdrawn": 2,
+    "duplicateRefundRejected": true,
+    "duplicateRewardWithdrawalRejected": true,
+    "escrow": "0x5145c624e4620f0bD27a9Acc0EEfE0BBe2e4Aaa3"
+  },
+  "unshield": {
+    "wrapper": "0x02985F1D3A27c2cc231bD13Bd01f880dbD75306f",
+    "request": "0x26ef23e9cb2f39ba036340240d2e5ac80b1b6251446bd700cd2f23d5210c6b18",
+    "requestIdObserved": true,
+    "publicDecryptCompleted": true,
+    "finalize": "0x24fae064a6b18a2ff3b6387458e6b57e50fdd4d5b87efe6ff0555a177576d662",
+    "canonicalUsdcDeltaBaseUnits": "100",
+    "completed": true
+  },
+  "hcu": { "allSubmittedTransactionsSucceeded": true, "unexpectedReverts": [] },
+  "receiptAudit": {
+    "readOnlyVerifiedAtBlock": 11481162,
+    "allRecordedReceiptStatusesSucceeded": true,
+    "disposableRuntimeMatchesExactBuildInfoVariants": true,
+    "disposableRuntimeBytes": { "wrapper": 10565, "vault": 23539, "escrow": 3378, "adapter": 5346 },
+    "officialWeeklyReadOnlyState": {
+      "address": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+      "roundId": 1,
+      "state": "OPEN",
+      "durationSeconds": 604800,
+      "aggregate": "0",
+      "participants": 0
+    },
+    "verifiedLifecycleEvents": [
+      "RoundClosed",
+      "PublicDecryptionVerified",
+      "AggregateFinalized",
+      "RandomCandidateGenerated",
+      "TicketAccepted",
+      "SelectionProgress",
+      "SelectionReconciliationRequested",
+      "SelectionReconciled",
+      "AllocationProgress",
+      "RoundBondAccountingFinalized",
+      "RoundSettled",
+      "RoundBondPosted",
+      "ConfidentialTransfer",
+      "UnwrapRequested",
+      "UnwrapFinalized"
+    ]
+  },
+  "actions": {
+    "browser": [
+      "FHE encryption",
+      "saves",
+      "bond registrations",
+      "private withdrawals",
+      "unwrap request",
+      "public decrypt",
+      "unwrap finalization"
+    ],
+    "operator": [
+      "disposable deployment",
+      "funding",
+      "permissionless round progression",
+      "receipt/state inspection",
+      "refund/reward withdrawals"
+    ]
+  },
+  "retryNotes": [
+    "Initial disposable save attempt reached RoundNotOpen because the test-only round expired during browser FHE setup; no save was mined.",
+    "One disposable Wallet B registration used an RPC-estimated gas limit and reverted near its limit; pre-state calls succeeded and no frozen rule rejected it. The final run used an explicit disposable-only gas limit and passed.",
+    "One harness run stopped on ebool decoding and one on overloaded unwrap/event field lookup; no protocol transaction was falsely marked complete."
+  ],
+  "runtimeHashes": {
+    "wrapper": "0xd29d727225b6475fb2df5b3bf11c120663571fb52d1d1fc01d4e9664908732ff",
+    "vault": "0xe03a44cb7136da049b6554801dbb54130a50c23e6a9a02381a007a1faf9a7152",
+    "escrow": "0xa96a2de9b71c8d2e4f1ea7f36842d0409aed22f133b97d31bf5584888ba00ae4",
+    "adapter": "0x877115375a2e4f3dbf98db46074717bbbd78105dfc6b5e8c4a88b68f9dbe1b3a"
+  }
+}

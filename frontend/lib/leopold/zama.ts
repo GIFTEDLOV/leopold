@@ -79,3 +79,27 @@ export async function decryptPrivateValue(
   if (typeof clear === "string" && /^\d+$/u.test(clear)) return BigInt(clear);
   throw new Error("RELAYER_INVALID_DECRYPTION_RESULT");
 }
+
+export async function decryptPublicValue(
+  ethereum: BrowserEthereum,
+  account: Address,
+  handle: Hex,
+): Promise<{ clear: bigint; abiEncodedClearValues: Hex; decryptionProof: Hex }> {
+  const sdk = await getZamaSdk(ethereum, account);
+  const result = await sdk.decryption.decryptPublicValues([handle]);
+  const clear = result.clearValues[handle];
+  const clearValue =
+    typeof clear === "bigint" ? clear : typeof clear === "string" && /^\d+$/u.test(clear) ? BigInt(clear) : null;
+  if (
+    clearValue === null ||
+    typeof result.abiEncodedClearValues !== "string" ||
+    typeof result.decryptionProof !== "string"
+  ) {
+    throw new Error("RELAYER_INVALID_PUBLIC_DECRYPTION_RESULT");
+  }
+  return {
+    clear: clearValue,
+    abiEncodedClearValues: result.abiEncodedClearValues as Hex,
+    decryptionProof: result.decryptionProof as Hex,
+  };
+}

@@ -498,26 +498,23 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           await refresh();
         }),
       makePublic: async (input) =>
-        execute(
-          "make-public",
-          async (onHash) => {
-            const amount = parseUsdcAmount(input);
-            if (fixtureEnabled) {
-              if (amount > (privateBalance ?? 0n)) throw new Error("INSUFFICIENT_USDC");
-              setPrivateBalance((value) => (value ?? 0n) - amount);
-              setUsdcBalance((value) => (value ?? 0n) + amount);
-            } else {
-              requireVerified();
-              await requestMakePublic(
-                clients(onHash),
-                requireConfiguredAddress(leopoldConfig.lcUsdc, "Private USDC"),
-                amount,
-              );
-            }
-            addActivity("Requested public USDC");
-          },
-          fixtureEnabled,
-        ),
+        execute("make-public", async (onHash) => {
+          const amount = parseUsdcAmount(input);
+          if (fixtureEnabled) {
+            if (amount > (privateBalance ?? 0n)) throw new Error("INSUFFICIENT_USDC");
+            setPrivateBalance((value) => (value ?? 0n) - amount);
+            setUsdcBalance((value) => (value ?? 0n) + amount);
+          } else {
+            requireVerified();
+            await requestMakePublic(
+              clients(onHash),
+              requireConfiguredAddress(leopoldConfig.lcUsdc, "Private USDC"),
+              amount,
+            );
+          }
+          addActivity("Requested public USDC");
+          await refresh();
+        }),
       claimRefund: async (vaultSlug) =>
         execute("claim-refund", async (onHash) => {
           const vault = getVaultConfig(vaultSlug);

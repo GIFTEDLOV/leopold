@@ -30,6 +30,16 @@ export const erc20Abi = [
 
 export const confidentialUsdcAbi = [
   {
+    type: "event",
+    name: "UnwrapRequested",
+    anonymous: false,
+    inputs: [
+      { name: "receiver", type: "address", indexed: true },
+      { name: "unwrapRequestId", type: "bytes32", indexed: true },
+      { name: "amount", type: "bytes32", indexed: false },
+    ],
+  },
+  {
     type: "function",
     name: "underlying",
     stateMutability: "view",
@@ -83,6 +93,17 @@ export const confidentialUsdcAbi = [
     stateMutability: "view",
     inputs: [{ name: "requestId", type: "bytes32" }],
     outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "finalizeUnwrap",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "unwrapRequestId", type: "bytes32" },
+      { name: "unwrapAmountCleartext", type: "uint64" },
+      { name: "decryptionProof", type: "bytes" },
+    ],
+    outputs: [],
   },
 ] as const;
 
