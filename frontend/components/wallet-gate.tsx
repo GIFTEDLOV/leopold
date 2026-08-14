@@ -1,24 +1,59 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { useAuth } from "./auth-provider";
 import { useFinancial } from "./financial-provider";
 
 export function WalletGate({ children }: { children: ReactNode }) {
   const financial = useFinancial();
-  if (!financial.connected)
+  const auth = useAuth();
+  if (!auth.authenticated)
+    return (
+      <div className="wallet-gate">
+        <span className="brand-mark">L</span>
+        <h2>Enter your Leopold account</h2>
+        <p>
+          Start with email or your external wallet. Leopold never holds your private keys; a verified external wallet is
+          still required for financial actions.
+        </p>
+        <Link className="button" href="/login">
+          Continue to sign in
+        </Link>
+        {financial.error ? (
+          <div className="error" role="alert">
+            {financial.error.message}
+          </div>
+        ) : null}
+      </div>
+    );
+  if (auth.readiness === "SESSION_EXPIRED" || auth.readiness === "ACCOUNT_CONFLICT")
+    return (
+      <div className="wallet-gate">
+        <span className="brand-mark">L</span>
+        <h2>{auth.readiness === "SESSION_EXPIRED" ? "Session expired" : "Account conflict"}</h2>
+        <p>
+          {auth.readiness === "SESSION_EXPIRED"
+            ? "Sign in again to continue. Private values have been cleared."
+            : "This credential belongs to another Leopold account. Sign in to that account before linking anything."}
+        </p>
+        <Link className="button" href="/login">
+          Return to sign in
+        </Link>
+      </div>
+    );
+  if (!financial.connected && financial.fixture)
     return (
       <div className="wallet-gate">
         <span className="brand-mark">L</span>
         <h2>Connect your wallet</h2>
         <p>
-          Your wallet is your financial account for this phase. Leopold never asks for email, username, or social
-          sign-in.
+          Your verified external wallet is the financial signer. The development fixture never creates an embedded
+          wallet.
         </p>
         <button
           className="button"
-          onClick={() => {
-            void financial.connectWallet().catch(() => undefined);
-          }}
+          onClick={() => void financial.connectWallet().catch(() => undefined)}
           disabled={financial.connecting}
         >
           {financial.connecting ? "Connecting…" : "Connect Wallet"}
@@ -50,6 +85,19 @@ export function WalletGate({ children }: { children: ReactNode }) {
           </div>
         ) : null}
       </div>
+    );
+  if (!financial.connected && auth.authenticated)
+    return (
+      <>
+        <div className="inline-notice" role="status">
+          <strong>Financial wallet required.</strong> Your email session is active, but Leopold needs your explicitly
+          verified external wallet before private actions can run.
+          <button className="button secondary" onClick={auth.openWalletLink}>
+            Connect financial wallet
+          </button>
+        </div>
+        {children}
+      </>
     );
   return children;
 }

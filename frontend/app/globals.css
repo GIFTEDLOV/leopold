@@ -90,6 +90,54 @@ input:focus-visible {
   min-height: 100vh;
   overflow: hidden;
 }
+.auth-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  margin: 8vh auto;
+  max-width: 520px;
+  padding: 38px;
+}
+.auth-card h1 {
+  font-family: Georgia, serif;
+  font-size: 38px;
+  letter-spacing: -1px;
+  line-height: 1.05;
+  margin: 15px 0;
+}
+.auth-card .brand {
+  margin-bottom: 55px;
+}
+.auth-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+.auth-form .button {
+  margin-top: 8px;
+}
+.auth-divider {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  margin: 24px 0 10px;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  background: var(--line);
+  content: "";
+  height: 1px;
+  width: 100%;
+}
+.auth-footnote {
+  margin-top: 24px;
+}
 .landing-nav {
   align-items: center;
   display: flex;
@@ -519,6 +567,20 @@ input:focus-visible {
   gap: 12px;
   margin-bottom: 22px;
   padding: 15px 17px;
+}
+.inline-notice {
+  align-items: center;
+  background: #fff8e8;
+  border-bottom: 1px solid #ead8a9;
+  color: #6f551b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 34px;
+}
+.inline-notice .button {
+  min-height: 36px;
 }
 .status-banner strong {
   display: block;

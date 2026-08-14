@@ -3,13 +3,16 @@
 import { useState } from "react";
 import { formatUsdcAmount } from "@/lib/leopold/amounts";
 import { useFinancial } from "./financial-provider";
+import { useAuth } from "./auth-provider";
 
 export function AddMoneyModal({ onClose }: { onClose(): void }) {
   const financial = useFinancial();
+  const auth = useAuth();
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState("10");
   const busy = ["wallet", "submitted", "confirming", "private"].includes(financial.txStage);
-  const canUseWrapper = financial.fixture || (financial.connected && !financial.wrongNetwork);
+  const canUseWrapper =
+    financial.financialAuthorized && financial.connected && !financial.wrongNetwork;
   return (
     <div
       className="modal-backdrop"
@@ -33,7 +36,47 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             <span key={item} className={item <= step ? "active" : ""} />
           ))}
         </div>
-        {step === 1 ? (
+        {!canUseWrapper ? (
+          <div className="card" role="status">
+            <span className="badge neutral">Wallet authorization required</span>
+            <h3>Connect your financial wallet</h3>
+            <p className="subtle">
+              Your wallet controls your savings. Leopold does not hold your funds or create an embedded wallet.
+            </p>
+            {!auth.authenticated ? (
+              <a className="button" href="/login">
+                Continue with email or wallet
+              </a>
+            ) : auth.readiness === "PROFILE_INCOMPLETE" ? (
+              <a className="button" href="/onboarding">
+                Finish your Leopold profile
+              </a>
+            ) : auth.connectedWallet && auth.walletAuthenticated && !auth.financialWallet ? (
+              <button
+                className="button"
+                onClick={() => void auth.confirmCurrentWalletAsFinancial().catch(() => undefined)}
+              >
+                Link this wallet to Leopold
+              </button>
+            ) : auth.connectedWallet &&
+              auth.financialWallet &&
+              auth.connectedWallet.toLowerCase() !== auth.financialWallet.toLowerCase() ? (
+              <p className="error" role="alert">
+                Connected wallet does not match your Leopold account. Switch back to your linked wallet.
+              </p>
+            ) : (
+              <button className="button" onClick={auth.openWalletLink}>
+                Connect and verify external wallet
+              </button>
+            )}
+            {auth.authError ? (
+              <div className="error" role="alert">
+                {auth.authError}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {canUseWrapper && step === 1 ? (
           <>
             <p className="subtle">Public USDC balance</p>
             <div className="stat">
@@ -57,7 +100,7 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             </div>
           </>
         ) : null}
-        {step === 2 ? (
+        {canUseWrapper && step === 2 ? (
           <>
             <label className="card-label" htmlFor="private-amount">
               Amount
@@ -77,7 +120,7 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             </button>
           </>
         ) : null}
-        {step === 3 ? (
+        {canUseWrapper && step === 3 ? (
           <>
             <div className="card">
               <div className="card-label">You are making private</div>
@@ -99,7 +142,7 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             </button>
           </>
         ) : null}
-        {step === 4 ? (
+        {canUseWrapper && step === 4 ? (
           <>
             <div className="card">
               <span className="badge">Ready</span>

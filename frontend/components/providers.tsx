@@ -5,6 +5,11 @@ import { type ReactNode, useState } from "react";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
+import { DynamicContextProvider, DynamicMultiWalletPromptsWidget } from "@dynamic-labs/sdk-react-core";
+import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
+import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
+import { dynamicApiBaseUrl, dynamicAuthConfigured, dynamicEnvironmentId } from "@/lib/auth/config";
+import { AuthProvider } from "@/components/auth-provider";
 import { FinancialProvider } from "@/components/financial-provider";
 
 const wagmiConfig = createConfig({
@@ -18,12 +23,45 @@ const wagmiConfig = createConfig({
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
-
-  return (
+  const app = (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <FinancialProvider>{children}</FinancialProvider>
+        {dynamicAuthConfigured ? (
+          <DynamicWagmiConnector suppressChainMismatchError>
+            <AuthProvider configured>
+              <FinancialProvider>{children}</FinancialProvider>
+            </AuthProvider>
+          </DynamicWagmiConnector>
+        ) : (
+          <AuthProvider configured={false}>
+            <FinancialProvider>{children}</FinancialProvider>
+          </AuthProvider>
+        )}
       </QueryClientProvider>
     </WagmiProvider>
+  );
+
+  if (!dynamicAuthConfigured) return app;
+  return (
+    <DynamicContextProvider
+      settings={{
+        environmentId: dynamicEnvironmentId,
+        apiBaseUrl: dynamicApiBaseUrl || undefined,
+        appName: "Leopold",
+        initialAuthenticationMode: "connect-and-sign",
+        enableConnectOnlyFallback: false,
+        siweStatement: "Sign in to Leopold with your external financial wallet.",
+        walletConnectors: [EthereumWalletConnectors],
+        // Dynamic's Ethereum connector bundle also exposes Dynamic WaaS and
+        // turnkey embedded connectors. Leopold's financial identity is always
+        // an external wallet, so those connector options are removed here as
+        // well as disabled in the Dynamic dashboard.
+        walletsFilter: (options) =>
+          options.filter((option) => option.key !== "dynamicwaas" && !option.key.toLowerCase().startsWith("turnkey")),
+      }}
+    >
+      {app}
+      <DynamicMultiWalletPromptsWidget />
+    </DynamicContextProvider>
   );
 }

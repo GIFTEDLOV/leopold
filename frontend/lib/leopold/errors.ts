@@ -9,6 +9,13 @@ export type LeopoldErrorCode =
   | "RPC_FAILURE"
   | "UNSUPPORTED_WALLET"
   | "PRIVATE_LIQUIDITY_UNAVAILABLE"
+  | "AUTH_CONFIGURATION_REQUIRED"
+  | "AUTH_SESSION_EXPIRED"
+  | "AUTH_ACCOUNT_CONFLICT"
+  | "FINANCIAL_IDENTITY_REQUIRED"
+  | "FINANCIAL_WALLET_CHANGE_REQUIRES_REAUTH"
+  | "WALLET_SIGNATURE_REQUIRED"
+  | "ZAMA_AUTHORIZATION_REQUIRED"
   | "UNKNOWN";
 
 export type LeopoldError = { code: LeopoldErrorCode; message: string; technicalDetail?: string };
@@ -24,6 +31,13 @@ const messages: Record<LeopoldErrorCode, string> = {
   RPC_FAILURE: "Sepolia is temporarily unreachable. Try again shortly.",
   UNSUPPORTED_WALLET: "No compatible browser wallet was found.",
   PRIVATE_LIQUIDITY_UNAVAILABLE: "This withdrawal is temporarily unavailable from the vault’s private liquid balance.",
+  AUTH_CONFIGURATION_REQUIRED: "Leopold authentication is not configured in this environment.",
+  AUTH_SESSION_EXPIRED: "Your Leopold session expired. Sign in again.",
+  AUTH_ACCOUNT_CONFLICT: "Resolve the account credential conflict before continuing.",
+  FINANCIAL_IDENTITY_REQUIRED: "Complete your Leopold account and link your financial wallet before continuing.",
+  FINANCIAL_WALLET_CHANGE_REQUIRES_REAUTH: "The verified financial wallet cannot be replaced automatically.",
+  WALLET_SIGNATURE_REQUIRED: "Sign with your external wallet to verify ownership before continuing.",
+  ZAMA_AUTHORIZATION_REQUIRED: "Authorize this wallet again before revealing private financial data.",
   UNKNOWN: "Something went wrong. No funds were moved.",
 };
 
@@ -39,6 +53,13 @@ export function classifyLeopoldError(error: unknown): LeopoldError {
   else if (/roundnotopen|round closed|roundnotopen/u.test(lower)) code = "ROUND_CLOSED";
   else if (/relayer|kms|timeout|socket/u.test(lower)) code = "RELAYER_UNAVAILABLE";
   else if (/liquid|insufficientmanagedassets/u.test(lower)) code = "PRIVATE_LIQUIDITY_UNAVAILABLE";
+  else if (/auth_configuration_required/u.test(lower)) code = "AUTH_CONFIGURATION_REQUIRED";
+  else if (/auth_session_expired|session.*expired|jwt.*expired/u.test(lower)) code = "AUTH_SESSION_EXPIRED";
+  else if (/auth_account_conflict/u.test(lower)) code = "AUTH_ACCOUNT_CONFLICT";
+  else if (/financial_identity_required/u.test(lower)) code = "FINANCIAL_IDENTITY_REQUIRED";
+  else if (/financial_wallet_change_requires_reauth/u.test(lower)) code = "FINANCIAL_WALLET_CHANGE_REQUIRES_REAUTH";
+  else if (/wallet_signature_required/u.test(lower)) code = "WALLET_SIGNATURE_REQUIRED";
+  else if (/zama_authorization_required/u.test(lower)) code = "ZAMA_AUTHORIZATION_REQUIRED";
   else if (/rpc|network|fetch/u.test(lower)) code = "RPC_FAILURE";
   return { code, message: messages[code], technicalDetail: detail.slice(0, 500) };
 }

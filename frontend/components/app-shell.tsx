@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { AddMoneyModal } from "./add-money-modal";
+import { useAuth } from "./auth-provider";
 import { useFinancial } from "./financial-provider";
 
 const navigation = [
@@ -18,6 +19,7 @@ const navigation = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const financial = useFinancial();
+  const auth = useAuth();
   const [addMoney, setAddMoney] = useState(false);
   return (
     <div className="app-frame">
@@ -55,6 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="account-pill"
             onClick={() => {
               if (financial.connected) financial.disconnectWallet();
+              else if (auth.authenticated) auth.openWalletLink();
               else void financial.connectWallet().catch(() => undefined);
             }}
           >
@@ -63,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             className="button"
             onClick={() => setAddMoney(true)}
-            disabled={!financial.connected || financial.wrongNetwork}
+            disabled={!auth.authenticated && !financial.fixture}
           >
             + Add Money
           </button>

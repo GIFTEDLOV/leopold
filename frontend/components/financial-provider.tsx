@@ -49,6 +49,8 @@ import {
   type TransactionStage,
 } from "@/lib/leopold/transactions";
 import { clearPrivateSession, decryptPrivateValue } from "@/lib/leopold/zama";
+import { useAuth } from "@/components/auth-provider";
+import { checkPrivateRevealIdentity, requireFinancialIdentity } from "@/lib/auth/readiness";
 
 export type ActivityItem = { id: string; label: string; status: "Confirmed" | "Processing"; vault?: string };
 
@@ -73,6 +75,8 @@ type FinancialContextValue = {
   error: LeopoldError | null;
   activity: ActivityItem[];
   publicVaultState: Partial<Record<VaultId, VaultPublicState>>;
+  authState: ReturnType<typeof useAuth>["readiness"];
+  financialAuthorized: boolean;
   connectWallet(): Promise<void>;
   disconnectWallet(): void;
   switchToSepolia(): Promise<void>;
@@ -98,6 +102,7 @@ const fixtureEnabled = process.env.NODE_ENV !== "production" && process.env.NEXT
 const fixtureAccount = "0x7E57a10D00000000000000000000000000000001" as Address;
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
+  const auth = useAuth();
   const accountState = useAccount();
   const chainId = useChainId();
   const connectState = useConnect();
@@ -127,6 +132,31 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const account = fixtureEnabled ? (fixtureConnected ? fixtureAccount : null) : (accountState.address ?? null);
   const effectiveChain = fixtureEnabled ? fixtureChain : chainId;
   const wrongNetwork = connected && effectiveChain !== LEOPOLD_CHAIN_ID;
+  const financialAuthorized = auth.readiness === "ACCOUNT_READY";
+
+  const ensureFinancialAccess = useCallback(() => {
+    try {
+      if (!connected) throw new Error("FINANCIAL_IDENTITY_REQUIRED");
+      requireFinancialIdentity(auth.identity, !wrongNetwork);
+    } catch (caught) {
+      setError(classifyLeopoldError(caught));
+      throw caught;
+    }
+  }, [auth.identity, connected, wrongNetwork]);
+
+  const ensurePrivateRevealAccess = useCallback(() => {
+    const result = checkPrivateRevealIdentity(auth.identity, !wrongNetwork);
+    if (!result.allowed) {
+      const error = new Error(result.code);
+      error.name = result.code;
+      setError(classifyLeopoldError(error));
+      throw error;
+    }
+    // The Zama SDK is signer-bound and kept only in memory. Recreate it for
+    // every reveal so a wallet switch, logout, or stale authorization cannot
+    // reuse the prior private-session object.
+    clearPrivateSession();
+  }, [auth.identity, wrongNetwork]);
 
   const ethBalance = useBalance({
     address: fixtureEnabled ? undefined : (account ?? undefined),
@@ -180,6 +210,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         });
       };
       try {
+        ensureFinancialAccess();
         persistStage("wallet");
         await action((hash) => {
           setTxStage("submitted");
@@ -198,7 +229,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         throw caught;
       }
     },
-    [account],
+    [account, ensureFinancialAccess],
   );
 
   const refresh = useCallback(async () => {
@@ -233,6 +264,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
   useEffect(() => {
     const timeout = window.setTimeout(() => {
+      if (fixtureEnabled && !auth.authenticated) setFixtureConnected(false);
       setPrivateBalance(null);
       setPrivateBalanceRevealed(false);
       setVaultPositions({});
@@ -263,7 +295,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setDeploymentVerified(false);
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [account, effectiveChain]);
+  }, [account, auth.authenticated, auth.identityKey, effectiveChain]);
 
   const value = useMemo<FinancialContextValue>(
     () => ({
@@ -287,6 +319,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       error,
       activity,
       publicVaultState,
+      authState: auth.readiness,
+      financialAuthorized,
       connectWallet: async () => {
         setError(null);
         try {
@@ -294,10 +328,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setFixtureConnected(true);
             return;
           }
-          const connector =
-            connectState.connectors.find((item) => item.type === "injected") ?? connectState.connectors[0];
-          if (!connector) throw new Error("UNSUPPORTED_WALLET");
-          await connectState.connectAsync({ connector });
+          if (!auth.configured) throw new Error("AUTH_CONFIGURATION_REQUIRED");
+          auth.openWalletAuthentication();
+          return;
         } catch (caught) {
           setError(classifyLeopoldError(caught));
           throw caught;
@@ -343,6 +376,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         }),
       revealPrivateBalance: async () => {
         setError(null);
+        ensurePrivateRevealAccess();
         if (fixtureEnabled) {
           setPrivateBalance((value) => value ?? 0n);
           setPrivateBalanceRevealed(true);
@@ -383,6 +417,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           await refresh();
         }),
       revealVault: async (vaultSlug) => {
+        ensurePrivateRevealAccess();
         if (fixtureEnabled) {
           setVaultPositions((items) => ({ ...items, [vaultSlug]: items[vaultSlug] ?? 0n }));
           setRevealedVaults((items) => new Set(items).add(vaultSlug));
@@ -430,6 +465,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           await refresh();
         }),
       revealResult: async (vaultSlug) => {
+        ensurePrivateRevealAccess();
         if (!enteredVaults.has(vaultSlug)) throw new Error("NOT_ENTERED");
         if (fixtureEnabled) {
           setPrivateResults((items) => ({ ...items, [vaultSlug]: 0n }));
@@ -448,6 +484,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setRevealedResults((items) => new Set(items).add(vaultSlug));
       },
       revealEligibility: async (vaultSlug) => {
+        ensurePrivateRevealAccess();
         if (!enteredVaults.has(vaultSlug)) throw new Error("NOT_ENTERED");
         if (fixtureEnabled) {
           setPrivateEligibility((items) => ({ ...items, [vaultSlug]: 1n }));
@@ -555,7 +592,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       activity,
       addActivity,
       clients,
-      connectState,
       connected,
       connecting,
       disconnectState,
@@ -577,6 +613,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       usdcBalance,
       vaultPositions,
       wrongNetwork,
+      auth,
+      financialAuthorized,
+      ensurePrivateRevealAccess,
     ],
   );
 

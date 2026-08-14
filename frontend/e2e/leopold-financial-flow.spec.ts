@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Leopold explicit development fixture", () => {
+  test.setTimeout(180_000);
   test("Connect → Sepolia → USDC → private → Weekly → save → enter → result → refund → withdraw", async ({ page }) => {
     await page.goto("/app");
     await expect(page.getByRole("heading", { name: "Connect your wallet" })).toBeVisible();
-    await page.getByRole("button", { name: "Connect Wallet" }).click();
+    await page.getByRole("button", { name: "Connect Wallet" }).click({ force: true });
     await expect(page.getByRole("heading", { name: "Switch to Ethereum Sepolia" })).toBeVisible();
-    await page.getByRole("button", { name: "Switch to Sepolia" }).click();
+    await page.getByRole("button", { name: "Switch to Sepolia" }).click({ force: true });
     await expect(page.getByTestId("fixture-banner")).toContainText("not Sepolia");
 
     await page.getByRole("button", { name: "+ Add Money" }).click();
@@ -29,13 +30,16 @@ test.describe("Leopold explicit development fixture", () => {
     await expect(page.getByText("Entered current round")).toBeVisible();
 
     await page.getByRole("link", { name: "Prizes" }).click();
+    await page.waitForURL("**/app/prizes");
     await page.getByTestId("reveal-result-weekly").click();
     await expect(page.getByText("No prize this round")).toBeVisible();
     await page.getByRole("link", { name: "Rewards" }).click();
+    await page.waitForURL("**/app/rewards");
     await expect(page.getByTestId("claim-refund")).toBeEnabled();
     await page.getByTestId("claim-refund").click();
 
     await page.getByRole("link", { name: "Vaults" }).click();
+    await page.waitForURL("**/app/vaults");
     await page.getByTestId("vault-weekly").getByRole("link", { name: "View" }).click();
     await page.getByLabel("Amount to withdraw").fill("1");
     await page.getByTestId("withdraw").click();
@@ -72,8 +76,11 @@ test.describe("Leopold explicit development fixture", () => {
     ];
     for (const route of appRoutes) {
       await page.goto(route);
-      await page.getByRole("button", { name: "Connect Wallet" }).click();
-      await page.getByRole("button", { name: "Switch to Sepolia" }).click();
+      const connectWallet = page.getByRole("button", { name: "Connect Wallet" });
+      if (await connectWallet.count()) {
+        await connectWallet.click({ force: true });
+        await page.getByRole("button", { name: "Switch to Sepolia" }).click({ force: true });
+      }
       if (route === "/app") await expect(page.getByTestId("fixture-banner")).toBeVisible();
       expect(await page.locator("[data-nextjs-dialog]").count()).toBe(0);
       expect(

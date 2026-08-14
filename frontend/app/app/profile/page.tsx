@@ -1,39 +1,96 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth-provider";
 import { useFinancial } from "@/components/financial-provider";
 
 export default function ProfilePage() {
   const financial = useFinancial();
+  const auth = useAuth();
+  const router = useRouter();
   const [amount, setAmount] = useState("1");
   return (
     <div className="content">
       <div className="page-heading">
         <div>
           <h1>Profile</h1>
-          <p>Wallet and local privacy preferences for this browser.</p>
+          <p>Your Leopold identity stays offchain; your external wallet controls the financial state.</p>
         </div>
       </div>
       <div className="grid two">
         <article className="card">
-          <h2>Wallet</h2>
+          <h2>Leopold account</h2>
           <div className="list-row">
             <div className="list-main">
-              <strong>Connected account</strong>
-              <span>Financial account boundary</span>
+              <strong>Username</strong>
+              <span>Offchain application identity</span>
+            </div>
+            <span>{auth.username ?? "Incomplete"}</span>
+          </div>
+          <div className="list-row">
+            <div className="list-main">
+              <strong>Email</strong>
+              <span>{auth.emailVerified ? "Verified" : "Verification required"}</span>
+            </div>
+            <span>{auth.email ?? "Not connected"}</span>
+          </div>
+          <div className="list-row">
+            <div className="list-main">
+              <strong>Financial wallet</strong>
+              <span>{auth.financialWallet ? "Verified external wallet" : "Not linked"}</span>
+            </div>
+            <span>
+              {auth.financialWallet
+                ? `${auth.financialWallet.slice(0, 6)}…${auth.financialWallet.slice(-4)}`
+                : "Required"}
+            </span>
+          </div>
+          <div className="list-row">
+            <div className="list-main">
+              <strong>Connected wallet</strong>
+              <span>
+                {auth.connectedWallet
+                  ? auth.walletAuthenticated
+                    ? "Ownership verified"
+                    : "Signature required"
+                  : "Disconnected"}
+              </span>
             </div>
             <span>{financial.accountLabel}</span>
           </div>
+          <div className="form-row">
+            <button className="button secondary" onClick={financial.disconnectWallet}>
+              Disconnect wallet
+            </button>
+            <button className="button secondary" onClick={() => void auth.signOut().then(() => router.push("/login"))}>
+              Sign out
+            </button>
+          </div>
+        </article>
+        <article className="card">
+          <h2>Linked accounts</h2>
           <div className="list-row">
             <div className="list-main">
-              <strong>Network</strong>
-              <span>Required for financial operations</span>
+              <strong>X / Twitter</strong>
+              <span>Optional identity enhancement; never a financial signer</span>
             </div>
-            <span>Ethereum Sepolia</span>
+            {auth.xEnabled ? (
+              <button
+                className="button secondary"
+                onClick={() => void (auth.xLinked ? auth.unlinkX() : auth.linkX()).catch(() => undefined)}
+              >
+                {auth.xLinked ? "Linked · Unlink" : "Link X"}
+              </button>
+            ) : (
+              <span className="badge neutral">Unavailable</span>
+            )}
           </div>
-          <button className="button secondary" onClick={financial.disconnectWallet}>
-            Disconnect wallet
-          </button>
+          {auth.authError ? (
+            <div className="error" role="alert">
+              {auth.authError}
+            </div>
+          ) : null}
         </article>
         <article className="card">
           <h2>Privacy preferences</h2>
