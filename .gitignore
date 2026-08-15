@@ -37,3 +37,4 @@ coverage.json
 # Non-pnpm package-manager locks
 package-lock.json
 yarn.lock
+.vercel
