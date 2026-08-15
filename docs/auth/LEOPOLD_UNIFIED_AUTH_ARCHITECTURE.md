@@ -1,6 +1,7 @@
 # Leopold Unified Auth Architecture
 
-Status: code integration complete; live provider authentication remains environment configuration dependent.
+Status: code integration complete; corrected Dynamic Sandbox configuration and production deployment verified; live
+provider authentication and authenticated financial regression remain interactive closure steps.
 
 ## Boundary
 
@@ -14,7 +15,7 @@ The provider may know the following identity linkage:
 LeopoldIdentity {
   providerUserId
   verifiedEmail
-  username
+  username (Dynamic custom metadata field `Leopold Username`)
   financialWallet
   optionalXCredential
 }
@@ -89,10 +90,10 @@ account-linking E2E are still required to prove the exact deployed conflict poli
 ## Username
 
 The accepted public form is 3–20 characters from `a-z`, `0-9`, and `_`. Leopold trims, applies Unicode NFKC
-normalization, lowercases, and validates before calling Dynamic's user update operation. The Dynamic dashboard must
-enforce the matching regex and unique field server-side. Because only the canonical lowercase representation is
-submitted, case variants cannot be accepted as separate Leopold usernames. Leopold does not implement a race-prone local
-availability check.
+normalization, lowercases, and validates before calling Dynamic's user update operation with
+`metadata["Leopold Username"]`. The Dynamic dashboard must enforce the matching regex and unique field server-side.
+Because only the canonical lowercase representation is submitted, case variants cannot be accepted as separate Leopold
+usernames. Leopold does not implement a race-prone local availability check.
 
 Usernames are private application identity. Leopold exposes no public username-to-wallet lookup, public financial
 profile, public savings history, or username enumeration API.
@@ -134,6 +135,7 @@ fixture route and fails closed without Dynamic configuration. The closure route 
 
 ## Remaining setup
 
-Configure the Dynamic environment using [LEOPOLD_DYNAMIC_CONFIGURATION.md](./LEOPOLD_DYNAMIC_CONFIGURATION.md), then
-provide a client environment ID. Until that is done the login screen fails closed with a setup message and no live auth
-E2E is claimed.
+The current Sandbox environment ID is configured locally and in the `leopold` Vercel project, with exact localhost and
+production CORS origins verified. Continue with a dedicated inbox OTP, external wallet signature/link confirmation,
+provider conflict/uniqueness checks, and the authenticated Sepolia financial regression. Until those interactive steps
+are completed, no live auth E2E pass is claimed.

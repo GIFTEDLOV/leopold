@@ -1,0 +1,65 @@
+{
+  "schema": "zama-szn4.leopold-live-auth-e2e.v1",
+  "status": "BLOCKED_INTERACTIVE_IDENTITY_REQUIRED",
+  "date": "2026-08-15",
+  "environment": "dynamic-sandbox",
+  "dynamicEnvironmentId": "f740e887-1e9f-45e4-bd06-35baec8f78d5",
+  "publicUrl": "https://leopold-pi.vercel.app",
+  "corsOrigins": ["http://localhost:3000", "https://leopold-pi.vercel.app"],
+  "runtimeGates": {
+    "embeddedWalletCreation": "PASS_EFFECTIVE_NESTED_FLAGS_FALSE_NO_ENABLED_CHAINS",
+    "externalWalletLogin": "PASS_UI_AND_CONFIG",
+    "multiWallet": "PASS_CONFIG",
+    "customUsername": {
+      "field": "Leopold Username",
+      "type": "text",
+      "required": true,
+      "unique": true,
+      "regex": "^[a-z0-9_]{3,20}$",
+      "storage": "user.metadata[Leopold Username]",
+      "mapping": "PASS"
+    },
+    "builtInUsername": "ABSENT",
+    "twitterLoginAndLinking": "CONFIGURED_NOT_LIVE_PROVEN"
+  },
+  "deployment": {
+    "vercelProject": "leopold",
+    "deploymentId": "dpl_FqCeJVbxTD7qjrt6DoRkchsTS3DV",
+    "ready": true,
+    "productionAlias": "https://leopold-pi.vercel.app",
+    "missingDynamicConfigurationMessage": false,
+    "requiredPublicRoutes": "PASS",
+    "productionTestRoutes": "404_PASS",
+    "visualAndConsoleCheck": "PASS"
+  },
+  "regression": {
+    "frontendTests": "PASS_32",
+    "contractTests": "PASS_562_PENDING_1",
+    "keeperTestsAndProbe": "PASS",
+    "contractFreezeAndBytecode": "PASS",
+    "authenticatedFinancialRegression": "NOT_RUN_INTERACTIVE_ACCOUNT_REQUIRED",
+    "fixtureFinancialBrowserE2E": "NOT_CLAIMED_LIVE_AUTH; runner_environment_requires_user_space_browser_setup"
+  },
+  "liveProofs": {
+    "emailOtp": "NOT_RUN",
+    "emailFirst": "NOT_RUN",
+    "walletFirst": "NOT_RUN",
+    "accountReady": "NOT_RUN",
+    "wrongWallet": "NOT_RUN",
+    "walletDisconnect": "NOT_RUN",
+    "signOut": "NOT_RUN",
+    "noSilentMerge": "NOT_RUN",
+    "walletUniqueness": "NOT_RUN",
+    "xLinkLoginConflict": "NOT_RUN",
+    "privateRevealGuard": "STATIC_GUARD_PASS_LIVE_NOT_RUN",
+    "providerDataBoundary": "STATIC_REVIEW_PASS_AUTHENTICATED_CAPTURE_NOT_RUN",
+    "browserStorage": "PRE_AUTH_STORAGE_CLEAN_AUTHENTICATED_REVIEW_NOT_RUN"
+  },
+  "accounts": "REDACTED",
+  "secrets": "NONE_RECORDED",
+  "integrity": {
+    "solidityDiff": false,
+    "officialManifestSha256": "579da28f3fb61a5b4fe89174b1a1dda23b0af0baaf44743af33766d516683e9a"
+  },
+  "blocker": "Dedicated reachable Dynamic Sandbox test inbox for OTP and interactive external Sepolia wallet signer are not available in the workspace."
+}

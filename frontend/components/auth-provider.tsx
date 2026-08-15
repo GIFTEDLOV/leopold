@@ -24,6 +24,9 @@ import {
 import { canonicalizeUsername } from "@/lib/auth/username";
 
 const FINANCIAL_WALLET_METADATA_KEY = "leopoldFinancialWallet";
+// Dynamic custom fields are stored in user.metadata under the configured
+// field name. The built-in Dynamic username field is intentionally disabled.
+const LEOPOLD_USERNAME_METADATA_KEY = "Leopold Username";
 const twitterProvider = "twitter" as Parameters<ReturnType<typeof useSocialAccounts>["isLinked"]>[0];
 const fixtureFinancialEnabled =
   process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_LEOPOLD_DEV_FIXTURE === "1";
@@ -124,9 +127,10 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   const walletAuthenticated = Boolean(currentWallet?.isAuthenticated);
   const emailVerified = hasVerifiedEmail(user);
   let username: string | null = null;
-  if (user?.username) {
+  const configuredUsername = readMetadata(user)[LEOPOLD_USERNAME_METADATA_KEY];
+  if (typeof configuredUsername === "string") {
     try {
-      username = canonicalizeUsername(user.username);
+      username = canonicalizeUsername(configuredUsername);
     } catch {
       username = null;
     }
@@ -242,7 +246,8 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       saveUsername: async (valueToSave) =>
         withBusy(async () => {
           const normalized = canonicalizeUsername(valueToSave);
-          await updateUser({ username: normalized });
+          const metadata = readMetadata(user);
+          await updateUser({ metadata: { ...metadata, [LEOPOLD_USERNAME_METADATA_KEY]: normalized } });
         }),
       linkX: async () => {
         if (!dynamicXEnabled) throw new Error("X_UNAVAILABLE");

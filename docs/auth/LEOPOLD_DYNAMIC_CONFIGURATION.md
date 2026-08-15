@@ -29,14 +29,16 @@ In the Dynamic environment used by Leopold:
 4. Enable Ethereum Sepolia (`11155111`) for wallet authentication.
 5. Disable `Create on Sign up` for embedded wallets. Disable any automatic embedded EVM or smart-wallet substitution.
    Leopold does not call an embedded-wallet creation API.
-6. Configure the required username field. Enforce: `^[a-z0-9_]{3,20}$`, required, and unique. The value sent by Leopold
-   is already canonical lowercase. Dynamic-side uniqueness is the required atomic persistence guarantee; Leopold does
-   not perform a client-side availability race.
+6. Disable Dynamic's built-in Username field. Configure one required custom Input field named `Leopold Username` with
+   `^[a-z0-9_]{3,20}$` and provider-side uniqueness. Dynamic stores this field in `user.metadata` under the configured
+   field name; Leopold reads and writes `metadata["Leopold Username"]`. The value sent by Leopold is already canonical
+   lowercase. Dynamic-side uniqueness is the required atomic persistence guarantee; Leopold does not perform a
+   client-side availability race.
 7. Keep multi-wallet linking explicit. Do not enable a setting that silently replaces the primary wallet when an account
    changes. The repository opens Dynamic's link-wallet prompt and never calls a transfer or merge API itself; the
    provider's conflict/transfer confirmation and fresh ownership signature must remain enabled.
-8. Leave X/Twitter disabled until OAuth credentials, redirect URLs, and explicit social linking have been reviewed. X is
-   optional and is hidden by Leopold by default.
+8. Keep X/Twitter optional. In the current Sandbox, Twitter LOGIN and LINKING are enabled after OAuth credentials and
+   Dynamic-generated redirect handling were configured. Leopold never uses X as a financial wallet authority.
 9. For production cookie authentication, configure Dynamic's custom hostname, secure HttpOnly cookie mode, allowed
    origins, and redirect URLs. Set the matching `NEXT_PUBLIC_DYNAMIC_API_BASE_URL` in the frontend deployment.
 10. Ensure provider analytics and custom metadata do not receive confidential financial values. The only Leopold
@@ -82,8 +84,28 @@ NEXT_PUBLIC_LEOPOLD_AUTH_FIXTURE=anonymous|email|wallet|profile-missing|ready|mi
 NEXT_PUBLIC_LEOPOLD_DEV_FIXTURE=1
 ```
 
+## Current verified Sandbox state
+
+On 2026-08-15, the sanitized Dynamic settings response for environment `f740e887-1e9f-45e4-bd06-35baec8f78d5` verified:
+
+- `sdk.embeddedWallets.automaticEmbeddedWalletCreation=false`;
+- `sdk.embeddedWallets.automaticEmbeddedWalletCreationForExternal=false`;
+- no embedded wallet chain enabled;
+- `sdk.multiWallet=true`;
+- built-in `username` absent from enabled KYC fields;
+- custom `Leopold Username` enabled, required, unique, text, with the exact regex above;
+- Twitter social login enabled.
+
+The installed Dynamic React SDK reads the nested embedded-wallet settings for automatic creation. A legacy top-level
+compatibility flag may still appear in the settings payload, but no enabled embedded chain and both nested creation
+flags being false leave the effective creation policy disabled.
+
+Dynamic CORS was verified for exactly `http://localhost:3000` and `https://leopold-pi.vercel.app` with credentials
+enabled. The production Vercel project contains the public environment ID; no Dynamic server token or X secret is
+present.
+
 ## What Codex cannot configure here
 
-The repository does not contain a Dynamic dashboard credential or a provider admin API token. Therefore it cannot create
-the environment, enable Email, create the unique username field, add Twitter credentials, or turn on production cookie
-mode. The app intentionally fails closed until the client environment ID is supplied.
+The repository does not contain a Dynamic dashboard credential or a provider admin API token. Dashboard changes remain
+an operator responsibility. Sandbox live-account proof additionally requires a dedicated reachable inbox and a funded
+external Sepolia wallet; those interactive credentials are not stored in the repository or this report.

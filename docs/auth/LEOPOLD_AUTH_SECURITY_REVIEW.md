@@ -5,22 +5,22 @@ protocol custody, FHE calculation, TWAB, draw, settlement, or accounting code is
 
 ## Review results
 
-| Area                          | Result                           | Evidence / control                                                                                                  |
-| ----------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Embedded wallet creation      | PASS + dashboard prerequisite    | No creation call; embedded connector options are filtered in code and dashboard setting must remain OFF             |
-| Wallet ownership              | PASS                             | Dynamic connect-and-sign mode; linked wallet must be `isAuthenticated`                                              |
-| Financial wallet substitution | PASS                             | Designated wallet is compared before every financial/private action; replacement rejected                           |
-| Email-only financial access   | PASS                             | Central guard requires `ACCOUNT_READY`                                                                              |
-| Wrong-wallet access           | PASS                             | Address mismatch returns `FINANCIAL_IDENTITY_REQUIRED`; private session cleanup follows account changes             |
-| OTP handling                  | PASS                             | OTPs delegated to Dynamic headless flow; no OTP persistence or logging                                              |
-| Username collision            | PASS with dashboard prerequisite | Canonical lowercase + server-side unique field; no local race-prone availability check                              |
-| Silent account merge          | PASS in code; live E2E required  | App never calls merge/transfer; Dynamic's conflict/transfer UI requires explicit confirmation and a fresh signature |
-| X account confusion           | PASS by default                  | X hidden until explicitly enabled and dashboard social-linking review is complete                                   |
-| Private values in auth data   | PASS                             | Auth context contains identity metadata only; no balances, handles, results, TWAB, or plaintext                     |
-| Logout residue                | PASS                             | Auth identity-key change invokes existing `clearPrivateSession()` cleanup                                           |
-| Wallet/network switch residue | PASS                             | Existing financial cleanup remains on account and effective-chain changes                                           |
-| Session verification          | CONFIGURATION REQUIRED           | Dynamic production cookie/custom-host setup is documented; no server identity API is exposed by this repo           |
-| CSRF/OAuth redirect security  | CONFIGURATION REQUIRED           | Must be enabled and constrained in Dynamic dashboard/custom hostname before live auth                               |
+| Area                          | Result                          | Evidence / control                                                                                                       |
+| ----------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Embedded wallet creation      | PASS + dashboard prerequisite   | No creation call; embedded connector options are filtered in code and dashboard setting must remain OFF                  |
+| Wallet ownership              | PASS                            | Dynamic connect-and-sign mode; linked wallet must be `isAuthenticated`                                                   |
+| Financial wallet substitution | PASS                            | Designated wallet is compared before every financial/private action; replacement rejected                                |
+| Email-only financial access   | PASS                            | Central guard requires `ACCOUNT_READY`                                                                                   |
+| Wrong-wallet access           | PASS                            | Address mismatch returns `FINANCIAL_IDENTITY_REQUIRED`; private session cleanup follows account changes                  |
+| OTP handling                  | PASS                            | OTPs delegated to Dynamic headless flow; no OTP persistence or logging                                                   |
+| Username collision            | CONFIGURED; live proof pending  | `Leopold Username` custom metadata field is required/unique with the exact regex; no local race-prone availability check |
+| Silent account merge          | PASS in code; live E2E required | App never calls merge/transfer; Dynamic's conflict/transfer UI requires explicit confirmation and a fresh signature      |
+| X account confusion           | CONFIGURED; live proof pending  | Sandbox Twitter LOGIN/LINKING is enabled; X remains optional and is never a financial signer                             |
+| Private values in auth data   | PASS                            | Auth context contains identity metadata only; no balances, handles, results, TWAB, or plaintext                          |
+| Logout residue                | PASS                            | Auth identity-key change invokes existing `clearPrivateSession()` cleanup                                                |
+| Wallet/network switch residue | PASS                            | Existing financial cleanup remains on account and effective-chain changes                                                |
+| Session verification          | CONFIGURATION REQUIRED          | Dynamic production cookie/custom-host setup is documented; no server identity API is exposed by this repo                |
+| CSRF/OAuth redirect security  | CONFIGURATION REQUIRED          | Must be enabled and constrained in Dynamic dashboard/custom hostname before live auth                                    |
 
 ## Attack review
 
@@ -39,11 +39,13 @@ protocol custody, FHE calculation, TWAB, draw, settlement, or accounting code is
 
 ## Explicit deployment prerequisites
 
-Before live auth testing, the operator must configure Dynamic Email OTP, email uniqueness, the lowercase unique username
-field, external EVM connect-and-sign, embedded-wallet creation OFF, allowed Sepolia network, secure cookie mode/custom
-hostname, origin/redirect restrictions, and any optional X credentials. Sandbox browser-storage behavior must not be
+Before live auth testing, the operator must provide a dedicated reachable Sandbox inbox and an explicitly controlled
+funded external Sepolia wallet. The current sanitized Sandbox settings verify Dynamic Email OTP/email uniqueness,
+external EVM connect-and-sign, embedded-wallet creation OFF, the required unique `Leopold Username` custom field,
+multi-wallet linking, allowed origins, and optional Twitter LOGIN/LINKING. Secure production cookie/custom-hostname mode
+and authenticated account behavior still require separate live proof. Sandbox browser-storage behavior must not be
 treated as equivalent to production HttpOnly cookies.
 
 No Critical/High/Medium code finding remains in the reviewed in-scope client wrapper. Provider conflict policy, unique
-username enforcement, secure cookie mode, and real wallet signatures remain external prerequisites and are not claimed
-as live proof by this repository.
+username enforcement, secure cookie mode, and real wallet signatures remain external prerequisites. The live closure is
+not claimed complete until the interactive email, wallet, and authenticated financial regression steps are performed.
