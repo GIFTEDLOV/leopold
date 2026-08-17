@@ -4,13 +4,14 @@ import { useState } from "react";
 import { formatUsdcAmount } from "@/lib/leopold/amounts";
 import { useFinancial } from "./financial-provider";
 import { useAuth } from "./auth-provider";
+import { transactionIsBusy } from "@/lib/leopold/transactions";
 
 export function AddMoneyModal({ onClose }: { onClose(): void }) {
   const financial = useFinancial();
   const auth = useAuth();
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState("10");
-  const busy = ["wallet", "submitted", "confirming", "private"].includes(financial.txStage);
+  const busy = transactionIsBusy(financial.txStage);
   const healthState = financial.networkHealth.state;
   const canUseWrapper = financial.financialAuthorized && financial.connected && healthState === "HEALTHY";
   return (

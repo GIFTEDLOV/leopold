@@ -54,6 +54,7 @@ import {
 import { clearPrivateSession, decryptPrivateValue } from "@/lib/leopold/zama";
 import { useAuth } from "@/components/auth-provider";
 import { checkPrivateRevealIdentity, requireFinancialIdentity } from "@/lib/auth/readiness";
+import { financialControlsEnabled } from "@/lib/auth/hydration";
 
 export type ActivityItem = { id: string; label: string; status: "Confirmed" | "Processing"; vault?: string };
 
@@ -76,6 +77,7 @@ type FinancialContextValue = {
   privateEligibility: Partial<Record<VaultId, bigint>>;
   txStage: TransactionStage;
   txLabel: string;
+  txErrorStage: TransactionStage | null;
   error: LeopoldError | null;
   activity: ActivityItem[];
   publicVaultState: Partial<Record<VaultId, VaultPublicState>>;
@@ -126,6 +128,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [privateEligibility, setPrivateEligibility] = useState<Partial<Record<VaultId, bigint>>>({});
   const [publicVaultState, setPublicVaultState] = useState<Partial<Record<VaultId, VaultPublicState>>>({});
   const [txStage, setTxStage] = useState<TransactionStage>("ready");
+  const [txErrorStage, setTxErrorStage] = useState<TransactionStage | null>(null);
   const [error, setError] = useState<LeopoldError | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [deploymentVerified, setDeploymentVerified] = useState(false);
@@ -147,7 +150,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const account = fixtureEnabled ? (fixtureConnected ? fixtureAccount : null) : (accountState.address ?? null);
   const wagmiAccountChainId = fixtureEnabled ? fixtureChain : (accountState.chainId ?? null);
   const walletChainId = networkHealth.walletClientChainId ?? auth.activeNetworkId ?? wagmiAccountChainId;
-  const financialAuthorized = auth.readiness === "ACCOUNT_READY";
+  const financialAuthorized = financialControlsEnabled(auth.clientReady, auth.readiness === "ACCOUNT_READY");
   const walletClientAccount = walletClient.data
     ? ((typeof walletClient.data.account === "string"
         ? walletClient.data.account
@@ -329,7 +332,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   });
 
   const clients = useCallback(
-    (onHash?: ActionClients["onHash"], requireEthereum = true): ActionClients => {
+    (onHash?: ActionClients["onHash"], requireEthereum = true, onStage?: ActionClients["onStage"]): ActionClients => {
       const ethereum =
         typeof window !== "undefined"
           ? (window as unknown as { ethereum?: ActionClients["ethereum"] }).ethereum
@@ -344,7 +347,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           throw new Error("UNSUPPORTED_WALLET:ethereum-provider-required");
         },
       };
-      return { publicClient, walletClient: walletClient.data, ethereum: fallbackEthereum, account, onHash };
+      return { publicClient, walletClient: walletClient.data, ethereum: fallbackEthereum, account, onHash, onStage };
     },
     [account, publicClient, walletClient.data],
   );
@@ -362,14 +365,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const execute = useCallback(
     async (
       kind: string,
-      action: (onHash: NonNullable<ActionClients["onHash"]>) => Promise<unknown>,
+      action: (
+        onHash: NonNullable<ActionClients["onHash"]>,
+        onStage: NonNullable<ActionClients["onStage"]>,
+      ) => Promise<unknown>,
       completesAfterReceipt = true,
     ) => {
       setError(null);
+      setTxErrorStage(null);
       setTxStage("wallet");
       const transactionId = crypto.randomUUID();
       let latestHash: `0x${string}` | undefined;
-      const persistStage = (stage: TransactionStage, hash?: `0x${string}`) => {
+      let activeStage: TransactionStage = "wallet";
+      const persistStage = (stage: TransactionStage, hash?: `0x${string}`, errorStage?: TransactionStage) => {
         if (!account || fixtureEnabled) return;
         if (hash) latestHash = hash;
         persistSafeTransaction({
@@ -379,18 +387,25 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           chainId: LEOPOLD_CHAIN_ID,
           account,
           stage,
+          errorStage,
           updatedAt: Date.now(),
         });
+      };
+      const onStage: NonNullable<ActionClients["onStage"]> = (stage) => {
+        activeStage = stage;
+        setTxStage(stage);
       };
       try {
         await ensureFinancialAccess();
         persistStage("wallet");
         await action((hash) => {
           setTxStage("submitted");
+          activeStage = "submitted";
           persistStage("submitted", hash);
           window.setTimeout(() => setTxStage("confirming"), 0);
-        });
+        }, onStage);
         setTxStage("private");
+        activeStage = "private";
         if (completesAfterReceipt) {
           setTxStage("complete");
         }
@@ -398,8 +413,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         void runNetworkHealth(true, "background");
       } catch (caught) {
         setError(classifyLeopoldError(caught));
+        setTxErrorStage(activeStage);
         setTxStage("failed");
-        persistStage("failed");
+        persistStage("failed", undefined, activeStage);
         throw caught;
       }
     },
@@ -490,7 +506,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       revealedResults,
       privateEligibility,
       txStage,
-      txLabel: transactionStageLabel[txStage],
+      txLabel:
+        txStage === "failed" && txErrorStage
+          ? `Failed during ${transactionStageLabel[txErrorStage]}`
+          : transactionStageLabel[txStage],
+      txErrorStage,
       error,
       activity,
       publicVaultState,
@@ -540,7 +560,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           await refresh();
         }),
       makePrivate: async (input) =>
-        execute("make-private", async (onHash) => {
+        execute("make-private", async (onHash, onStage) => {
           const amount = parseUsdcAmount(input);
           if (usdcBalance !== null && amount > usdcBalance) throw new Error("INSUFFICIENT_USDC");
           if (fixtureEnabled) {
@@ -548,7 +568,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setPrivateBalance((balance) => (balance ?? 0n) + amount);
           } else {
             requireVerified();
-            await makePrivate(clients(onHash), requireConfiguredAddress(leopoldConfig.lcUsdc, "Private USDC"), amount);
+            await makePrivate(
+              clients(onHash, false, onStage),
+              requireConfiguredAddress(leopoldConfig.lcUsdc, "Private USDC"),
+              amount,
+            );
           }
           addActivity("Made USDC private");
           await refresh();
@@ -788,6 +812,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       revealedResults,
       revealedVaults,
       txStage,
+      txErrorStage,
       usdcBalance,
       vaultPositions,
       networkHealth,

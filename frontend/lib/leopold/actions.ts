@@ -5,6 +5,7 @@ import { parseEventLogs, type Address, type PublicClient, type WalletClient } fr
 import { bondEscrowAbi, confidentialUsdcAbi, erc20Abi, vaultAbi } from "./abis";
 import { CANONICAL_USDC } from "./config";
 import { decryptPublicValue, encryptPrivateAmount } from "./zama";
+import type { TransactionStage } from "./transactions";
 
 const COMPOUND_FAUCET = "0x68793eA49297eB75DFB4610B68e076D2A5c7646C" as Address;
 const PROVEN_FAUCET_TRANSACTION = "0x63829c8633304e200a62bdd0af068374687b8163afc6673988fbe8f4426357da" as const;
@@ -15,7 +16,29 @@ export type ActionClients = {
   ethereum: { request(args: { method: string; params?: readonly unknown[] }): Promise<unknown> };
   account: Address;
   onHash?: (hash: `0x${string}`) => void;
+  onStage?: (stage: TransactionStage) => void;
 };
+
+function notifyPrivateStage(
+  clients: ActionClients,
+  stage: string,
+  phase: "simulating" | "signature" | "submitted" | "confirming",
+): void {
+  if (stage === "make-private-approval") clients.onStage?.(`approval-${phase}` as TransactionStage);
+  if (stage === "make-private-wrap") clients.onStage?.(`wrap-${phase}` as TransactionStage);
+}
+
+async function assertWalletClient(clients: ActionClients, stage: string): Promise<void> {
+  const walletAccount =
+    typeof clients.walletClient.account === "string"
+      ? clients.walletClient.account
+      : clients.walletClient.account?.address;
+  if (walletAccount && walletAccount.toLowerCase() !== clients.account.toLowerCase()) {
+    throw new Error(`WALLET_SIGNER_MISMATCH:${stage}:${walletAccount}:${clients.account}`);
+  }
+  const walletChainId = await clients.walletClient.getChainId();
+  if (walletChainId !== 11_155_111) throw new Error(`WRONG_NETWORK:${stage}:wallet-client-${walletChainId}`);
+}
 
 async function writeAndConfirm(
   clients: ActionClients,
@@ -31,8 +54,10 @@ async function writeAndConfirm(
   stage = request.functionName,
   simulate = false,
 ): Promise<`0x${string}`> {
+  await assertWalletClient(clients, stage);
   let gas: bigint | undefined;
   if (simulate) {
+    notifyPrivateStage(clients, stage, "simulating");
     try {
       const simulation = await clients.publicClient.simulateContract({
         account: request.account,
@@ -48,6 +73,8 @@ async function writeAndConfirm(
     }
   }
   let hash: `0x${string}`;
+  await assertWalletClient(clients, stage);
+  notifyPrivateStage(clients, stage, "signature");
   try {
     hash = await clients.walletClient.writeContract({
       ...request,
@@ -57,6 +84,8 @@ async function writeAndConfirm(
     throw actionError(`ACTION_SIGNING_FAILED:${stage}`, error);
   }
   clients.onHash?.(hash);
+  notifyPrivateStage(clients, stage, "submitted");
+  notifyPrivateStage(clients, stage, "confirming");
   let receipt;
   try {
     receipt = await clients.publicClient.waitForTransactionReceipt({ hash });
@@ -112,12 +141,18 @@ export async function getTestUsdc(clients: ActionClients): Promise<`0x${string}`
 }
 
 export async function makePrivate(clients: ActionClients, lcUsdc: Address, amount: bigint): Promise<`0x${string}`[]> {
-  const allowance = await clients.publicClient.readContract({
-    address: CANONICAL_USDC,
-    abi: erc20Abi,
-    functionName: "allowance",
-    args: [clients.account, lcUsdc],
-  });
+  await assertWalletClient(clients, "make-private-start");
+  const readAllowance = async (fresh = false): Promise<bigint> => {
+    const blockNumber = fresh ? await clients.publicClient.getBlockNumber() : undefined;
+    return clients.publicClient.readContract({
+      address: CANONICAL_USDC,
+      abi: erc20Abi,
+      functionName: "allowance",
+      args: [clients.account, lcUsdc],
+      ...(blockNumber === undefined ? {} : { blockNumber }),
+    });
+  };
+  const allowance = await readAllowance();
   const hashes: `0x${string}`[] = [];
   if (allowance < amount) {
     hashes.push(
@@ -135,17 +170,14 @@ export async function makePrivate(clients: ActionClients, lcUsdc: Address, amoun
         true,
       ),
     );
-    const allowanceAfterApproval = await clients.publicClient.readContract({
-      address: CANONICAL_USDC,
-      abi: erc20Abi,
-      functionName: "allowance",
-      args: [clients.account, lcUsdc],
-    });
+    await assertWalletClient(clients, "make-private-allowance-refresh");
+    const allowanceAfterApproval = await readAllowance(true);
     if (allowanceAfterApproval < amount) {
       throw new Error(
         `ACTION_CONFIRMATION_FAILED:make-private-approval-allowance:${allowanceAfterApproval.toString()}`,
       );
     }
+    clients.onStage?.("allowance-refresh");
   }
   hashes.push(
     await writeAndConfirm(

@@ -19,22 +19,51 @@ function makeClients({
   for (const value of allowance) readContract.mockResolvedValueOnce(value);
   const writeContract = vi.fn().mockResolvedValueOnce(APPROVAL_HASH).mockResolvedValueOnce(WRAP_HASH);
   const waitForTransactionReceipt = vi.fn().mockResolvedValue({ status: "success" });
+  const getBlockNumber = vi.fn().mockResolvedValue(123n);
+  const getChainId = vi.fn().mockResolvedValue(11_155_111);
   const clients = {
-    publicClient: { readContract, simulateContract, waitForTransactionReceipt },
-    walletClient: { account: { address: ACCOUNT }, writeContract },
+    publicClient: { readContract, simulateContract, waitForTransactionReceipt, getBlockNumber },
+    walletClient: { account: { address: ACCOUNT }, getChainId, writeContract },
     ethereum: { request: vi.fn() },
     account: ACCOUNT,
   } as unknown as ActionClients;
-  return { clients, readContract, simulateContract, writeContract, waitForTransactionReceipt };
+  return {
+    clients,
+    readContract,
+    simulateContract,
+    writeContract,
+    waitForTransactionReceipt,
+    getBlockNumber,
+    getChainId,
+  };
 }
 
 describe("authenticated Make Private sequence", () => {
   it("parses 1 USDC as 1,000,000 units and simulates approval and wrap before signing", async () => {
     const probe = makeClients();
+    const stages: string[] = [];
+    probe.clients.onStage = (stage) => stages.push(stage);
 
     await expect(makePrivate(probe.clients, WRAPPER, 1_000_000n)).resolves.toEqual([APPROVAL_HASH, WRAP_HASH]);
 
+    expect(stages).toEqual([
+      "approval-simulating",
+      "approval-signature",
+      "approval-submitted",
+      "approval-confirming",
+      "allowance-refresh",
+      "wrap-simulating",
+      "wrap-signature",
+      "wrap-submitted",
+      "wrap-confirming",
+    ]);
+
     expect(probe.simulateContract).toHaveBeenCalledTimes(2);
+    expect(probe.getBlockNumber).toHaveBeenCalledTimes(1);
+    expect(probe.readContract).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ functionName: "allowance", blockNumber: 123n }),
+    );
     expect(probe.simulateContract).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({ functionName: "approve", args: [WRAPPER, 1_000_000n] }),
@@ -94,5 +123,34 @@ describe("authenticated Make Private sequence", () => {
       expect.objectContaining({ functionName: "wrap", args: [ACCOUNT, 1_000_000n] }),
     );
     expect(probe.writeContract).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops before wrap if the wallet changes chain after approval confirmation", async () => {
+    const probe = makeClients();
+    probe.getChainId
+      .mockResolvedValueOnce(11_155_111)
+      .mockResolvedValueOnce(11_155_111)
+      .mockResolvedValueOnce(11_155_111)
+      .mockResolvedValueOnce(1);
+
+    await expect(makePrivate(probe.clients, WRAPPER, 1_000_000n)).rejects.toThrow(
+      "WRONG_NETWORK:make-private-allowance-refresh:wallet-client-1",
+    );
+    expect(probe.writeContract).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains approval and wrap receipt failures as their exact action stage", async () => {
+    const approvalRevert = makeClients();
+    approvalRevert.waitForTransactionReceipt.mockResolvedValueOnce({ status: "reverted" });
+    await expect(makePrivate(approvalRevert.clients, WRAPPER, 1_000_000n)).rejects.toThrow(
+      "ACTION_REVERTED:make-private-approval",
+    );
+
+    const wrapRevert = makeClients({ allowance: [1_000_000n] });
+    wrapRevert.writeContract.mockReset().mockResolvedValue(WRAP_HASH);
+    wrapRevert.waitForTransactionReceipt.mockResolvedValueOnce({ status: "reverted" });
+    await expect(makePrivate(wrapRevert.clients, WRAPPER, 1_000_000n)).rejects.toThrow(
+      "ACTION_REVERTED:make-private-wrap",
+    );
   });
 });

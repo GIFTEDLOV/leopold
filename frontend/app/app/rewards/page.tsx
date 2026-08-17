@@ -4,10 +4,11 @@ import { formatEther } from "viem";
 import { leopoldConfig } from "@/lib/leopold/config";
 import { ConfigurationStatus, FixtureStatus } from "@/components/configuration-status";
 import { useFinancial } from "@/components/financial-provider";
+import { transactionIsBusy } from "@/lib/leopold/transactions";
 
 export default function RewardsPage() {
   const financial = useFinancial();
-  const busy = ["wallet", "submitted", "confirming", "private"].includes(financial.txStage);
+  const busy = transactionIsBusy(financial.txStage);
   const liveRefundVault = leopoldConfig.vaults.find((vault) => {
     const state = financial.publicVaultState[vault.slug];
     return state?.entered && state.state === 14 && !state.refundClaimed;

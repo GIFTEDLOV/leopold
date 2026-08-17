@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import { AddMoneyModal } from "./add-money-modal";
 import { useAuth } from "./auth-provider";
 import { useFinancial } from "./financial-provider";
+import { addMoneyButtonDisabled } from "@/lib/auth/hydration";
 
 const navigation = [
   ["Dashboard", "/app", "⌂"],
@@ -20,6 +21,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const financial = useFinancial();
   const auth = useAuth();
+  const clientReady = auth.clientReady;
   const [addMoney, setAddMoney] = useState(false);
   const healthState = financial.networkHealth.state;
   const networkLabel =
@@ -70,17 +72,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             className="account-pill"
             onClick={() => {
+              if (!clientReady) return;
               if (financial.connected) financial.disconnectWallet();
               else if (auth.authenticated) auth.openWalletLink();
               else void financial.connectWallet().catch(() => undefined);
             }}
+            disabled={!clientReady}
           >
-            {financial.accountLabel}
+            {clientReady ? financial.accountLabel : "Not connected"}
           </button>
           <button
             className="button"
             onClick={() => setAddMoney(true)}
-            disabled={!auth.authenticated && !financial.fixture}
+            disabled={addMoneyButtonDisabled(clientReady, auth.authenticated, financial.fixture)}
           >
             + Add Money
           </button>

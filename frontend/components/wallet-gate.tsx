@@ -4,10 +4,19 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useAuth } from "./auth-provider";
 import { useFinancial } from "./financial-provider";
+import { getAuthHydrationPhase } from "@/lib/auth/hydration";
 
 export function WalletGate({ children }: { children: ReactNode }) {
   const financial = useFinancial();
   const auth = useAuth();
+  if (getAuthHydrationPhase(auth.clientReady) === "AUTH_INITIALIZING")
+    return (
+      <div className="wallet-gate" data-testid="auth-initializing">
+        <span className="brand-mark">L</span>
+        <h2>Loading your Leopold account</h2>
+        <p>Financial actions stay disabled until your authenticated wallet is ready.</p>
+      </div>
+    );
   if (!auth.authenticated)
     return (
       <div className="wallet-gate">

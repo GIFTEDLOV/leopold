@@ -4,6 +4,7 @@ import { useState } from "react";
 import { formatEther } from "viem";
 import { getVaultConfig, type VaultId } from "@/lib/leopold/config";
 import { privateAmountLabel, useFinancial } from "./financial-provider";
+import { transactionIsBusy } from "@/lib/leopold/transactions";
 
 export function VaultDetail({ slug }: { slug: VaultId }) {
   const vault = getVaultConfig(slug)!;
@@ -14,7 +15,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
   const entered = financial.enteredVaults.has(slug);
   const revealed = financial.revealedVaults.has(slug);
   const bond = state?.bondAmount ?? (financial.fixture ? 5_000_000_000_000_000n : undefined);
-  const busy = ["wallet", "submitted", "confirming", "private"].includes(financial.txStage);
+  const busy = transactionIsBusy(financial.txStage);
   return (
     <div className="content">
       <div className="page-heading">
@@ -161,9 +162,17 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
         </div>
       ) : null}
       {financial.error ? (
-        <div className="error" role="alert">
-          {financial.error.message}
-        </div>
+        <>
+          <div className="error" role="alert">
+            {financial.error.message}
+          </div>
+          {financial.error.technicalDetail ? (
+            <details className="subtle">
+              <summary>Technical detail</summary>
+              <code>{financial.error.technicalDetail}</code>
+            </details>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

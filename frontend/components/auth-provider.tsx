@@ -1,6 +1,15 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { useAccount } from "wagmi";
 import {
   useConnectWithOtp,
@@ -24,6 +33,7 @@ import {
 } from "@/lib/auth/readiness";
 import { canonicalizeUsername } from "@/lib/auth/username";
 import { normalizeNetworkChainId } from "@/lib/leopold/network";
+import { getAuthHydrationPhase } from "@/lib/auth/hydration";
 
 const FINANCIAL_WALLET_METADATA_KEY = "leopoldFinancialWallet";
 // Dynamic custom fields are stored in user.metadata under the configured
@@ -32,8 +42,13 @@ const LEOPOLD_USERNAME_METADATA_KEY = "Leopold Username";
 const twitterProvider = "twitter" as Parameters<ReturnType<typeof useSocialAccounts>["isLinked"]>[0];
 const fixtureFinancialEnabled =
   process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_LEOPOLD_DEV_FIXTURE === "1";
+const noClientHydrationSubscription = () => () => undefined;
+const clientMountedSnapshot = () => true;
+const serverMountedSnapshot = () => false;
 
 export type AuthContextValue = {
+  clientReady: boolean;
+  hydrationPhase: ReturnType<typeof getAuthHydrationPhase>;
   configured: boolean;
   fixture: boolean;
   loading: boolean;
@@ -122,6 +137,13 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   const [accountConflict, setAccountConflict] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [activeNetworkId, setActiveNetworkId] = useState<number | null>(null);
+  const clientMounted = useSyncExternalStore(
+    noClientHydrationSubscription,
+    clientMountedSnapshot,
+    serverMountedSnapshot,
+  );
+
+  const clientReady = clientMounted && sdkHasLoaded;
 
   const connectedWallet = normalizeWalletAddress(account.address);
   const financialWallet = normalizeWalletAddress(String(readMetadata(user)[FINANCIAL_WALLET_METADATA_KEY] ?? ""));
@@ -221,6 +243,8 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      clientReady,
+      hydrationPhase: getAuthHydrationPhase(clientReady),
       configured: true,
       fixture: false,
       loading: !sdkHasLoaded || busy,
@@ -308,6 +332,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
     }),
     [
       authError,
+      clientReady,
       activeNetworkId,
       activeWalletAddress,
       busy,
@@ -347,6 +372,8 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
   const readiness = getAuthReadiness(identity);
   const value = useMemo<AuthContextValue>(
     () => ({
+      clientReady: true,
+      hydrationPhase: getAuthHydrationPhase(true),
       configured: false,
       fixture: true,
       loading: false,

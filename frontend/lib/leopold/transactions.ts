@@ -1,14 +1,59 @@
-export type TransactionStage = "ready" | "wallet" | "submitted" | "confirming" | "private" | "complete" | "failed";
+export type TransactionStage =
+  | "ready"
+  | "wallet"
+  | "submitted"
+  | "confirming"
+  | "approval-simulating"
+  | "approval-signature"
+  | "approval-submitted"
+  | "approval-confirming"
+  | "allowance-refresh"
+  | "wrap-simulating"
+  | "wrap-signature"
+  | "wrap-submitted"
+  | "wrap-confirming"
+  | "private"
+  | "complete"
+  | "failed";
 
 export const transactionStageLabel: Record<TransactionStage, string> = {
   ready: "Ready",
   wallet: "Waiting for wallet",
   submitted: "Submitted",
   confirming: "Confirming",
+  "approval-simulating": "Simulating approval",
+  "approval-signature": "Waiting for approval signature",
+  "approval-submitted": "Approval submitted",
+  "approval-confirming": "Confirming approval",
+  "allowance-refresh": "Refreshing USDC allowance",
+  "wrap-simulating": "Simulating private conversion",
+  "wrap-signature": "Waiting for private conversion signature",
+  "wrap-submitted": "Private conversion submitted",
+  "wrap-confirming": "Confirming private conversion",
   private: "Private processing",
   complete: "Complete",
   failed: "Failed",
 };
+
+const busyStages = new Set<TransactionStage>([
+  "wallet",
+  "submitted",
+  "confirming",
+  "approval-simulating",
+  "approval-signature",
+  "approval-submitted",
+  "approval-confirming",
+  "allowance-refresh",
+  "wrap-simulating",
+  "wrap-signature",
+  "wrap-submitted",
+  "wrap-confirming",
+  "private",
+]);
+
+export function transactionIsBusy(stage: TransactionStage): boolean {
+  return busyStages.has(stage);
+}
 
 export type SafeTransactionRecord = {
   id: string;
@@ -17,6 +62,7 @@ export type SafeTransactionRecord = {
   chainId: number;
   account: `0x${string}`;
   stage: TransactionStage;
+  errorStage?: TransactionStage;
   updatedAt: number;
 };
 
