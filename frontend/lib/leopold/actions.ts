@@ -28,12 +28,50 @@ async function writeAndConfirm(
     args?: readonly unknown[];
     value?: bigint;
   },
+  stage = request.functionName,
+  simulate = false,
 ): Promise<`0x${string}`> {
-  const hash = await clients.walletClient.writeContract(request as never);
+  let gas: bigint | undefined;
+  if (simulate) {
+    try {
+      const simulation = await clients.publicClient.simulateContract({
+        account: request.account,
+        address: request.address,
+        abi: request.abi,
+        functionName: request.functionName,
+        args: request.args,
+        value: request.value,
+      } as never);
+      gas = simulation.request.gas;
+    } catch (error) {
+      throw actionError(`ACTION_SIMULATION_FAILED:${stage}`, error);
+    }
+  }
+  let hash: `0x${string}`;
+  try {
+    hash = await clients.walletClient.writeContract({
+      ...request,
+      ...(gas === undefined ? {} : { gas }),
+    } as never);
+  } catch (error) {
+    throw actionError(`ACTION_SIGNING_FAILED:${stage}`, error);
+  }
   clients.onHash?.(hash);
-  const receipt = await clients.publicClient.waitForTransactionReceipt({ hash });
-  if (receipt.status !== "success") throw new Error("TRANSACTION_REVERTED");
+  let receipt;
+  try {
+    receipt = await clients.publicClient.waitForTransactionReceipt({ hash });
+  } catch (error) {
+    throw actionError(`ACTION_CONFIRMATION_FAILED:${stage}`, error);
+  }
+  if (receipt.status !== "success") throw new Error(`ACTION_REVERTED:${stage}`);
   return hash;
+}
+
+function actionError(prefix: string, error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  const wrapped = new Error(`${prefix}: ${message}`);
+  Object.defineProperty(wrapped, "cause", { value: error, enumerable: false, configurable: true });
+  return wrapped;
 }
 
 export async function getTestUsdc(clients: ActionClients): Promise<`0x${string}`> {
@@ -83,25 +121,46 @@ export async function makePrivate(clients: ActionClients, lcUsdc: Address, amoun
   const hashes: `0x${string}`[] = [];
   if (allowance < amount) {
     hashes.push(
-      await writeAndConfirm(clients, {
-        account: clients.account,
-        chain: undefined,
-        address: CANONICAL_USDC,
-        abi: erc20Abi,
-        functionName: "approve",
-        args: [lcUsdc, amount],
-      }),
+      await writeAndConfirm(
+        clients,
+        {
+          account: clients.account,
+          chain: undefined,
+          address: CANONICAL_USDC,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [lcUsdc, amount],
+        },
+        "make-private-approval",
+        true,
+      ),
     );
+    const allowanceAfterApproval = await clients.publicClient.readContract({
+      address: CANONICAL_USDC,
+      abi: erc20Abi,
+      functionName: "allowance",
+      args: [clients.account, lcUsdc],
+    });
+    if (allowanceAfterApproval < amount) {
+      throw new Error(
+        `ACTION_CONFIRMATION_FAILED:make-private-approval-allowance:${allowanceAfterApproval.toString()}`,
+      );
+    }
   }
   hashes.push(
-    await writeAndConfirm(clients, {
-      account: clients.account,
-      chain: undefined,
-      address: lcUsdc,
-      abi: confidentialUsdcAbi,
-      functionName: "wrap",
-      args: [clients.account, amount],
-    }),
+    await writeAndConfirm(
+      clients,
+      {
+        account: clients.account,
+        chain: undefined,
+        address: lcUsdc,
+        abi: confidentialUsdcAbi,
+        functionName: "wrap",
+        args: [clients.account, amount],
+      },
+      "make-private-wrap",
+      true,
+    ),
   );
   return hashes;
 }

@@ -10,6 +10,10 @@ export type LeopoldErrorCode =
   | "RPC_CONFIGURATION_ERROR"
   | "APP_RPC_UNAVAILABLE"
   | "WALLET_RPC_UNAVAILABLE"
+  | "TRANSACTION_SIMULATION_FAILED"
+  | "TRANSACTION_SIGNING_FAILED"
+  | "TRANSACTION_CONFIRMATION_FAILED"
+  | "TRANSACTION_REVERTED"
   | "UNSUPPORTED_WALLET"
   | "PRIVATE_LIQUIDITY_UNAVAILABLE"
   | "AUTH_CONFIGURATION_REQUIRED"
@@ -38,6 +42,10 @@ const messages: Record<LeopoldErrorCode, string> = {
   RPC_CONFIGURATION_ERROR: "This application's Sepolia RPC is unavailable.",
   APP_RPC_UNAVAILABLE: "Leopold's Sepolia service is currently unavailable.",
   WALLET_RPC_UNAVAILABLE: "Your wallet's Sepolia connection isn't working.",
+  TRANSACTION_SIMULATION_FAILED: "This transaction could not be simulated. No funds were moved.",
+  TRANSACTION_SIGNING_FAILED: "The wallet could not submit this transaction. No funds were moved.",
+  TRANSACTION_CONFIRMATION_FAILED: "The transaction confirmation could not be verified. Check your wallet activity.",
+  TRANSACTION_REVERTED: "The transaction reverted. No funds were moved.",
   UNSUPPORTED_WALLET: "No compatible browser wallet was found.",
   PRIVATE_LIQUIDITY_UNAVAILABLE: "This withdrawal is temporarily unavailable from the vault’s private liquid balance.",
   AUTH_CONFIGURATION_REQUIRED: "Leopold authentication is not configured in this environment.",
@@ -113,6 +121,10 @@ export function classifyLeopoldError(error: unknown): LeopoldError {
   else if (/wallet_signer_mismatch/u.test(lower)) code = "WALLET_SIGNER_MISMATCH";
   else if (/network_switch_unavailable/u.test(lower)) code = "NETWORK_SWITCH_UNAVAILABLE";
   else if (/zama_authorization_required/u.test(lower)) code = "ZAMA_AUTHORIZATION_REQUIRED";
+  else if (/action_simulation_failed/u.test(lower)) code = "TRANSACTION_SIMULATION_FAILED";
+  else if (/action_signing_failed/u.test(lower)) code = "TRANSACTION_SIGNING_FAILED";
+  else if (/action_confirmation_failed/u.test(lower)) code = "TRANSACTION_CONFIRMATION_FAILED";
+  else if (/action_reverted/u.test(lower)) code = "TRANSACTION_REVERTED";
   else if (/free plan|upgrade to paid|chain is not available|sepolia\.drpc\.org/u.test(lower))
     code = "WALLET_RPC_UNAVAILABLE";
   else if (/rpc_configuration_error/u.test(lower)) code = "RPC_CONFIGURATION_ERROR";

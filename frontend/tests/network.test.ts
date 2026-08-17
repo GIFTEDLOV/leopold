@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  beginFinancialNetworkCheck,
   createIdleFinancialNetworkHealth,
   financialWritesAllowed,
   getFinancialNetworkHealthKey,
   getFinancialNetworkStatus,
+  isFinancialNetworkHealthFresh,
   LEOPOLD_SEPOLIA_RPC_URL,
   normalizeNetworkChainId,
   runFinancialNetworkPreflight,
@@ -218,6 +220,34 @@ describe("financial wallet network authority", () => {
     );
     expect(financialWritesAllowed({ ...createIdleFinancialNetworkHealth(), state: "APP_RPC_UNAVAILABLE" })).toBe(false);
     expect(financialWritesAllowed({ ...createIdleFinancialNetworkHealth(), state: "HEALTHY" })).toBe(true);
+  });
+
+  it("keeps healthy UI non-blocking during background and stale-write rechecks", () => {
+    const healthy = { ...createIdleFinancialNetworkHealth(), state: "HEALTHY" as const, checkedAt: 123 };
+
+    const background = beginFinancialNetworkCheck(healthy, "background");
+    expect(background).toMatchObject({
+      state: "HEALTHY",
+      backgroundChecking: true,
+    });
+    expect(financialWritesAllowed(background)).toBe(true);
+    expect(beginFinancialNetworkCheck(healthy, "write")).toMatchObject({
+      state: "HEALTHY",
+      backgroundChecking: true,
+    });
+    expect(beginFinancialNetworkCheck(healthy, "auto")).toMatchObject({
+      state: "CHECKING",
+      backgroundChecking: false,
+    });
+  });
+
+  it("reuses only a same-identity fresh health result", () => {
+    const health = { ...createIdleFinancialNetworkHealth(), state: "HEALTHY" as const, checkedAt: 1_000 };
+    const cached = { key: "same-wallet-sepolia", health };
+
+    expect(isFinancialNetworkHealthFresh(cached, "same-wallet-sepolia", 5_999)).toBe(true);
+    expect(isFinancialNetworkHealthFresh(cached, "same-wallet-sepolia", 6_000)).toBe(false);
+    expect(isFinancialNetworkHealthFresh(cached, "different-wallet", 1_001)).toBe(false);
   });
 
   it("reruns both read-only probes when retried", async () => {

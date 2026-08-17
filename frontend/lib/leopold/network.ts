@@ -3,6 +3,7 @@ import { LEOPOLD_CHAIN_ID } from "./config";
 import { sanitizeTechnicalDetail } from "./errors";
 
 export const LEOPOLD_SEPOLIA_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+export const FINANCIAL_NETWORK_HEALTH_CACHE_TTL_MS = 5_000;
 
 export type FinancialNetworkHealthState =
   | "IDLE"
@@ -21,6 +22,7 @@ export type RpcRequester = {
 
 export type FinancialNetworkHealth = {
   state: FinancialNetworkHealthState;
+  backgroundChecking: boolean;
   checkedAt: number | null;
   dynamicWalletChainId: number | null;
   walletClientChainId: number | null;
@@ -97,6 +99,7 @@ function result(
 ): FinancialNetworkHealth {
   return {
     state,
+    backgroundChecking: false,
     checkedAt: (input.now ?? Date.now)(),
     dynamicWalletChainId: input.dynamicWalletChainId ?? null,
     walletClientChainId: values.walletClientChainId ?? null,
@@ -205,10 +208,38 @@ export async function runFinancialNetworkPreflight(
 export function createIdleFinancialNetworkHealth(): FinancialNetworkHealth {
   return {
     state: "IDLE",
+    backgroundChecking: false,
     checkedAt: null,
     dynamicWalletChainId: null,
     walletClientChainId: null,
     appChainId: null,
+  };
+}
+
+export function isFinancialNetworkHealthFresh(
+  cached: { key: string; health: FinancialNetworkHealth } | null,
+  key: string,
+  now = Date.now(),
+): boolean {
+  return (
+    cached?.key === key &&
+    cached.health.checkedAt !== null &&
+    now - cached.health.checkedAt < FINANCIAL_NETWORK_HEALTH_CACHE_TTL_MS
+  );
+}
+
+export type FinancialNetworkCheckMode = "auto" | "background" | "write" | "retry";
+
+export function beginFinancialNetworkCheck(
+  current: FinancialNetworkHealth,
+  mode: FinancialNetworkCheckMode,
+): FinancialNetworkHealth {
+  const preserveHealthy = current.state === "HEALTHY" && (mode === "background" || mode === "write");
+  return {
+    ...current,
+    state: preserveHealthy ? "HEALTHY" : "CHECKING",
+    backgroundChecking: preserveHealthy,
+    technicalDetail: preserveHealthy ? current.technicalDetail : undefined,
   };
 }
 

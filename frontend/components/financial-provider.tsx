@@ -26,10 +26,13 @@ import {
   type VaultId,
 } from "@/lib/leopold/config";
 import {
+  beginFinancialNetworkCheck,
   createIdleFinancialNetworkHealth,
   financialWritesAllowed,
   getFinancialNetworkHealthKey,
+  isFinancialNetworkHealthFresh,
   runFinancialNetworkPreflight,
+  type FinancialNetworkCheckMode,
   type FinancialNetworkHealth,
   type FinancialNetworkSnapshot,
   type RpcRequester,
@@ -102,7 +105,6 @@ type FinancialContextValue = {
 const FinancialContext = createContext<FinancialContextValue | null>(null);
 const fixtureEnabled = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_LEOPOLD_DEV_FIXTURE === "1";
 const fixtureAccount = "0x7E57a10D00000000000000000000000000000001" as Address;
-const NETWORK_HEALTH_CACHE_TTL_MS = 5_000;
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
@@ -130,6 +132,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [networkHealth, setNetworkHealth] = useState<FinancialNetworkHealth>(createIdleFinancialNetworkHealth);
   const healthCacheRef = useRef<{ key: string; health: FinancialNetworkHealth } | null>(null);
   const healthRunRef = useRef(0);
+  const walletClientRef = useRef(walletClient.data);
+  const publicClientRef = useRef(publicClient);
+  const refreshActiveNetworkRef = useRef(auth.refreshActiveNetwork);
+
+  useEffect(() => {
+    walletClientRef.current = walletClient.data;
+    publicClientRef.current = publicClient;
+    refreshActiveNetworkRef.current = auth.refreshActiveNetwork;
+  }, [auth.refreshActiveNetwork, publicClient, walletClient.data]);
 
   const connected = fixtureEnabled ? fixtureConnected : accountState.isConnected;
   const connecting = fixtureEnabled ? false : accountState.isConnecting || connectState.isPending;
@@ -137,12 +148,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const wagmiAccountChainId = fixtureEnabled ? fixtureChain : (accountState.chainId ?? null);
   const walletChainId = networkHealth.walletClientChainId ?? auth.activeNetworkId ?? wagmiAccountChainId;
   const financialAuthorized = auth.readiness === "ACCOUNT_READY";
-  const refreshActiveNetwork = auth.refreshActiveNetwork;
   const walletClientAccount = walletClient.data
     ? ((typeof walletClient.data.account === "string"
         ? walletClient.data.account
         : walletClient.data.account?.address) ?? null)
     : null;
+  const walletClientId = walletClient.data?.uid ?? null;
 
   const syncWalletNetwork = useCallback(async (): Promise<FinancialNetworkSnapshot> => {
     if (!connected) {
@@ -153,13 +164,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
     let dynamicWalletChainId: number | null = null;
     try {
-      dynamicWalletChainId = await refreshActiveNetwork();
+      dynamicWalletChainId = await refreshActiveNetworkRef.current();
     } catch {
       dynamicWalletChainId = null;
     }
     let currentWalletClientChainId: number | null = null;
     try {
-      currentWalletClientChainId = walletClient.data ? await walletClient.data.getChainId() : null;
+      currentWalletClientChainId = walletClientRef.current ? await walletClientRef.current.getChainId() : null;
     } catch {
       currentWalletClientChainId = null;
     }
@@ -169,7 +180,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       walletClientChainId: currentWalletClientChainId,
       wagmiAccountChainId: accountState.chainId ?? null,
     };
-  }, [accountState.chainId, connected, fixtureChain, refreshActiveNetwork, walletClient.data]);
+  }, [accountState.chainId, connected, fixtureChain]);
 
   const healthKey = [
     connected,
@@ -180,14 +191,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       connectedWallet: auth.connectedWallet,
       activeWallet: auth.activeWalletAddress,
       walletClientAccount,
-      walletClientId: walletClient.data?.uid ?? null,
+      walletClientId,
       dynamicWalletChainId: auth.activeNetworkId,
       wagmiAccountChainId: accountState.chainId ?? null,
     }),
   ].join("|");
 
   const runNetworkHealth = useCallback(
-    async (force = false): Promise<FinancialNetworkHealth> => {
+    async (force = false, mode: FinancialNetworkCheckMode = "auto"): Promise<FinancialNetworkHealth> => {
       if (!financialAuthorized) {
         ++healthRunRef.current;
         healthCacheRef.current = null;
@@ -195,17 +206,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setNetworkHealth(idle);
         return idle;
       }
-      if (
-        !force &&
-        healthCacheRef.current?.key === healthKey &&
-        healthCacheRef.current.health.checkedAt !== null &&
-        Date.now() - healthCacheRef.current.health.checkedAt < NETWORK_HEALTH_CACHE_TTL_MS
-      ) {
-        setNetworkHealth(healthCacheRef.current.health);
-        return healthCacheRef.current.health;
+      const cachedHealth = healthCacheRef.current;
+      if (!force && cachedHealth && isFinancialNetworkHealthFresh(cachedHealth, healthKey)) {
+        setNetworkHealth(cachedHealth.health);
+        return cachedHealth.health;
       }
       const runId = ++healthRunRef.current;
-      setNetworkHealth((current) => ({ ...current, state: "CHECKING", technicalDetail: undefined }));
+      setNetworkHealth((current) => beginFinancialNetworkCheck(current, mode));
       const snapshot = await syncWalletNetwork();
       const requester = (client: unknown): RpcRequester | null => {
         if (!client || typeof client !== "object" || !("request" in client)) return null;
@@ -223,6 +230,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             dynamicWalletChainId: fixtureConnected ? fixtureChain : null,
             walletClientChainId: fixtureConnected ? fixtureChain : null,
             appChainId: fixtureConnected ? LEOPOLD_CHAIN_ID : null,
+            backgroundChecking: false,
           }
         : await runFinancialNetworkPreflight({
             activeAccount: account,
@@ -230,8 +238,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             connectedWallet: auth.connectedWallet,
             activeWallet: auth.activeWalletAddress,
             walletClientAccount,
-            walletClient: requester(walletClient.data),
-            publicClient: requester(publicClient),
+            walletClient: requester(walletClientRef.current),
+            publicClient: requester(publicClientRef.current),
             dynamicWalletChainId: snapshot.dynamicWalletChainId,
           });
       if (runId === healthRunRef.current) {
@@ -244,7 +252,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             connectedWallet: auth.connectedWallet,
             activeWallet: auth.activeWalletAddress,
             walletClientAccount,
-            walletClientId: walletClient.data?.uid ?? null,
+            walletClientId,
             dynamicWalletChainId: snapshot.dynamicWalletChainId,
             wagmiAccountChainId: snapshot.wagmiAccountChainId ?? null,
           }),
@@ -264,15 +272,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       fixtureChain,
       fixtureConnected,
       healthKey,
-      publicClient,
       syncWalletNetwork,
       walletClientAccount,
-      walletClient.data,
+      walletClientId,
     ],
   );
 
   const ensureSepoliaWalletHealth = useCallback(async () => {
-    const health = await runNetworkHealth(true);
+    const health = await runNetworkHealth(false, "write");
     if (!financialWritesAllowed(health)) {
       throw new Error(`${health.state}:${health.technicalDetail ?? "financial network preflight failed"}`);
     }
@@ -310,7 +317,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      void runNetworkHealth();
+      void runNetworkHealth(false, "auto");
     }, 0);
     return () => window.clearTimeout(timeout);
   }, [healthKey, runNetworkHealth]);
@@ -388,6 +395,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           setTxStage("complete");
         }
         persistStage(completesAfterReceipt ? "complete" : "private");
+        void runNetworkHealth(true, "background");
       } catch (caught) {
         setError(classifyLeopoldError(caught));
         setTxStage("failed");
@@ -395,7 +403,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         throw caught;
       }
     },
-    [account, ensureFinancialAccess],
+    [account, ensureFinancialAccess, runNetworkHealth],
   );
 
   const refresh = useCallback(async () => {
@@ -461,7 +469,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setDeploymentVerified(false);
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [account, auth.authenticated, auth.identityKey, networkHealth.state, walletChainId]);
+  }, [account, auth.authenticated, auth.identityKey, walletChainId]);
 
   const value = useMemo<FinancialContextValue>(
     () => ({
@@ -521,7 +529,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         }
       },
       retryNetworkHealth: async () => {
-        await runNetworkHealth(true);
+        await runNetworkHealth(true, "retry");
       },
       refresh,
       acquireUsdc: async () =>
