@@ -21,6 +21,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const financial = useFinancial();
   const auth = useAuth();
   const [addMoney, setAddMoney] = useState(false);
+  const healthState = financial.networkHealth.state;
+  const networkLabel =
+    healthState === "CHECKING"
+      ? "Checking wallet network"
+      : healthState === "WRONG_NETWORK"
+        ? "Wrong network — switch to Sepolia"
+        : healthState === "WALLET_RPC_UNAVAILABLE"
+          ? "Wallet RPC unavailable"
+          : healthState === "APP_RPC_UNAVAILABLE"
+            ? "Leopold RPC unavailable"
+            : healthState === "UNKNOWN"
+              ? "Network health unavailable"
+              : "Ethereum Sepolia";
+  const networkIsHealthy = healthState === "HEALTHY";
   return (
     <div className="app-frame">
       <aside className="sidebar">
@@ -50,8 +64,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="app-main">
         <header className="topbar">
           <div className="network-pill">
-            <span className={`dot ${financial.wrongNetwork ? "bad" : ""}`} />
-            {financial.wrongNetwork ? "Wrong network" : "Ethereum Sepolia"}
+            <span className={`dot ${networkIsHealthy ? "" : "bad"}`} />
+            {networkLabel}
           </div>
           <button
             className="account-pill"
@@ -71,6 +85,45 @@ export function AppShell({ children }: { children: ReactNode }) {
             + Add Money
           </button>
         </header>
+        {healthState === "WALLET_RPC_UNAVAILABLE" ||
+        healthState === "APP_RPC_UNAVAILABLE" ||
+        healthState === "UNKNOWN" ? (
+          <div className="inline-notice" role="alert">
+            <strong>
+              {healthState === "WALLET_RPC_UNAVAILABLE"
+                ? "Your wallet's Sepolia connection isn't working."
+                : healthState === "APP_RPC_UNAVAILABLE"
+                  ? "Leopold's Sepolia service is currently unavailable."
+                  : "Network health could not be confirmed."}
+            </strong>
+            <span>
+              {healthState === "WALLET_RPC_UNAVAILABLE"
+                ? "Leopold is online, but your wallet cannot currently reach Ethereum Sepolia. Choose another Sepolia RPC in your wallet or use another wallet."
+                : healthState === "APP_RPC_UNAVAILABLE"
+                  ? "Leopold cannot currently reach its configured public Sepolia service. Financial actions remain paused."
+                  : "Financial actions remain paused until both the wallet and Leopold's public Sepolia connection are confirmed."}
+            </span>
+            <button className="button secondary" onClick={() => void financial.retryNetworkHealth()}>
+              Retry connection
+            </button>
+            {healthState === "WALLET_RPC_UNAVAILABLE" ? (
+              <details>
+                <summary>How to fix</summary>
+                <p>
+                  In MetaMask, open Networks → Sepolia → Edit → Default RPC URL. Choose or add a working Sepolia RPC.
+                  The tested hackathon option is <code>https://ethereum-sepolia-rpc.publicnode.com</code>, but you may
+                  use any working provider.
+                </p>
+              </details>
+            ) : null}
+            {financial.networkHealth.technicalDetail ? (
+              <details>
+                <summary>Technical detail</summary>
+                <code>{financial.networkHealth.technicalDetail}</code>
+              </details>
+            ) : null}
+          </div>
+        ) : null}
         {children}
       </main>
       {addMoney ? <AddMoneyModal onClose={() => setAddMoney(false)} /> : null}

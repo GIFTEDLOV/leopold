@@ -41,6 +41,26 @@ export async function getTestUsdc(clients: ActionClients): Promise<`0x${string}`
   if (proven.to?.toLowerCase() !== COMPOUND_FAUCET.toLowerCase() || !proven.input || proven.input === "0x") {
     throw new Error("CANONICAL_FAUCET_EVIDENCE_UNAVAILABLE");
   }
+
+  // DynamicWagmiConnector supplies the signing client. Validate its live
+  // account and chain before asking it to sign, then simulate the exact
+  // historical call through the read-only Sepolia client. This prevents a
+  // reverted faucet call from becoming a blind wallet broadcast.
+  const walletAccount =
+    typeof clients.walletClient.account === "string"
+      ? clients.walletClient.account
+      : clients.walletClient.account?.address;
+  if (walletAccount && walletAccount.toLowerCase() !== clients.account.toLowerCase()) {
+    throw new Error(`WALLET_SIGNER_MISMATCH:${walletAccount}:${clients.account}`);
+  }
+  const walletChainId = await clients.walletClient.getChainId();
+  if (walletChainId !== 11_155_111) throw new Error(`WRONG_NETWORK:wallet-client-${walletChainId}`);
+  await clients.publicClient.call({
+    account: clients.account,
+    to: COMPOUND_FAUCET,
+    data: proven.input,
+  });
+
   const hash = await clients.walletClient.sendTransaction({
     account: clients.account,
     chain: undefined,

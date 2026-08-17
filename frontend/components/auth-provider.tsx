@@ -1,10 +1,11 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAccount } from "wagmi";
 import {
   useConnectWithOtp,
   useDynamicContext,
+  useDynamicEvents,
   useDynamicModals,
   useSocialAccounts,
   useUserUpdateRequest,
@@ -22,6 +23,7 @@ import {
   type AuthReadinessState,
 } from "@/lib/auth/readiness";
 import { canonicalizeUsername } from "@/lib/auth/username";
+import { normalizeNetworkChainId } from "@/lib/leopold/network";
 
 const FINANCIAL_WALLET_METADATA_KEY = "leopoldFinancialWallet";
 // Dynamic custom fields are stored in user.metadata under the configured
@@ -42,6 +44,7 @@ export type AuthContextValue = {
   providerUserId: string | null;
   financialWallet: Address | null;
   connectedWallet: Address | null;
+  activeWalletAddress: Address | null;
   walletAuthenticated: boolean;
   readiness: AuthReadinessState;
   identity: AuthIdentitySnapshot;
@@ -61,6 +64,9 @@ export type AuthContextValue = {
   unlinkX(): Promise<void>;
   signOut(): Promise<void>;
   clearAuthError(): void;
+  activeNetworkId: number | null;
+  refreshActiveNetwork(): Promise<number | null>;
+  switchFinancialWalletToSepolia(): Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -103,7 +109,7 @@ function hasVerifiedEmail(user: ReturnType<typeof useDynamicContext>["user"]): b
 }
 
 function DynamicAuthState({ children }: { children: ReactNode }) {
-  const { user, sdkHasLoaded, handleLogOut, setShowAuthFlow } = useDynamicContext();
+  const { user, sdkHasLoaded, handleLogOut, setShowAuthFlow, primaryWallet } = useDynamicContext();
   const { connectWithEmail, verifyOneTimePassword, retryOneTimePassword } = useConnectWithOtp();
   const { setShowLinkNewWalletModal } = useDynamicModals();
   const { updateUser } = useUserUpdateRequest();
@@ -115,9 +121,11 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [accountConflict, setAccountConflict] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [activeNetworkId, setActiveNetworkId] = useState<number | null>(null);
 
   const connectedWallet = normalizeWalletAddress(account.address);
   const financialWallet = normalizeWalletAddress(String(readMetadata(user)[FINANCIAL_WALLET_METADATA_KEY] ?? ""));
+  const activeWalletAddress = normalizeWalletAddress(String(primaryWallet?.address ?? ""));
   const currentWallet = wallets.find(
     (wallet) =>
       connectedWallet &&
@@ -161,6 +169,30 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   const readiness = getAuthReadiness(identity);
   const xLinked = dynamicXEnabled && social.isLinked(twitterProvider);
 
+  const refreshActiveNetwork = useCallback(async (): Promise<number | null> => {
+    if (!primaryWallet) {
+      setActiveNetworkId(null);
+      return null;
+    }
+    const next = normalizeNetworkChainId(await primaryWallet.connector.getNetwork());
+    setActiveNetworkId(next);
+    return next;
+  }, [primaryWallet]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void refreshActiveNetwork().catch(() => setActiveNetworkId(null));
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [refreshActiveNetwork]);
+
+  useDynamicEvents("primaryWalletNetworkChanged", (network) => {
+    setActiveNetworkId(normalizeNetworkChainId(network));
+  });
+  useDynamicEvents("primaryWalletChanged", () => {
+    void refreshActiveNetwork().catch(() => setActiveNetworkId(null));
+  });
+
   const withBusy = useCallback(async (operation: () => Promise<void>) => {
     setAuthError(null);
     setAccountConflict(false);
@@ -199,6 +231,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       providerUserId: identity.providerUserId,
       financialWallet,
       connectedWallet,
+      activeWalletAddress,
       walletAuthenticated,
       readiness,
       identity,
@@ -263,9 +296,20 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
           await handleLogOut();
         }),
       clearAuthError: () => setAuthError(null),
+      activeNetworkId,
+      refreshActiveNetwork,
+      switchFinancialWalletToSepolia: async () => {
+        if (!primaryWallet) throw new Error("FINANCIAL_IDENTITY_REQUIRED");
+        if (!primaryWallet.connector.supportsNetworkSwitching()) throw new Error("NETWORK_SWITCH_UNAVAILABLE");
+        await primaryWallet.connector.switchNetwork({ networkChainId: 11_155_111 });
+        const network = await refreshActiveNetwork();
+        if (network !== 11_155_111) throw new Error(`WRONG_NETWORK:dynamic-wallet-${network ?? "unknown"}`);
+      },
     }),
     [
       authError,
+      activeNetworkId,
+      activeWalletAddress,
       busy,
       connectWithEmail,
       connectedWallet,
@@ -287,6 +331,8 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       walletAuthenticated,
       withBusy,
       xLinked,
+      primaryWallet,
+      refreshActiveNetwork,
     ],
   );
 
@@ -311,6 +357,7 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       providerUserId: identity.providerUserId,
       financialWallet: identity.financialWallet,
       connectedWallet: identity.connectedWallet,
+      activeWalletAddress: identity.connectedWallet,
       walletAuthenticated: identity.walletAuthenticated,
       readiness,
       identity,
@@ -344,6 +391,9 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
         });
       },
       clearAuthError: () => setAuthError(null),
+      activeNetworkId: null,
+      refreshActiveNetwork: async () => null,
+      switchFinancialWalletToSepolia: async () => undefined,
     }),
     [authError, identity, readiness],
   );

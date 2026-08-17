@@ -77,6 +77,22 @@ describe("Leopold frontend core", () => {
   it("maps wallet, network, round, relayer, and liquidity failures to product language", () => {
     expect(classifyLeopoldError(new Error("User rejected request")).code).toBe("USER_REJECTED");
     expect(classifyLeopoldError(new Error("wrong chain")).code).toBe("WRONG_NETWORK");
+    expect(classifyLeopoldError(new Error("WRONG_NETWORK:wallet-client-1")).code).toBe("WRONG_NETWORK");
+    expect(
+      classifyLeopoldError(
+        new Error(
+          "RPC Request failed. URL: https://sepolia.drpc.org Method: eth_getTransactionCount Details: chain is not available on free plan",
+        ),
+      ).code,
+    ).toBe("WALLET_RPC_UNAVAILABLE");
+    expect(classifyLeopoldError(new Error("fetch failed")).code).toBe("RPC_FAILURE");
+    expect(
+      classifyLeopoldError({ code: 4001, message: "Request failed", cause: { message: "User rejected request" } }).code,
+    ).toBe("USER_REJECTED");
+    expect(
+      classifyLeopoldError({ code: -32603, message: "RPC failed", cause: { message: "apiKey=secret" } })
+        .technicalDetail,
+    ).not.toContain("secret");
     expect(classifyLeopoldError(new Error("RoundNotOpen")).code).toBe("ROUND_CLOSED");
     expect(classifyLeopoldError(new Error("relayer timeout")).code).toBe("RELAYER_UNAVAILABLE");
     expect(classifyLeopoldError(new Error("InsufficientManagedAssets")).code).toBe("PRIVATE_LIQUIDITY_UNAVAILABLE");

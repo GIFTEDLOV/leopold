@@ -65,7 +65,15 @@ export function WalletGate({ children }: { children: ReactNode }) {
         ) : null}
       </div>
     );
-  if (financial.wrongNetwork)
+  if (financial.networkHealth.state === "CHECKING")
+    return (
+      <div className="wallet-gate" data-testid="network-checking">
+        <span className="brand-mark">L</span>
+        <h2>Checking wallet network</h2>
+        <p>Financial actions stay disabled until the active signing wallet is confirmed on Ethereum Sepolia.</p>
+      </div>
+    );
+  if (financial.networkHealth.state === "WRONG_NETWORK")
     return (
       <div className="wallet-gate">
         <span className="brand-mark">L</span>
