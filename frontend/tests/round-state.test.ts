@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { getEffectiveVaultRoundStatus, isVaultRoundOpen, type VaultPublicState } from "../lib/leopold/reads";
+import {
+  canPrepareVaultWithdrawal,
+  getEffectiveVaultRoundStatus,
+  isVaultRoundOpen,
+  type VaultPublicState,
+} from "../lib/leopold/reads";
 
 function round(overrides: Partial<Pick<VaultPublicState, "state" | "opensAt" | "closesAt" | "stateLabel">> = {}) {
   return {
@@ -64,5 +69,11 @@ describe("effective vault round state", () => {
       label: "Preparing draw",
       depositOpen: false,
     });
+  });
+
+  it("allows withdrawal preparation after expiry without making the expired round deposit-open", () => {
+    expect(getEffectiveVaultRoundStatus(round(), 201n).depositOpen).toBe(false);
+    expect(canPrepareVaultWithdrawal(round(), 201n)).toBe(true);
+    expect(canPrepareVaultWithdrawal(round({ state: 2, stateLabel: "Preparing draw" }), 201n)).toBe(false);
   });
 });

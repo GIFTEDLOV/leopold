@@ -4,7 +4,7 @@ import { useState } from "react";
 import { formatEther } from "viem";
 import { getVaultConfig, type VaultId } from "@/lib/leopold/config";
 import { formatUsdcAmount, parseUsdcAmount } from "@/lib/leopold/amounts";
-import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
+import { canPrepareVaultWithdrawal, getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { privateAmountLabel, useFinancial } from "./financial-provider";
 import { transactionIsBusy } from "@/lib/leopold/transactions";
 
@@ -20,6 +20,8 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
   const busy = transactionIsBusy(financial.txStage);
   const roundStatus = getEffectiveVaultRoundStatus(state, financial.latestBlockTimestamp);
   const roundOpen = roundStatus.depositOpen;
+  const canPrepareWithdrawal = financial.fixture || canPrepareVaultWithdrawal(state, financial.latestBlockTimestamp);
+  const knownZeroPosition = financial.revealedVaults.has(slug) && (financial.vaultPositions[slug] ?? 0n) === 0n;
   const saveExceedsRevealedBalance = (() => {
     if (!financial.privateBalanceRevealed || financial.privateBalance === null) return false;
     try {
@@ -107,7 +109,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               <button
                 className="button secondary"
                 data-testid="withdraw"
-                disabled={busy || (!financial.fixture && !roundOpen)}
+                disabled={busy || !canPrepareWithdrawal || knownZeroPosition}
                 onClick={() => {
                   void financial.withdraw(slug, withdrawAmount).catch(() => undefined);
                 }}
@@ -115,6 +117,9 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
                 Withdraw
               </button>
             </div>
+            {!financial.fixture && roundStatus.code === "ENDED" && !knownZeroPosition ? (
+              <p className="subtle">This prize period has ended. Withdrawal requires two wallet confirmations.</p>
+            ) : null}
           </article>
         </div>
         <aside className="grid">

@@ -19,6 +19,17 @@ export type TransactionStage =
   | "save-confirming"
   | "save-receipt"
   | "save-post-refresh"
+  | "withdraw-round-check"
+  | "withdraw-round-advance-simulating"
+  | "withdraw-round-advance-signature"
+  | "withdraw-round-advance-submitted"
+  | "withdraw-round-advance-confirming"
+  | "withdraw-refresh"
+  | "withdraw-simulating"
+  | "withdraw-signature"
+  | "withdraw-submitted"
+  | "withdraw-confirming"
+  | "withdraw-receipt"
   | "private"
   | "complete"
   | "failed";
@@ -44,6 +55,17 @@ export const transactionStageLabel: Record<TransactionStage, string> = {
   "save-confirming": "Confirming vault deposit",
   "save-receipt": "Vault deposit receipt confirmed",
   "save-post-refresh": "Refreshing vault state",
+  "withdraw-round-check": "Checking withdrawal eligibility",
+  "withdraw-round-advance-simulating": "Preparing withdrawal",
+  "withdraw-round-advance-signature": "Confirm preparation",
+  "withdraw-round-advance-submitted": "Withdrawal preparation submitted",
+  "withdraw-round-advance-confirming": "Confirming withdrawal preparation",
+  "withdraw-refresh": "Refreshing round state",
+  "withdraw-simulating": "Simulating withdrawal",
+  "withdraw-signature": "Waiting for withdrawal signature",
+  "withdraw-submitted": "Withdrawal submitted",
+  "withdraw-confirming": "Confirming withdrawal",
+  "withdraw-receipt": "Withdrawal receipt confirmed",
   private: "Private processing",
   complete: "Complete",
   failed: "Failed",
@@ -69,6 +91,17 @@ const busyStages = new Set<TransactionStage>([
   "save-confirming",
   "save-receipt",
   "save-post-refresh",
+  "withdraw-round-check",
+  "withdraw-round-advance-simulating",
+  "withdraw-round-advance-signature",
+  "withdraw-round-advance-submitted",
+  "withdraw-round-advance-confirming",
+  "withdraw-refresh",
+  "withdraw-simulating",
+  "withdraw-signature",
+  "withdraw-submitted",
+  "withdraw-confirming",
+  "withdraw-receipt",
   "private",
 ]);
 

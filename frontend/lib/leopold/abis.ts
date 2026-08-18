@@ -164,6 +164,7 @@ export const vaultAbi = [
       { name: "allocationCursor", type: "uint256" },
     ],
   },
+  { type: "function", name: "closeRound", stateMutability: "nonpayable", inputs: [], outputs: [] },
   {
     type: "function",
     name: "eligibilityStart",

@@ -7,6 +7,7 @@ import { useAccount, useBalance, useConnect, useDisconnect, usePublicClient, use
 import {
   claimBondRefund,
   claimSettlementRewards,
+  closeExpiredRound,
   enterPrizeRound,
   getTestUsdc,
   makePrivate,
@@ -42,6 +43,7 @@ import {
   readPrivateHandle,
   readUsdcBalance,
   getEffectiveVaultRoundStatus,
+  canPrepareVaultWithdrawal,
   readVaultPublicState,
   validateConfiguredDeployment,
   type VaultPublicState,
@@ -64,6 +66,7 @@ import { clearPrivateSession, decryptPrivateValue } from "@/lib/leopold/zama";
 import { useAuth } from "@/components/auth-provider";
 import { checkPrivateRevealIdentity, requireFinancialIdentity } from "@/lib/auth/readiness";
 import { financialControlsEnabled } from "@/lib/auth/hydration";
+import { prepareWithdrawalRound } from "@/lib/leopold/withdrawal";
 
 export type ActivityItem = { id: string; label: string; status: "Confirmed" | "Processing"; vault?: string };
 
@@ -371,7 +374,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     [account, publicClient, walletClient.data],
   );
 
-  const requireLiveOpenRound = useCallback(async (vaultSlug: VaultId, liveClients: ActionClients) => {
+  const readLiveVaultRound = useCallback(async (vaultSlug: VaultId, liveClients: ActionClients) => {
     const vault = getVaultConfig(vaultSlug);
     if (!vault) throw new Error("CONFIGURATION_MISSING:vault");
     const latestBlock = await liveClients.publicClient.getBlock();
@@ -383,11 +386,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     );
     setPublicVaultState((states) => ({ ...states, [vaultSlug]: liveState }));
     setLatestBlockTimestamp(latestBlock.timestamp);
-    if (!getEffectiveVaultRoundStatus(liveState, latestBlock.timestamp).depositOpen) {
-      throw new Error(`ROUND_CLOSED:${vault.name}:${liveState.roundId.toString()}`);
-    }
-    return liveState;
+    return { vault, state: liveState, blockTimestamp: latestBlock.timestamp };
   }, []);
+
+  const requireLiveOpenRound = useCallback(
+    async (vaultSlug: VaultId, liveClients: ActionClients) => {
+      const { vault, state, blockTimestamp } = await readLiveVaultRound(vaultSlug, liveClients);
+      if (!getEffectiveVaultRoundStatus(state, blockTimestamp).depositOpen) {
+        throw new Error(`ROUND_CLOSED:${vault.name}:${state.roundId.toString()}`);
+      }
+      return state;
+    },
+    [readLiveVaultRound],
+  );
 
   const currentPrivateBalanceClients = useCallback(() => {
     const currentAccount = accountRef.current;
@@ -982,10 +993,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setPrivateEligibility((items) => ({ ...items, [vaultSlug]: clear }));
       },
       withdraw: async (vaultSlug, input) =>
-        execute("withdraw", async (onHash) => {
+        execute("withdraw", async (onHash, onStage) => {
           const amount = parseUsdcAmount(input);
           const vault = getVaultConfig(vaultSlug);
           if (!vault) throw new Error("CONFIGURATION_MISSING:vault");
+          if (revealedVaults.has(vaultSlug) && (vaultPositions[vaultSlug] ?? 0n) === 0n) {
+            throw new Error("INSUFFICIENT_USDC");
+          }
           if (fixtureEnabled) {
             const position = vaultPositions[vaultSlug] ?? 0n;
             if (amount > position) throw new Error("INSUFFICIENT_USDC");
@@ -993,8 +1007,21 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setPrivateBalance((balance) => (balance ?? 0n) + amount);
           } else {
             requireVerified();
-            const liveClients = clients(onHash);
-            await requireLiveOpenRound(vaultSlug, liveClients);
+            const liveClients = clients(onHash, true, onStage);
+            const vaultAddress = requireConfiguredAddress(vault.vault, `${vault.name} vault`);
+            await prepareWithdrawalRound({
+              readRound: async () => {
+                const liveRound = await readLiveVaultRound(vaultSlug, liveClients);
+                const status = getEffectiveVaultRoundStatus(liveRound.state, liveRound.blockTimestamp);
+                return {
+                  canWithdrawNow: status.depositOpen,
+                  canPrepareWithdrawal: canPrepareVaultWithdrawal(liveRound.state, liveRound.blockTimestamp),
+                  reason: status.label,
+                };
+              },
+              advanceRound: () => closeExpiredRound(liveClients, vaultAddress),
+              onStage,
+            });
             await withdrawSavings(liveClients, requireConfiguredAddress(vault.vault, `${vault.name} vault`), amount);
           }
           addActivity(`Withdrew from ${vault.name} Vault`, vault.name);
@@ -1079,6 +1106,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       requireVerified,
       revealedResults,
       revealedVaults,
+      readLiveVaultRound,
       txStage,
       txErrorStage,
       usdcBalance,

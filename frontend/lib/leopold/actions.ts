@@ -27,10 +27,16 @@ function notifyActionStage(
   if (stage === "make-private-approval") clients.onStage?.(`approval-${phase}` as TransactionStage);
   if (stage === "make-private-wrap") clients.onStage?.(`wrap-${phase}` as TransactionStage);
   if (stage === "save-confidential-transfer") clients.onStage?.(`save-${phase}` as TransactionStage);
+  if (stage === "withdraw-round-advance") {
+    clients.onStage?.(`withdraw-round-advance-${phase}` as TransactionStage);
+  }
+  if (stage === "withdraw") clients.onStage?.(`withdraw-${phase}` as TransactionStage);
 }
 
 function actionFailurePrefix(stage: string, phase: "SIMULATION" | "WALLET_SIGNATURE" | "RECEIPT"): string {
   if (stage === "save-confidential-transfer") return `SAVE:${phase}`;
+  if (stage === "withdraw-round-advance") return `WITHDRAW:ROUND_ADVANCE_${phase}`;
+  if (stage === "withdraw") return `WITHDRAW:${phase}`;
   const genericPhase =
     phase === "SIMULATION"
       ? "ACTION_SIMULATION_FAILED"
@@ -105,11 +111,13 @@ async function writeAndConfirm(
     throw actionError(actionFailurePrefix(stage, "RECEIPT"), error);
   }
   if (receipt.status !== "success") {
-    throw new Error(
-      stage === "save-confidential-transfer" ? "SAVE:RECEIPT:status=reverted" : `ACTION_REVERTED:${stage}`,
-    );
+    if (stage === "save-confidential-transfer") throw new Error("SAVE:RECEIPT:status=reverted");
+    if (stage === "withdraw-round-advance") throw new Error("WITHDRAW:ROUND_ADVANCE_RECEIPT:status=reverted");
+    if (stage === "withdraw") throw new Error("WITHDRAW:RECEIPT:status=reverted");
+    throw new Error(`ACTION_REVERTED:${stage}`);
   }
   if (stage === "save-confidential-transfer") clients.onStage?.("save-receipt");
+  if (stage === "withdraw") clients.onStage?.("withdraw-receipt");
   return hash;
 }
 
@@ -267,15 +275,40 @@ export async function enterPrizeRound(
 }
 
 export async function withdrawSavings(clients: ActionClients, vault: Address, amount: bigint): Promise<`0x${string}`> {
-  const encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, vault, amount, clients.walletClient);
-  return writeAndConfirm(clients, {
-    account: clients.account,
-    chain: undefined,
-    address: vault,
-    abi: vaultAbi,
-    functionName: "withdraw",
-    args: [encrypted.encryptedValue, encrypted.inputProof],
-  });
+  let encrypted: Awaited<ReturnType<typeof encryptPrivateAmount>>;
+  try {
+    encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, vault, amount, clients.walletClient);
+  } catch (error) {
+    throw actionError("WITHDRAW:SIMULATION", error);
+  }
+  return writeAndConfirm(
+    clients,
+    {
+      account: clients.account,
+      chain: undefined,
+      address: vault,
+      abi: vaultAbi,
+      functionName: "withdraw",
+      args: [encrypted.encryptedValue, encrypted.inputProof],
+    },
+    "withdraw",
+    true,
+  );
+}
+
+export async function closeExpiredRound(clients: ActionClients, vault: Address): Promise<`0x${string}`> {
+  return writeAndConfirm(
+    clients,
+    {
+      account: clients.account,
+      chain: undefined,
+      address: vault,
+      abi: vaultAbi,
+      functionName: "closeRound",
+    },
+    "withdraw-round-advance",
+    true,
+  );
 }
 
 export async function requestMakePublic(

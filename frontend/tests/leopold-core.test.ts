@@ -101,6 +101,15 @@ describe("Leopold frontend core", () => {
     );
     expect(classifyLeopoldError(new Error("SAVE:WALLET_SIGNATURE: User rejected request")).code).toBe("USER_REJECTED");
     expect(classifyLeopoldError(new Error("SAVE:RECEIPT:status=reverted")).code).toBe("TRANSACTION_REVERTED");
+    expect(classifyLeopoldError(new Error("WITHDRAW:ROUND_ADVANCE_SIMULATION: execution reverted")).code).toBe(
+      "TRANSACTION_SIMULATION_FAILED",
+    );
+    expect(classifyLeopoldError(new Error("WITHDRAW:ROUND_ADVANCE_WALLET_SIGNATURE: User rejected request")).code).toBe(
+      "USER_REJECTED",
+    );
+    expect(classifyLeopoldError(new Error("WITHDRAW:ROUND_ADVANCE_RECEIPT:status=reverted")).code).toBe(
+      "TRANSACTION_REVERTED",
+    );
     expect(classifyLeopoldError(new Error("relayer timeout")).code).toBe("RELAYER_UNAVAILABLE");
     expect(classifyLeopoldError(new Error("NOT_ENTITLED: balance handle is not authorized")).code).toBe(
       "UNAUTHORIZED_CIPHERTEXT",
@@ -141,6 +150,17 @@ describe("Leopold frontend core", () => {
       "Confirming vault deposit",
       "Vault deposit receipt confirmed",
       "Refreshing vault state",
+      "Checking withdrawal eligibility",
+      "Preparing withdrawal",
+      "Confirm preparation",
+      "Withdrawal preparation submitted",
+      "Confirming withdrawal preparation",
+      "Refreshing round state",
+      "Simulating withdrawal",
+      "Waiting for withdrawal signature",
+      "Withdrawal submitted",
+      "Confirming withdrawal",
+      "Withdrawal receipt confirmed",
       "Private processing",
       "Complete",
       "Failed",

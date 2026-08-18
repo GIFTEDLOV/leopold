@@ -136,6 +136,13 @@ export function classifyLeopoldError(error: unknown): LeopoldError {
   else if (/wallet_signer_mismatch/u.test(lower)) code = "WALLET_SIGNER_MISMATCH";
   else if (/network_switch_unavailable/u.test(lower)) code = "NETWORK_SWITCH_UNAVAILABLE";
   else if (/zama_authorization_required/u.test(lower)) code = "ZAMA_AUTHORIZATION_REQUIRED";
+  else if (/withdraw:round_check.*round (?:ended|closed)/u.test(lower)) code = "ROUND_CLOSED";
+  else if (/withdraw:(?:round_advance_)?simulation|withdraw:refresh/u.test(lower))
+    code = "TRANSACTION_SIMULATION_FAILED";
+  else if (/withdraw:round_advance_wallet_signature|withdraw:wallet_signature/u.test(lower))
+    code = "TRANSACTION_SIGNING_FAILED";
+  else if (/withdraw:round_advance_receipt|withdraw:receipt/u.test(lower))
+    code = /status=reverted|reverted/u.test(lower) ? "TRANSACTION_REVERTED" : "TRANSACTION_CONFIRMATION_FAILED";
   else if (/save:simulation/u.test(lower)) code = "TRANSACTION_SIMULATION_FAILED";
   else if (/save:wallet_signature/u.test(lower)) code = "TRANSACTION_SIGNING_FAILED";
   else if (/save:receipt/u.test(lower))

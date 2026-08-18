@@ -71,6 +71,14 @@ export function isVaultRoundOpen(
   return getEffectiveVaultRoundStatus({ ...state, stateLabel: "" }, blockTimestamp).depositOpen;
 }
 
+export function canPrepareVaultWithdrawal(
+  state: Pick<VaultPublicState, "state" | "opensAt" | "closesAt" | "stateLabel"> | undefined,
+  blockTimestamp: bigint | null,
+): boolean {
+  const status = getEffectiveVaultRoundStatus(state, blockTimestamp);
+  return status.code === "OPEN" || status.code === "ENDED";
+}
+
 export async function readUsdcBalance(client: PublicClient, token: Address, account: Address): Promise<bigint> {
   return client.readContract({ address: token, abi: erc20Abi, functionName: "balanceOf", args: [account] });
 }
