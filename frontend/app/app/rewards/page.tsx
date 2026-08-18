@@ -48,7 +48,7 @@ export default function RewardsPage() {
           <button
             className="button secondary"
             data-testid="claim-refund"
-            disabled={busy || !refundVault || refundAmount === undefined}
+            disabled={busy || !financial.financialActionsEnabled || !refundVault || refundAmount === undefined}
             onClick={() => {
               if (refundVault) void financial.claimRefund(refundVault.slug).catch(() => undefined);
             }}
@@ -82,7 +82,7 @@ export default function RewardsPage() {
                 {reward && reward > 0n ? (
                   <button
                     className="button secondary small"
-                    disabled={busy}
+                    disabled={busy || !financial.financialActionsEnabled}
                     onClick={() => {
                       void financial.claimRewards(vault.slug).catch(() => undefined);
                     }}

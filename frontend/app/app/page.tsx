@@ -46,7 +46,7 @@ export default function DashboardPage() {
           <div className="stat">{privateBalanceLabel(financial.privateBalanceStatus, financial.privateBalance)}</div>
           <button
             className="button ghost small"
-            disabled={privateBalanceBusy}
+            disabled={privateBalanceBusy || !financial.financialActionsEnabled}
             onClick={() => {
               if (financial.privateBalanceRevealed) financial.hidePrivateBalance();
               else void financial.revealPrivateBalance().catch(() => undefined);

@@ -5,6 +5,7 @@ import {
   createIdleFinancialNetworkHealth,
   financialWritesAllowed,
   getFinancialNetworkHealthKey,
+  getPublicReadAccount,
   getFinancialNetworkStatus,
   isFinancialNetworkHealthFresh,
   LEOPOLD_SEPOLIA_RPC_URL,
@@ -195,6 +196,39 @@ describe("financial wallet network authority", () => {
     expect(probe.appRequest).not.toHaveBeenCalled();
   });
 
+  it("prioritizes WALLET_MISMATCH over downstream RPC failures", async () => {
+    const probe = makePreflight({
+      walletRequest: () => Promise.reject(new Error("wallet RPC unavailable")),
+      appRequest: () => Promise.reject(new Error("app RPC unavailable")),
+    });
+    probe.input.connectedWallet = "0x2222222222222222222222222222222222222222";
+    const health = await runFinancialNetworkPreflight(probe.input);
+
+    expect(health.state).toBe("WALLET_MISMATCH");
+    expect(probe.walletRequest).not.toHaveBeenCalled();
+    expect(probe.appRequest).not.toHaveBeenCalled();
+  });
+
+  it("prioritizes WALLET_DISCONNECTED before any RPC probe", async () => {
+    const probe = makePreflight({
+      walletRequest: () => Promise.reject(new Error("wallet RPC unavailable")),
+      appRequest: () => Promise.reject(new Error("app RPC unavailable")),
+    });
+    probe.input.activeAccount = null;
+    const health = await runFinancialNetworkPreflight(probe.input);
+
+    expect(health.state).toBe("WALLET_DISCONNECTED");
+    expect(probe.walletRequest).not.toHaveBeenCalled();
+    expect(probe.appRequest).not.toHaveBeenCalled();
+  });
+
+  it("anchors public reads to the verified financial wallet during mismatch", () => {
+    const verified = ACCOUNT;
+    const connected = "0x2222222222222222222222222222222222222222" as const;
+    expect(getPublicReadAccount(verified, connected)).toBe(verified);
+    expect(getPublicReadAccount(null, connected)).toBe(connected);
+  });
+
   it("invalidates the health identity when account or network changes", () => {
     const base = {
       activeAccount: ACCOUNT,
@@ -215,6 +249,8 @@ describe("financial wallet network authority", () => {
   });
 
   it("blocks writes for every non-healthy state and allows only HEALTHY", () => {
+    expect(financialWritesAllowed({ ...createIdleFinancialNetworkHealth(), state: "WALLET_DISCONNECTED" })).toBe(false);
+    expect(financialWritesAllowed({ ...createIdleFinancialNetworkHealth(), state: "WALLET_MISMATCH" })).toBe(false);
     expect(financialWritesAllowed({ ...createIdleFinancialNetworkHealth(), state: "WALLET_RPC_UNAVAILABLE" })).toBe(
       false,
     );

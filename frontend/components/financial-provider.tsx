@@ -31,6 +31,7 @@ import {
   createIdleFinancialNetworkHealth,
   financialWritesAllowed,
   getFinancialNetworkHealthKey,
+  getPublicReadAccount,
   isFinancialNetworkHealthFresh,
   runFinancialNetworkPreflight,
   type FinancialNetworkCheckMode,
@@ -99,6 +100,7 @@ type FinancialContextValue = {
   latestBlockTimestamp: bigint | null;
   authState: ReturnType<typeof useAuth>["readiness"];
   financialAuthorized: boolean;
+  financialActionsEnabled: boolean;
   connectWallet(): Promise<void>;
   disconnectWallet(): void;
   switchToSepolia(): Promise<void>;
@@ -173,6 +175,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const wagmiAccountChainId = fixtureEnabled ? fixtureChain : (accountState.chainId ?? null);
   const walletChainId = networkHealth.walletClientChainId ?? auth.activeNetworkId ?? wagmiAccountChainId;
   const financialAuthorized = financialControlsEnabled(auth.clientReady, auth.readiness === "ACCOUNT_READY");
+  const financialActionsEnabled = fixtureEnabled || (financialAuthorized && networkHealth.state === "HEALTHY");
   const walletClientAccount = walletClient.data
     ? ((typeof walletClient.data.account === "string"
         ? walletClient.data.account
@@ -224,7 +227,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const runNetworkHealth = useCallback(
     async (force = false, mode: FinancialNetworkCheckMode = "auto"): Promise<FinancialNetworkHealth> => {
-      if (!financialAuthorized) {
+      if (!auth.clientReady) {
         ++healthRunRef.current;
         healthCacheRef.current = null;
         const idle = createIdleFinancialNetworkHealth();
@@ -284,6 +287,26 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         ].join("|");
         healthCacheRef.current = { key: resolvedKey, health };
         setNetworkHealth(health);
+        if (
+          health.state === "WALLET_DISCONNECTED" ||
+          health.state === "WALLET_MISMATCH" ||
+          health.state === "HEALTHY"
+        ) {
+          setError((current) =>
+            current &&
+            [
+              "WALLET_DISCONNECTED",
+              "WALLET_MISMATCH",
+              "WALLET_RPC_UNAVAILABLE",
+              "APP_RPC_UNAVAILABLE",
+              "RPC_FAILURE",
+              "UNKNOWN",
+              "WRONG_NETWORK",
+            ].includes(current.code)
+              ? null
+              : current,
+          );
+        }
       }
       return health;
     },
@@ -292,8 +315,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       auth.activeWalletAddress,
       auth.connectedWallet,
       auth.financialWallet,
-      financialAuthorized,
+      auth.clientReady,
       connected,
+      financialAuthorized,
       fixtureChain,
       fixtureConnected,
       healthKey,
@@ -559,21 +583,25 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   );
 
   const refresh = useCallback(async () => {
-    if (!connected || networkHealth.state !== "HEALTHY" || !account) return;
+    const publicReadAccount = getPublicReadAccount(auth.financialWallet, account);
+    if (!publicReadAccount) return;
     if (fixtureEnabled) return;
     if (!publicClient) return;
     setDeploymentVerified(false);
     setLatestBlockTimestamp(null);
     try {
       const latestBlock = await publicClient.getBlock();
-      setUsdcBalance(await readUsdcBalance(publicClient, CANONICAL_USDC, account));
+      setUsdcBalance(await readUsdcBalance(publicClient, CANONICAL_USDC, publicReadAccount));
       if (leopoldConfig.ready) {
         await validateConfiguredDeployment(publicClient, leopoldConfig);
         setDeploymentVerified(true);
         const states = await Promise.all(
           leopoldConfig.vaults.map(
             async (vault) =>
-              [vault.slug, await readVaultPublicState(publicClient, vault, account, latestBlock.number)] as const,
+              [
+                vault.slug,
+                await readVaultPublicState(publicClient, vault, publicReadAccount, latestBlock.number),
+              ] as const,
           ),
         );
         setPublicVaultState(Object.fromEntries(states));
@@ -583,16 +611,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     } catch (caught) {
       setLatestBlockTimestamp(null);
       setDeploymentVerified(false);
-      setError(classifyLeopoldError(caught));
+      if (networkHealth.state === "HEALTHY" && financialAuthorized) setError(classifyLeopoldError(caught));
     }
-  }, [account, connected, networkHealth.state, publicClient]);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      void refresh();
-    }, 0);
-    return () => window.clearTimeout(timeout);
-  }, [refresh]);
+  }, [account, auth.financialWallet, financialAuthorized, networkHealth.state, publicClient]);
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       if (fixtureEnabled && !auth.authenticated) setFixtureConnected(false);
@@ -639,6 +660,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [refresh]);
+
+  useEffect(() => {
     if (!financialAuthorized || !account || networkHealth.state !== "HEALTHY") return;
     const timeout = window.setTimeout(() => {
       void refreshPrivateBalanceHandle();
@@ -679,6 +707,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       latestBlockTimestamp,
       authState: auth.readiness,
       financialAuthorized,
+      financialActionsEnabled,
       connectWallet: async () => {
         setError(null);
         try {
@@ -1115,6 +1144,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       walletChainId,
       auth,
       financialAuthorized,
+      financialActionsEnabled,
       ensurePrivateRevealAccess,
       ensureSepoliaWalletHealth,
       invalidatePrivateBalance,

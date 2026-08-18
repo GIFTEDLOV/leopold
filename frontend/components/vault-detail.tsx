@@ -52,7 +52,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
             <button
               className="button secondary small"
               data-testid="reveal-position"
-              disabled={busy}
+              disabled={busy || !financial.financialActionsEnabled}
               onClick={() => {
                 if (revealed) financial.hideVault(slug);
                 else void financial.revealVault(slug).catch(() => undefined);
@@ -78,7 +78,12 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               <button
                 className="button"
                 data-testid="save-private"
-                disabled={busy || saveExceedsRevealedBalance || (!financial.fixture && !roundOpen)}
+                disabled={
+                  busy ||
+                  !financial.financialActionsEnabled ||
+                  saveExceedsRevealedBalance ||
+                  (!financial.fixture && !roundOpen)
+                }
                 onClick={() => {
                   void financial.save(slug, saveAmount).catch(() => undefined);
                 }}
@@ -109,7 +114,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               <button
                 className="button secondary"
                 data-testid="withdraw"
-                disabled={busy || !canPrepareWithdrawal || knownZeroPosition}
+                disabled={busy || !financial.financialActionsEnabled || !canPrepareWithdrawal || knownZeroPosition}
                 onClick={() => {
                   void financial.withdraw(slug, withdrawAmount).catch(() => undefined);
                 }}
@@ -143,7 +148,13 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               className="button"
               data-testid="enter-round"
               style={{ width: "100%", marginTop: 14 }}
-              disabled={busy || entered || bond === undefined || (!financial.fixture && !roundOpen)}
+              disabled={
+                busy ||
+                !financial.financialActionsEnabled ||
+                entered ||
+                bond === undefined ||
+                (!financial.fixture && !roundOpen)
+              }
               onClick={() => {
                 void financial.enterRound(slug).catch(() => undefined);
               }}
@@ -168,7 +179,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
             </p>
             <button
               className="button secondary small"
-              disabled={busy || !entered}
+              disabled={busy || !financial.financialActionsEnabled || !entered}
               onClick={() => {
                 void financial.revealEligibility(slug).catch(() => undefined);
               }}

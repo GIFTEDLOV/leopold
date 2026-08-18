@@ -70,7 +70,7 @@ export default function PrizesPage() {
               <button
                 className="button secondary"
                 data-testid={`reveal-result-${vault.slug}`}
-                disabled={!resultReady}
+                disabled={!financial.financialActionsEnabled || !resultReady}
                 onClick={() => {
                   void financial.revealResult(vault.slug).catch(() => undefined);
                 }}

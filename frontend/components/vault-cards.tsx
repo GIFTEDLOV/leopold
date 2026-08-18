@@ -33,7 +33,7 @@ export function VaultCards() {
           const entered = financial.enteredVaults.has(vault.slug);
           const state = financial.publicVaultState[vault.slug];
           const status = statuses[index];
-          const saveEnabled = financial.fixture || status.depositOpen;
+          const saveEnabled = financial.fixture || (financial.financialActionsEnabled && status.depositOpen);
           return (
             <article
               className={`vault-card ${vault.slug === "weekly" ? "recommended" : ""}`}

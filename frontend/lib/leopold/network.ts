@@ -73,6 +73,11 @@ export type FinancialNetworkSnapshot = {
   wagmiAccountChainId?: number | null;
 };
 
+/** Public protocol reads remain anchored to Leopold's verified wallet during a temporary mismatch. */
+export function getPublicReadAccount(financialWallet: Address | null, connectedWallet: Address | null): Address | null {
+  return financialWallet ?? connectedWallet;
+}
+
 export function normalizeNetworkChainId(value: unknown): number | null {
   if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
   if (typeof value === "bigint" && value > 0n && value <= BigInt(Number.MAX_SAFE_INTEGER)) return Number(value);

@@ -27,15 +27,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const networkLabel =
     healthState === "CHECKING"
       ? "Checking wallet network"
-      : healthState === "WRONG_NETWORK"
-        ? "Wrong network — switch to Sepolia"
-        : healthState === "WALLET_RPC_UNAVAILABLE"
-          ? "Wallet RPC unavailable"
-          : healthState === "APP_RPC_UNAVAILABLE"
-            ? "Leopold RPC unavailable"
-            : healthState === "UNKNOWN"
-              ? "Network health unavailable"
-              : "Ethereum Sepolia";
+      : healthState === "WALLET_DISCONNECTED"
+        ? "Wallet disconnected"
+        : healthState === "WALLET_MISMATCH"
+          ? "Wrong wallet"
+          : healthState === "WRONG_NETWORK"
+            ? "Wrong network — switch to Sepolia"
+            : healthState === "WALLET_RPC_UNAVAILABLE"
+              ? "Wallet RPC unavailable"
+              : healthState === "APP_RPC_UNAVAILABLE"
+                ? "Leopold RPC unavailable"
+                : healthState === "UNKNOWN"
+                  ? "Network health unavailable"
+                  : "Ethereum Sepolia";
   const networkIsHealthy = healthState === "HEALTHY";
   return (
     <div className="app-frame">
@@ -89,27 +93,39 @@ export function AppShell({ children }: { children: ReactNode }) {
             + Add Money
           </button>
         </header>
-        {healthState === "WALLET_RPC_UNAVAILABLE" ||
+        {healthState === "WALLET_DISCONNECTED" ||
+        healthState === "WALLET_MISMATCH" ||
+        healthState === "WALLET_RPC_UNAVAILABLE" ||
         healthState === "APP_RPC_UNAVAILABLE" ||
         healthState === "UNKNOWN" ? (
           <div className="inline-notice" role="alert">
             <strong>
-              {healthState === "WALLET_RPC_UNAVAILABLE"
-                ? "Your wallet's Sepolia connection isn't working."
-                : healthState === "APP_RPC_UNAVAILABLE"
-                  ? "Leopold's Sepolia service is currently unavailable."
-                  : "Network health could not be confirmed."}
+              {healthState === "WALLET_DISCONNECTED"
+                ? "Connect your verified financial wallet to continue."
+                : healthState === "WALLET_MISMATCH"
+                  ? "Switch back to your verified financial wallet to continue."
+                  : healthState === "WALLET_RPC_UNAVAILABLE"
+                    ? "Your wallet's Sepolia connection isn't working."
+                    : healthState === "APP_RPC_UNAVAILABLE"
+                      ? "Leopold's Sepolia service is currently unavailable."
+                      : "Network health could not be confirmed."}
             </strong>
             <span>
-              {healthState === "WALLET_RPC_UNAVAILABLE"
-                ? "Leopold is online, but your wallet cannot currently reach Ethereum Sepolia. Choose another Sepolia RPC in your wallet or use another wallet."
-                : healthState === "APP_RPC_UNAVAILABLE"
-                  ? "Leopold cannot currently reach its configured public Sepolia service. Financial actions remain paused."
-                  : "Financial actions remain paused until both the wallet and Leopold's public Sepolia connection are confirmed."}
+              {healthState === "WALLET_DISCONNECTED"
+                ? "Financial and private actions remain paused until your verified external wallet is connected."
+                : healthState === "WALLET_MISMATCH"
+                  ? `Verified: ${auth.financialWallet ? `${auth.financialWallet.slice(0, 6)}…${auth.financialWallet.slice(-4)}` : "Not linked"} · Connected: ${financial.accountLabel}`
+                  : healthState === "WALLET_RPC_UNAVAILABLE"
+                    ? "Leopold is online, but your wallet cannot currently reach Ethereum Sepolia. Choose another Sepolia RPC in your wallet or use another wallet."
+                    : healthState === "APP_RPC_UNAVAILABLE"
+                      ? "Leopold cannot currently reach its configured public Sepolia service. Financial actions remain paused."
+                      : "Financial actions remain paused until both the wallet and Leopold's public Sepolia connection are confirmed."}
             </span>
-            <button className="button secondary" onClick={() => void financial.retryNetworkHealth()}>
-              Retry connection
-            </button>
+            {healthState !== "WALLET_MISMATCH" && healthState !== "WALLET_DISCONNECTED" ? (
+              <button className="button secondary" onClick={() => void financial.retryNetworkHealth()}>
+                Retry connection
+              </button>
+            ) : null}
             {healthState === "WALLET_RPC_UNAVAILABLE" ? (
               <details>
                 <summary>How to fix</summary>

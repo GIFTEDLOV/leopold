@@ -10,6 +10,7 @@ export type LeopoldErrorCode =
   | "RPC_CONFIGURATION_ERROR"
   | "APP_RPC_UNAVAILABLE"
   | "WALLET_RPC_UNAVAILABLE"
+  | "WALLET_DISCONNECTED"
   | "TRANSACTION_SIMULATION_FAILED"
   | "TRANSACTION_SIGNING_FAILED"
   | "TRANSACTION_CONFIRMATION_FAILED"
@@ -45,6 +46,7 @@ const messages: Record<LeopoldErrorCode, string> = {
   RPC_CONFIGURATION_ERROR: "This application's Sepolia RPC is unavailable.",
   APP_RPC_UNAVAILABLE: "Leopold's Sepolia service is currently unavailable.",
   WALLET_RPC_UNAVAILABLE: "Your wallet's Sepolia connection isn't working.",
+  WALLET_DISCONNECTED: "Connect your verified financial wallet to continue.",
   TRANSACTION_SIMULATION_FAILED: "This transaction could not be simulated. No funds were moved.",
   TRANSACTION_SIGNING_FAILED: "The wallet could not submit this transaction. No funds were moved.",
   TRANSACTION_CONFIRMATION_FAILED: "The transaction confirmation could not be verified. Check your wallet activity.",
@@ -58,7 +60,7 @@ const messages: Record<LeopoldErrorCode, string> = {
   FINANCIAL_WALLET_CHANGE_REQUIRES_REAUTH: "The verified financial wallet cannot be replaced automatically.",
   WALLET_SIGNATURE_REQUIRED: "Sign with your external wallet to verify ownership before continuing.",
   WALLET_SIGNER_MISMATCH: "The connected signer does not match your verified financial wallet.",
-  WALLET_MISMATCH: "The connected wallet does not match your verified financial wallet.",
+  WALLET_MISMATCH: "Switch back to your verified financial wallet to continue.",
   NETWORK_SWITCH_UNAVAILABLE: "Switch your wallet to Ethereum Sepolia.",
   ZAMA_AUTHORIZATION_REQUIRED: "Authorize this wallet again before revealing private financial data.",
   UNAUTHORIZED_CIPHERTEXT: "This private balance is not authorized for the connected wallet.",
@@ -106,9 +108,10 @@ export function classifyLeopoldError(error: unknown): LeopoldError {
   const detail = errorDetail(error);
   const lower = detail.toLowerCase();
   let code: LeopoldErrorCode = "UNKNOWN";
-  if (/^wallet_rpc_unavailable/u.test(lower)) code = "WALLET_RPC_UNAVAILABLE";
+  if (/wallet_disconnected/u.test(lower)) code = "WALLET_DISCONNECTED";
+  else if (/wallet_mismatch/u.test(lower)) code = "WALLET_MISMATCH";
+  else if (/^wallet_rpc_unavailable/u.test(lower)) code = "WALLET_RPC_UNAVAILABLE";
   else if (/^app_rpc_unavailable/u.test(lower)) code = "APP_RPC_UNAVAILABLE";
-  else if (/^wallet_mismatch/u.test(lower)) code = "WALLET_MISMATCH";
   else if (detail.startsWith("CONFIGURATION_MISSING")) code = "CONFIGURATION_MISSING";
   else if (/user rejected|rejected request|4001/u.test(lower)) code = "USER_REJECTED";
   else if (/wrong_network|wrong chain|chain mismatch|unsupported chain|wrong network/u.test(lower))

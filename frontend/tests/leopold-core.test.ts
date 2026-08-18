@@ -79,6 +79,14 @@ describe("Leopold frontend core", () => {
     expect(classifyLeopoldError(new Error("User rejected request")).code).toBe("USER_REJECTED");
     expect(classifyLeopoldError(new Error("wrong chain")).code).toBe("WRONG_NETWORK");
     expect(classifyLeopoldError(new Error("WRONG_NETWORK:wallet-client-1")).code).toBe("WRONG_NETWORK");
+    expect(classifyLeopoldError(new Error("WALLET_MISMATCH: RPC Request failed")).code).toBe("WALLET_MISMATCH");
+    expect(classifyLeopoldError(new Error("WALLET_MISMATCH: RPC Request failed")).message).toBe(
+      "Switch back to your verified financial wallet to continue.",
+    );
+    expect(classifyLeopoldError(new Error("WALLET_DISCONNECTED: RPC Request failed")).code).toBe("WALLET_DISCONNECTED");
+    expect(classifyLeopoldError(new Error("WALLET_DISCONNECTED: RPC Request failed")).message).toBe(
+      "Connect your verified financial wallet to continue.",
+    );
     expect(
       classifyLeopoldError(
         new Error(

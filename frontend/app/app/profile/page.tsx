@@ -10,6 +10,11 @@ export default function ProfilePage() {
   const auth = useAuth();
   const router = useRouter();
   const [amount, setAmount] = useState("1");
+  const walletMismatch = Boolean(
+    auth.financialWallet &&
+    auth.connectedWallet &&
+    auth.financialWallet.toLowerCase() !== auth.connectedWallet.toLowerCase(),
+  );
   return (
     <div className="content">
       <div className="page-heading">
@@ -51,9 +56,11 @@ export default function ProfilePage() {
               <strong>Connected wallet</strong>
               <span>
                 {auth.connectedWallet
-                  ? auth.walletAuthenticated
-                    ? "Ownership verified"
-                    : "Signature required"
+                  ? walletMismatch
+                    ? "Different from your verified financial wallet"
+                    : auth.walletAuthenticated
+                      ? "Ownership verified"
+                      : "Signature required"
                   : "Disconnected"}
               </span>
             </div>
@@ -121,6 +128,7 @@ export default function ProfilePage() {
             />
             <button
               className="button secondary"
+              disabled={financial.networkHealth.state === "WALLET_MISMATCH" || !financial.financialActionsEnabled}
               onClick={() => {
                 void financial.makePublic(amount).catch(() => undefined);
               }}

@@ -107,8 +107,8 @@ export function WalletGate({ children }: { children: ReactNode }) {
     return (
       <>
         <div className="inline-notice" role="status">
-          <strong>Financial wallet required.</strong> Your email session is active, but Leopold needs your explicitly
-          verified external wallet before private actions can run.
+          <strong>Connect your verified financial wallet to continue.</strong> Your email session is active, but Leopold
+          needs your explicitly verified external wallet before private actions can run.
           <button className="button secondary" onClick={auth.openWalletLink}>
             Connect financial wallet
           </button>
