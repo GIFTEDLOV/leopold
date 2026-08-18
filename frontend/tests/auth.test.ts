@@ -3,6 +3,7 @@ import {
   checkFinancialIdentity,
   checkFinancialWalletLink,
   checkPrivateRevealIdentity,
+  getFinancialWalletRecoveryAction,
   getAuthReadiness,
   walletsMatch,
   type AuthIdentitySnapshot,
@@ -78,6 +79,26 @@ describe("Leopold unified auth model", () => {
       code: "FINANCIAL_IDENTITY_REQUIRED",
     });
     expect(checkFinancialIdentity(baseIdentity, false)).toMatchObject({ allowed: false, code: "WRONG_NETWORK" });
+  });
+
+  it("selects the safe wallet recovery branch without relinking identities", () => {
+    expect(getFinancialWalletRecoveryAction({ financialWallet: null, connectedWallet: null }, null)).toBe(
+      "LINK_WALLET",
+    );
+    expect(
+      getFinancialWalletRecoveryAction({ financialWallet: baseIdentity.financialWallet, connectedWallet: null }, null),
+    ).toBe("RECONNECT_WALLET");
+    expect(
+      getFinancialWalletRecoveryAction(
+        {
+          financialWallet: baseIdentity.financialWallet,
+          connectedWallet: "0x2222222222222222222222222222222222222222",
+        },
+        false,
+      ),
+    ).toBe("SWITCH_TO_VERIFIED_WALLET");
+    expect(getFinancialWalletRecoveryAction(baseIdentity, false)).toBe("SWITCH_TO_SEPOLIA");
+    expect(getFinancialWalletRecoveryAction(baseIdentity, true)).toBe("READY");
   });
 
   it("does not permit replacing a designated wallet implicitly", () => {

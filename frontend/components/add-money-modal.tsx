@@ -87,6 +87,18 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             <p className="subtle">
               The active signing wallet does not match the wallet verified for this Leopold account.
             </p>
+            <button className="button" onClick={() => void auth.reconnectFinancialWallet().catch(() => undefined)}>
+              Switch to verified wallet
+            </button>
+          </div>
+        ) : healthState === "WALLET_DISCONNECTED" && auth.financialWallet ? (
+          <div className="card" role="alert" data-testid="wallet-disconnected">
+            <span className="badge neutral">Wallet disconnected</span>
+            <h3>Reconnect your verified financial wallet</h3>
+            <p className="subtle">This Leopold account already has a verified financial wallet.</p>
+            <button className="button" onClick={() => void auth.reconnectFinancialWallet().catch(() => undefined)}>
+              Reconnect verified wallet
+            </button>
           </div>
         ) : healthState === "UNKNOWN" ? (
           <div className="card" role="alert" data-testid="network-health-unknown">
@@ -112,12 +124,9 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
               <a className="button" href="/onboarding">
                 Finish your Leopold profile
               </a>
-            ) : auth.connectedWallet && auth.walletAuthenticated && !auth.financialWallet ? (
-              <button
-                className="button"
-                onClick={() => void auth.confirmCurrentWalletAsFinancial().catch(() => undefined)}
-              >
-                Link this wallet to Leopold
+            ) : !auth.financialWallet ? (
+              <button className="button" onClick={auth.openWalletLink}>
+                Link Wallet
               </button>
             ) : auth.connectedWallet &&
               auth.financialWallet &&

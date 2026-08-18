@@ -27,19 +27,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const networkLabel =
     healthState === "CHECKING"
       ? "Checking wallet network"
-      : healthState === "WALLET_DISCONNECTED"
-        ? "Wallet disconnected"
-        : healthState === "WALLET_MISMATCH"
-          ? "Wrong wallet"
-          : healthState === "WRONG_NETWORK"
-            ? "Wrong network — switch to Sepolia"
-            : healthState === "WALLET_RPC_UNAVAILABLE"
-              ? "Wallet RPC unavailable"
-              : healthState === "APP_RPC_UNAVAILABLE"
-                ? "Leopold RPC unavailable"
-                : healthState === "UNKNOWN"
-                  ? "Network health unavailable"
-                  : "Ethereum Sepolia";
+      : healthState === "IDLE"
+        ? "Wallet setup required"
+        : healthState === "WALLET_DISCONNECTED"
+          ? "Wallet disconnected"
+          : healthState === "WALLET_MISMATCH"
+            ? "Wrong wallet"
+            : healthState === "WRONG_NETWORK"
+              ? "Wrong network — switch to Sepolia"
+              : healthState === "WALLET_RPC_UNAVAILABLE"
+                ? "Wallet RPC unavailable"
+                : healthState === "APP_RPC_UNAVAILABLE"
+                  ? "Leopold RPC unavailable"
+                  : healthState === "UNKNOWN"
+                    ? "Network health unavailable"
+                    : "Ethereum Sepolia";
   const networkIsHealthy = healthState === "HEALTHY";
   return (
     <div className="app-frame">
@@ -78,6 +80,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             onClick={() => {
               if (!clientReady) return;
               if (financial.connected) financial.disconnectWallet();
+              else if (auth.authenticated && auth.financialWallet)
+                void auth.reconnectFinancialWallet().catch(() => undefined);
               else if (auth.authenticated) auth.openWalletLink();
               else void financial.connectWallet().catch(() => undefined);
             }}
@@ -121,7 +125,21 @@ export function AppShell({ children }: { children: ReactNode }) {
                       ? "Leopold cannot currently reach its configured public Sepolia service. Financial actions remain paused."
                       : "Financial actions remain paused until both the wallet and Leopold's public Sepolia connection are confirmed."}
             </span>
-            {healthState !== "WALLET_MISMATCH" && healthState !== "WALLET_DISCONNECTED" ? (
+            {healthState === "WALLET_MISMATCH" ? (
+              <button
+                className="button secondary"
+                onClick={() => void auth.reconnectFinancialWallet().catch(() => undefined)}
+              >
+                Switch to verified wallet
+              </button>
+            ) : healthState === "WALLET_DISCONNECTED" && auth.financialWallet ? (
+              <button
+                className="button secondary"
+                onClick={() => void auth.reconnectFinancialWallet().catch(() => undefined)}
+              >
+                Reconnect verified wallet
+              </button>
+            ) : healthState !== "WALLET_DISCONNECTED" ? (
               <button className="button secondary" onClick={() => void financial.retryNetworkHealth()}>
                 Retry connection
               </button>

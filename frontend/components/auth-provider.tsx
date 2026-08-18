@@ -17,6 +17,7 @@ import {
   useDynamicEvents,
   useDynamicModals,
   useSocialAccounts,
+  useSwitchWallet,
   useUserUpdateRequest,
   useUserWallets,
 } from "@dynamic-labs/sdk-react-core";
@@ -73,6 +74,7 @@ export type AuthContextValue = {
   resendEmailOtp(): Promise<void>;
   openWalletAuthentication(): void;
   openWalletLink(): void;
+  reconnectFinancialWallet(): Promise<void>;
   confirmCurrentWalletAsFinancial(): Promise<void>;
   saveUsername(username: string): Promise<void>;
   linkX(): Promise<void>;
@@ -127,6 +129,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   const { user, sdkHasLoaded, handleLogOut, setShowAuthFlow, primaryWallet } = useDynamicContext();
   const { connectWithEmail, verifyOneTimePassword, retryOneTimePassword } = useConnectWithOtp();
   const { setShowLinkNewWalletModal } = useDynamicModals();
+  const switchWallet = useSwitchWallet();
   const { updateUser } = useUserUpdateRequest();
   const wallets = useUserWallets();
   const social = useSocialAccounts();
@@ -291,6 +294,23 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
         }
         setShowLinkNewWalletModal(true);
       },
+      reconnectFinancialWallet: async () => {
+        if (!financialWallet) {
+          setAuthError(null);
+          setShowLinkNewWalletModal(true);
+          return;
+        }
+        const wallet = wallets.find(
+          (candidate) =>
+            candidate.connector.isEmbeddedWallet !== true &&
+            candidate.address.toLowerCase() === financialWallet.toLowerCase(),
+        );
+        if (!wallet) {
+          setAuthError("Reconnect your verified financial wallet in your wallet provider, then retry.");
+          return;
+        }
+        await withBusy(() => switchWallet(wallet.id));
+      },
       confirmCurrentWalletAsFinancial: async () =>
         withBusy(async () => {
           const linkCheck = checkFinancialWalletLink(identity, connectedWallet);
@@ -349,6 +369,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       social,
       setShowAuthFlow,
       setShowLinkNewWalletModal,
+      switchWallet,
       updateUser,
       user,
       username,
@@ -400,6 +421,7 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       resendEmailOtp: async () => undefined,
       openWalletAuthentication: () => undefined,
       openWalletLink: () => undefined,
+      reconnectFinancialWallet: async () => undefined,
       confirmCurrentWalletAsFinancial: async () => undefined,
       saveUsername: async () => undefined,
       linkX: async () => {

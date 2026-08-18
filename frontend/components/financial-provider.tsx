@@ -227,7 +227,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const runNetworkHealth = useCallback(
     async (force = false, mode: FinancialNetworkCheckMode = "auto"): Promise<FinancialNetworkHealth> => {
-      if (!auth.clientReady) {
+      if (!auth.clientReady || !auth.financialWallet) {
         ++healthRunRef.current;
         healthCacheRef.current = null;
         const idle = createIdleFinancialNetworkHealth();

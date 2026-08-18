@@ -36,6 +36,24 @@ export function walletsMatch(left: string | null | undefined, right: string | nu
   return Boolean(normalizedLeft && normalizedRight && normalizedLeft.toLowerCase() === normalizedRight.toLowerCase());
 }
 
+export type FinancialWalletRecoveryAction =
+  | "LINK_WALLET"
+  | "RECONNECT_WALLET"
+  | "SWITCH_TO_VERIFIED_WALLET"
+  | "SWITCH_TO_SEPOLIA"
+  | "READY";
+
+export function getFinancialWalletRecoveryAction(
+  identity: Pick<AuthIdentitySnapshot, "financialWallet" | "connectedWallet">,
+  chainCorrect: boolean | null,
+): FinancialWalletRecoveryAction {
+  if (!identity.financialWallet) return "LINK_WALLET";
+  if (!identity.connectedWallet) return "RECONNECT_WALLET";
+  if (!walletsMatch(identity.financialWallet, identity.connectedWallet)) return "SWITCH_TO_VERIFIED_WALLET";
+  if (chainCorrect === false) return "SWITCH_TO_SEPOLIA";
+  return "READY";
+}
+
 export function getAuthReadiness(identity: AuthIdentitySnapshot): AuthReadinessState {
   if (identity.sessionExpired) return "SESSION_EXPIRED";
   if (identity.accountConflict) return "ACCOUNT_CONFLICT";
