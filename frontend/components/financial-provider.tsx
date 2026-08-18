@@ -37,7 +37,7 @@ import {
   type FinancialNetworkSnapshot,
   type RpcRequester,
 } from "@/lib/leopold/network";
-import { classifyLeopoldError, type LeopoldError } from "@/lib/leopold/errors";
+import { classifyLeopoldError, sanitizeTechnicalDetail, type LeopoldError } from "@/lib/leopold/errors";
 import {
   readPrivateHandle,
   readUsdcBalance,
@@ -52,6 +52,11 @@ import {
   transactionStageLabel,
   type TransactionStage,
 } from "@/lib/leopold/transactions";
+import {
+  privateBalanceDiagnostic as buildPrivateBalanceDiagnostic,
+  readPrivateBalance,
+  type PrivateBalanceStatus,
+} from "@/lib/leopold/private-balance";
 import { clearPrivateSession, decryptPrivateValue } from "@/lib/leopold/zama";
 import { useAuth } from "@/components/auth-provider";
 import { checkPrivateRevealIdentity, requireFinancialIdentity } from "@/lib/auth/readiness";
@@ -70,6 +75,8 @@ type FinancialContextValue = {
   usdcBalance: bigint | null;
   privateBalance: bigint | null;
   privateBalanceRevealed: boolean;
+  privateBalanceStatus: PrivateBalanceStatus;
+  privateBalanceDiagnostic: string | null;
   vaultPositions: Partial<Record<VaultId, bigint>>;
   revealedVaults: Set<VaultId>;
   enteredVaults: Set<VaultId>;
@@ -121,6 +128,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [usdcBalance, setUsdcBalance] = useState<bigint | null>(fixtureEnabled ? 0n : null);
   const [privateBalance, setPrivateBalance] = useState<bigint | null>(null);
   const [privateBalanceRevealed, setPrivateBalanceRevealed] = useState(false);
+  const [privateBalanceStatus, setPrivateBalanceStatus] = useState<PrivateBalanceStatus>("NOT_REVEALED");
+  const [privateBalanceDiagnostic, setPrivateBalanceDiagnostic] = useState<string | null>(null);
   const [vaultPositions, setVaultPositions] = useState<Partial<Record<VaultId, bigint>>>({});
   const [revealedVaults, setRevealedVaults] = useState<Set<VaultId>>(new Set());
   const [enteredVaults, setEnteredVaults] = useState<Set<VaultId>>(new Set());
@@ -458,6 +467,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       if (fixtureEnabled && !auth.authenticated) setFixtureConnected(false);
       setPrivateBalance(null);
       setPrivateBalanceRevealed(false);
+      setPrivateBalanceStatus("NOT_REVEALED");
+      setPrivateBalanceDiagnostic(null);
       setVaultPositions({});
       setRevealedVaults(new Set());
       setPrivateResults({});
@@ -500,6 +511,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       usdcBalance,
       privateBalance,
       privateBalanceRevealed,
+      privateBalanceStatus,
+      privateBalanceDiagnostic,
       vaultPositions,
       revealedVaults,
       enteredVaults,
@@ -575,30 +588,95 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
               amount,
             );
           }
+          if (!fixtureEnabled) setPrivateBalance(null);
+          setPrivateBalanceRevealed(false);
+          setPrivateBalanceStatus("NOT_REVEALED");
+          setPrivateBalanceDiagnostic(null);
           addActivity("Made USDC private");
           await refresh();
         }),
       revealPrivateBalance: async () => {
         setError(null);
-        await ensurePrivateRevealAccess();
-        if (fixtureEnabled) {
-          setPrivateBalance((value) => value ?? 0n);
+        setPrivateBalanceStatus("REVEALING");
+        setPrivateBalanceDiagnostic(null);
+        let chainId: number | null = null;
+        let revealAccount: Address | null = null;
+        let token: Address | null = null;
+        let handle: `0x${string}` | null = null;
+        try {
+          await ensurePrivateRevealAccess();
+          if (fixtureEnabled) {
+            setPrivateBalance((value) => value ?? 0n);
+            setPrivateBalanceRevealed(true);
+            setPrivateBalanceStatus("REVEALED");
+            setPrivateBalanceDiagnostic(
+              buildPrivateBalanceDiagnostic({
+                chainId: LEOPOLD_CHAIN_ID,
+                account: fixtureAccount,
+                token: requireConfiguredAddress(leopoldConfig.lcUsdc, "Private USDC"),
+                handle: "0x0000000000000000000000000000000000000000000000000000000000000000",
+                stage: "FIXTURE",
+              }),
+            );
+            return;
+          }
+          requireVerified();
+          const liveClients = clients();
+          revealAccount = liveClients.account;
+          token = requireConfiguredAddress(leopoldConfig.lcUsdc, "Private USDC");
+          chainId = await liveClients.walletClient.getChainId();
+          if (auth.financialWallet?.toLowerCase() !== revealAccount.toLowerCase()) {
+            throw new Error("PRIVATE_BALANCE:WRONG_ACCOUNT");
+          }
+          const result = await readPrivateBalance(liveClients, token, (nextHandle) => {
+            handle = nextHandle;
+            setPrivateBalanceDiagnostic(
+              buildPrivateBalanceDiagnostic({
+                chainId,
+                account: revealAccount,
+                token,
+                handle,
+                stage: "HANDLE_READ",
+              }),
+            );
+          });
+          handle = result.handle;
+          setPrivateBalance(result.value);
           setPrivateBalanceRevealed(true);
-          return;
+          setPrivateBalanceStatus("REVEALED");
+          setPrivateBalanceDiagnostic(
+            buildPrivateBalanceDiagnostic({
+              chainId,
+              account: revealAccount,
+              token,
+              handle,
+              stage: "DECRYPTED",
+            }),
+          );
+        } catch (caught) {
+          const technical = sanitizeTechnicalDetail(caught);
+          const diagnostic = buildPrivateBalanceDiagnostic({
+            chainId,
+            account: revealAccount,
+            token,
+            handle,
+            stage: handle ? "DECRYPT" : "READ",
+            error: technical,
+          });
+          const enriched = new Error(diagnostic, { cause: caught });
+          setPrivateBalance(null);
+          setPrivateBalanceRevealed(false);
+          setPrivateBalanceStatus("REVEAL_FAILED");
+          setPrivateBalanceDiagnostic(diagnostic);
+          setError(classifyLeopoldError(enriched));
+          throw enriched;
         }
-        requireVerified();
-        const liveClients = clients();
-        const lcUsdc = requireConfiguredAddress(leopoldConfig.lcUsdc, "Private USDC");
-        const handle = await liveClients.publicClient.readContract({
-          address: lcUsdc,
-          abi: (await import("@/lib/leopold/abis")).confidentialUsdcAbi,
-          functionName: "confidentialBalanceOf",
-          args: [liveClients.account],
-        });
-        setPrivateBalance(await decryptPrivateValue(liveClients.ethereum, liveClients.account, lcUsdc, handle));
-        setPrivateBalanceRevealed(true);
       },
-      hidePrivateBalance: () => setPrivateBalanceRevealed(false),
+      hidePrivateBalance: () => {
+        setPrivateBalanceRevealed(false);
+        setPrivateBalanceStatus("NOT_REVEALED");
+        setPrivateBalanceDiagnostic(null);
+      },
       save: async (vaultSlug, input) =>
         execute("save", async (onHash, onStage) => {
           const amount = parseUsdcAmount(input);
@@ -817,6 +895,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       execute,
       privateBalance,
       privateBalanceRevealed,
+      privateBalanceStatus,
+      privateBalanceDiagnostic,
       privateEligibility,
       privateResults,
       publicVaultState,

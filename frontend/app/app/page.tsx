@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ConfigurationStatus, FixtureStatus } from "@/components/configuration-status";
 import { privateAmountLabel, useFinancial } from "@/components/financial-provider";
+import { privateBalanceLabel } from "@/lib/leopold/private-balance";
 import { VaultCards } from "@/components/vault-cards";
 
 export default function DashboardPage() {
@@ -29,16 +30,38 @@ export default function DashboardPage() {
         </article>
         <article className="card hero-stat">
           <div className="card-label">Private USDC available</div>
-          <div className="stat">{privateAmountLabel(financial.privateBalanceRevealed, financial.privateBalance)}</div>
+          <div className="stat">{privateBalanceLabel(financial.privateBalanceStatus, financial.privateBalance)}</div>
           <button
             className="button ghost small"
+            disabled={financial.privateBalanceStatus === "REVEALING"}
             onClick={() => {
               if (financial.privateBalanceRevealed) financial.hidePrivateBalance();
               else void financial.revealPrivateBalance().catch(() => undefined);
             }}
           >
-            {financial.privateBalanceRevealed ? "Hide" : "Reveal"}
+            {financial.privateBalanceStatus === "REVEALING"
+              ? "Revealing…"
+              : financial.privateBalanceRevealed
+                ? "Hide"
+                : "Reveal"}
           </button>
+          {financial.error ? (
+            <div className="inline-notice error" role="alert">
+              <strong>{financial.error.message}</strong>
+              {financial.error.technicalDetail ? (
+                <details>
+                  <summary>Technical detail</summary>
+                  <code>{financial.error.technicalDetail}</code>
+                </details>
+              ) : null}
+            </div>
+          ) : null}
+          {financial.privateBalanceDiagnostic ? (
+            <details className="subtle">
+              <summary>Private balance read details</summary>
+              <code>{financial.privateBalanceDiagnostic}</code>
+            </details>
+          ) : null}
         </article>
         <article className="card hero-stat">
           <div className="card-label">Next prize opportunity</div>

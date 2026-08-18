@@ -12,6 +12,7 @@ import {
 import { classifyLeopoldError } from "../lib/leopold/errors";
 import { isVaultRoundOpen, ROUND_STATE_LABELS } from "../lib/leopold/reads";
 import { transactionStageLabel } from "../lib/leopold/transactions";
+import { privateBalanceLabel } from "../lib/leopold/private-balance";
 
 describe("Leopold frontend core", () => {
   it("loads the official Sepolia manifest", () => {
@@ -101,6 +102,11 @@ describe("Leopold frontend core", () => {
     expect(classifyLeopoldError(new Error("SAVE:WALLET_SIGNATURE: User rejected request")).code).toBe("USER_REJECTED");
     expect(classifyLeopoldError(new Error("SAVE:RECEIPT:status=reverted")).code).toBe("TRANSACTION_REVERTED");
     expect(classifyLeopoldError(new Error("relayer timeout")).code).toBe("RELAYER_UNAVAILABLE");
+    expect(classifyLeopoldError(new Error("NOT_ENTITLED: balance handle is not authorized")).code).toBe(
+      "UNAUTHORIZED_CIPHERTEXT",
+    );
+    expect(classifyLeopoldError(new Error("DECRYPTION_FAILED: KMS response invalid")).code).toBe("DECRYPTION_FAILED");
+    expect(classifyLeopoldError(new Error("NO_CIPHERTEXT")).code).toBe("WRONG_HANDLE");
     expect(classifyLeopoldError(new Error("InsufficientManagedAssets")).code).toBe("PRIVATE_LIQUIDITY_UNAVAILABLE");
   });
 
@@ -141,5 +147,13 @@ describe("Leopold frontend core", () => {
     ]);
     expect(ROUND_STATE_LABELS[7]).toBe("Finalizing private draw");
     expect(ROUND_STATE_LABELS[14]).toBe("Settled");
+  });
+
+  it("does not render unresolved private balance as zero", () => {
+    expect(privateBalanceLabel("NOT_REVEALED", null)).toBe("•••••• USDC");
+    expect(privateBalanceLabel("REVEAL_FAILED", 0n)).toBe("•••••• USDC");
+    expect(privateBalanceLabel("REVEALING", null)).toBe("Revealing…");
+    expect(privateBalanceLabel("REVEALED", 1_000_000n)).toBe("1 USDC");
+    expect(privateBalanceLabel("REVEALED", 0n)).toBe("0 USDC");
   });
 });

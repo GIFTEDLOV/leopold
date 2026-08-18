@@ -26,6 +26,9 @@ export type LeopoldErrorCode =
   | "WALLET_MISMATCH"
   | "NETWORK_SWITCH_UNAVAILABLE"
   | "ZAMA_AUTHORIZATION_REQUIRED"
+  | "UNAUTHORIZED_CIPHERTEXT"
+  | "DECRYPTION_FAILED"
+  | "WRONG_HANDLE"
   | "UNKNOWN";
 
 export type LeopoldError = { code: LeopoldErrorCode; message: string; technicalDetail?: string };
@@ -58,6 +61,9 @@ const messages: Record<LeopoldErrorCode, string> = {
   WALLET_MISMATCH: "The connected wallet does not match your verified financial wallet.",
   NETWORK_SWITCH_UNAVAILABLE: "Switch your wallet to Ethereum Sepolia.",
   ZAMA_AUTHORIZATION_REQUIRED: "Authorize this wallet again before revealing private financial data.",
+  UNAUTHORIZED_CIPHERTEXT: "This private balance is not authorized for the connected wallet.",
+  DECRYPTION_FAILED: "Private USDC could not be decrypted. Try revealing again.",
+  WRONG_HANDLE: "The private balance handle is invalid or stale. Refresh and try again.",
   UNKNOWN: "Something went wrong. No funds were moved.",
 };
 
@@ -107,10 +113,17 @@ export function classifyLeopoldError(error: unknown): LeopoldError {
   else if (/user rejected|rejected request|4001/u.test(lower)) code = "USER_REJECTED";
   else if (/wrong_network|wrong chain|chain mismatch|unsupported chain|wrong network/u.test(lower))
     code = "WRONG_NETWORK";
+  else if (/private_balance:wrong_account/u.test(lower)) code = "WALLET_SIGNER_MISMATCH";
   else if (/insufficient funds|insufficient eth/u.test(lower)) code = "INSUFFICIENT_ETH";
   else if (/insufficient_usdc|insufficient usdc/u.test(lower)) code = "INSUFFICIENT_USDC";
   else if (/round_closed|roundnotopen|round closed/u.test(lower)) code = "ROUND_CLOSED";
-  else if (/relayer|kms|timeout|socket/u.test(lower)) code = "RELAYER_UNAVAILABLE";
+  else if (
+    /not_entitled|unauthorized[_ ]ciphertext|handleaccessmanagernotallowed|ciphertext.*not authorized/u.test(lower)
+  )
+    code = "UNAUTHORIZED_CIPHERTEXT";
+  else if (/wrong_handle|no_ciphertext|invalid_handle/u.test(lower)) code = "WRONG_HANDLE";
+  else if (/decryption_failed|relayer_invalid_decryption_result/u.test(lower)) code = "DECRYPTION_FAILED";
+  else if (/relayer_request_failed|relayer|kms|timeout|socket/u.test(lower)) code = "RELAYER_UNAVAILABLE";
   else if (/liquid|insufficientmanagedassets/u.test(lower)) code = "PRIVATE_LIQUIDITY_UNAVAILABLE";
   else if (/auth_configuration_required/u.test(lower)) code = "AUTH_CONFIGURATION_REQUIRED";
   else if (/auth_session_expired|session.*expired|jwt.*expired/u.test(lower)) code = "AUTH_SESSION_EXPIRED";
