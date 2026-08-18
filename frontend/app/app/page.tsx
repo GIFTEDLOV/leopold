@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ConfigurationStatus, FixtureStatus } from "@/components/configuration-status";
 import { privateAmountLabel, useFinancial } from "@/components/financial-provider";
 import { privateBalanceLabel } from "@/lib/leopold/private-balance";
+import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
+import { leopoldConfig } from "@/lib/leopold/config";
 import { VaultCards } from "@/components/vault-cards";
 
 export default function DashboardPage() {
@@ -16,6 +18,13 @@ export default function DashboardPage() {
     (total, vault) => total + (financial.vaultPositions[vault] ?? 0n),
     0n,
   );
+  const openVault = leopoldConfig.vaults.find(
+    (vault) =>
+      getEffectiveVaultRoundStatus(financial.publicVaultState[vault.slug], financial.latestBlockTimestamp).depositOpen,
+  );
+  const roundsReady =
+    leopoldConfig.vaults.every((vault) => financial.publicVaultState[vault.slug]) &&
+    financial.latestBlockTimestamp !== null;
   return (
     <div className="content">
       <FixtureStatus />
@@ -65,8 +74,14 @@ export default function DashboardPage() {
         </article>
         <article className="card hero-stat">
           <div className="card-label">Next prize opportunity</div>
-          <div className="stat">Weekly</div>
-          <span className="subtle">Enter while the round is open</span>
+          <div className="stat">{openVault?.name ?? (roundsReady ? "None open" : "Checking")}</div>
+          <span className="subtle">
+            {openVault
+              ? "Enter while the round is open"
+              : roundsReady
+                ? "No vault round is currently open for deposits"
+                : "Checking current round state"}
+          </span>
         </article>
       </div>
       <section className="section">

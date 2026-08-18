@@ -41,7 +41,7 @@ import { classifyLeopoldError, sanitizeTechnicalDetail, type LeopoldError } from
 import {
   readPrivateHandle,
   readUsdcBalance,
-  isVaultRoundOpen,
+  getEffectiveVaultRoundStatus,
   readVaultPublicState,
   validateConfiguredDeployment,
   type VaultPublicState,
@@ -93,6 +93,7 @@ type FinancialContextValue = {
   error: LeopoldError | null;
   activity: ActivityItem[];
   publicVaultState: Partial<Record<VaultId, VaultPublicState>>;
+  latestBlockTimestamp: bigint | null;
   authState: ReturnType<typeof useAuth>["readiness"];
   financialAuthorized: boolean;
   connectWallet(): Promise<void>;
@@ -142,6 +143,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [revealedResults, setRevealedResults] = useState<Set<VaultId>>(new Set());
   const [privateEligibility, setPrivateEligibility] = useState<Partial<Record<VaultId, bigint>>>({});
   const [publicVaultState, setPublicVaultState] = useState<Partial<Record<VaultId, VaultPublicState>>>({});
+  const [latestBlockTimestamp, setLatestBlockTimestamp] = useState<bigint | null>(null);
   const [txStage, setTxStage] = useState<TransactionStage>("ready");
   const [txErrorStage, setTxErrorStage] = useState<TransactionStage | null>(null);
   const [error, setError] = useState<LeopoldError | null>(null);
@@ -369,6 +371,24 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     [account, publicClient, walletClient.data],
   );
 
+  const requireLiveOpenRound = useCallback(async (vaultSlug: VaultId, liveClients: ActionClients) => {
+    const vault = getVaultConfig(vaultSlug);
+    if (!vault) throw new Error("CONFIGURATION_MISSING:vault");
+    const latestBlock = await liveClients.publicClient.getBlock();
+    const liveState = await readVaultPublicState(
+      liveClients.publicClient,
+      vault,
+      liveClients.account,
+      latestBlock.number,
+    );
+    setPublicVaultState((states) => ({ ...states, [vaultSlug]: liveState }));
+    setLatestBlockTimestamp(latestBlock.timestamp);
+    if (!getEffectiveVaultRoundStatus(liveState, latestBlock.timestamp).depositOpen) {
+      throw new Error(`ROUND_CLOSED:${vault.name}:${liveState.roundId.toString()}`);
+    }
+    return liveState;
+  }, []);
+
   const currentPrivateBalanceClients = useCallback(() => {
     const currentAccount = accountRef.current;
     const currentPublicClient = publicClientRef.current;
@@ -532,20 +552,25 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (fixtureEnabled) return;
     if (!publicClient) return;
     setDeploymentVerified(false);
+    setLatestBlockTimestamp(null);
     try {
+      const latestBlock = await publicClient.getBlock();
       setUsdcBalance(await readUsdcBalance(publicClient, CANONICAL_USDC, account));
       if (leopoldConfig.ready) {
         await validateConfiguredDeployment(publicClient, leopoldConfig);
         setDeploymentVerified(true);
         const states = await Promise.all(
           leopoldConfig.vaults.map(
-            async (vault) => [vault.slug, await readVaultPublicState(publicClient, vault, account)] as const,
+            async (vault) =>
+              [vault.slug, await readVaultPublicState(publicClient, vault, account, latestBlock.number)] as const,
           ),
         );
         setPublicVaultState(Object.fromEntries(states));
         setEnteredVaults(new Set(states.filter(([, state]) => state.entered).map(([slug]) => slug)));
       }
+      setLatestBlockTimestamp(latestBlock.timestamp);
     } catch (caught) {
+      setLatestBlockTimestamp(null);
       setDeploymentVerified(false);
       setError(classifyLeopoldError(caught));
     }
@@ -566,6 +591,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setPrivateResults({});
       setRevealedResults(new Set());
       setPrivateEligibility({});
+      setPublicVaultState({});
+      setLatestBlockTimestamp(null);
       if (account) {
         const labels: Record<string, string> = {
           "get-test-usdc": "Received test USDC",
@@ -595,6 +622,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     auth.financialWallet,
     auth.identityKey,
     invalidatePrivateBalance,
+    networkHealth.state,
     walletChainId,
     walletClientId,
   ]);
@@ -637,6 +665,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       error,
       activity,
       publicVaultState,
+      latestBlockTimestamp,
       authState: auth.readiness,
       financialAuthorized,
       connectWallet: async () => {
@@ -829,14 +858,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             requireVerified();
             const liveClients = clients(onHash, true, onStage);
             const vaultAddress = requireConfiguredAddress(vault.vault, `${vault.name} vault`);
-            const [liveState, latestBlock] = await Promise.all([
-              readVaultPublicState(liveClients.publicClient, vault, liveClients.account),
-              liveClients.publicClient.getBlock(),
-            ]);
-            setPublicVaultState((states) => ({ ...states, [vaultSlug]: liveState }));
-            if (!isVaultRoundOpen(liveState, latestBlock.timestamp)) {
-              throw new Error(`ROUND_CLOSED:${vault.name}:${liveState.roundId.toString()}`);
-            }
+            await requireLiveOpenRound(vaultSlug, liveClients);
             await savePrivately(
               liveClients,
               requireConfiguredAddress(leopoldConfig.lcUsdc, "Private USDC"),
@@ -890,11 +912,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           if (fixtureEnabled) setEnteredVaults((items) => new Set(items).add(vaultSlug));
           else {
             requireVerified();
-            const state = publicVaultState[vaultSlug];
-            if (!state) throw new Error("ROUND_STATE_UNAVAILABLE");
+            const liveClients = clients(onHash);
+            const state = await requireLiveOpenRound(vaultSlug, liveClients);
             if ((ethBalance.data?.value ?? 0n) < state.bondAmount) throw new Error("INSUFFICIENT_ETH");
             await enterPrizeRound(
-              clients(onHash),
+              liveClients,
               requireConfiguredAddress(vault.bondEscrow, `${vault.name} escrow`),
               state.roundId,
               state.bondAmount,
@@ -971,11 +993,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setPrivateBalance((balance) => (balance ?? 0n) + amount);
           } else {
             requireVerified();
-            await withdrawSavings(
-              clients(onHash),
-              requireConfiguredAddress(vault.vault, `${vault.name} vault`),
-              amount,
-            );
+            const liveClients = clients(onHash);
+            await requireLiveOpenRound(vaultSlug, liveClients);
+            await withdrawSavings(liveClients, requireConfiguredAddress(vault.vault, `${vault.name} vault`), amount);
           }
           addActivity(`Withdrew from ${vault.name} Vault`, vault.name);
           await refresh();
@@ -1054,6 +1074,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       privateEligibility,
       privateResults,
       publicVaultState,
+      latestBlockTimestamp,
       refresh,
       requireVerified,
       revealedResults,
@@ -1070,6 +1091,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       ensureSepoliaWalletHealth,
       invalidatePrivateBalance,
       refreshPrivateBalanceHandle,
+      requireLiveOpenRound,
       runNetworkHealth,
     ],
   );

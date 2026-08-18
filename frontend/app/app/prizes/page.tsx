@@ -2,6 +2,7 @@
 
 import { formatUsdcAmount } from "@/lib/leopold/amounts";
 import { leopoldConfig } from "@/lib/leopold/config";
+import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { ConfigurationStatus, FixtureStatus } from "@/components/configuration-status";
 import { useFinancial } from "@/components/financial-provider";
 
@@ -21,6 +22,7 @@ export default function PrizesPage() {
         {leopoldConfig.vaults.map((vault) => {
           const entered = financial.enteredVaults.has(vault.slug);
           const state = financial.publicVaultState[vault.slug];
+          const roundStatus = getEffectiveVaultRoundStatus(state, financial.latestBlockTimestamp);
           const resultReady = financial.fixture ? entered : entered && state?.state === 14;
           const revealed = financial.revealedResults.has(vault.slug);
           const result = financial.privateResults[vault.slug];
@@ -32,12 +34,7 @@ export default function PrizesPage() {
                     {vault.name} Vault · Round {state?.roundId.toString() ?? "—"}
                   </span>
                   <h2>
-                    {state?.stateLabel ??
-                      (financial.fixture && entered
-                        ? "Result ready"
-                        : financial.fixture
-                          ? "Round active"
-                          : "Unavailable")}
+                    {financial.fixture && !state ? (entered ? "Result ready" : "Round active") : roundStatus.label}
                   </h2>
                 </div>
                 <span className={`badge ${entered ? "" : "neutral"}`}>{entered ? "Entered" : "Not entered"}</span>

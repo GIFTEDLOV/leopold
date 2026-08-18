@@ -1,38 +1,25 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { formatEther } from "viem";
 import { getVaultConfig, type VaultId } from "@/lib/leopold/config";
 import { formatUsdcAmount, parseUsdcAmount } from "@/lib/leopold/amounts";
-import { isVaultRoundOpen } from "@/lib/leopold/reads";
+import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { privateAmountLabel, useFinancial } from "./financial-provider";
 import { transactionIsBusy } from "@/lib/leopold/transactions";
-
-function subscribeToClock(onChange: () => void): () => void {
-  const interval = window.setInterval(onChange, 1_000);
-  return () => window.clearInterval(interval);
-}
-
-function readClock(): bigint {
-  return BigInt(Math.floor(Date.now() / 1_000));
-}
-
-function readServerClock(): null {
-  return null;
-}
 
 export function VaultDetail({ slug }: { slug: VaultId }) {
   const vault = getVaultConfig(slug)!;
   const financial = useFinancial();
   const [saveAmount, setSaveAmount] = useState("10");
   const [withdrawAmount, setWithdrawAmount] = useState("1");
-  const now = useSyncExternalStore(subscribeToClock, readClock, readServerClock);
   const state = financial.publicVaultState[slug];
   const entered = financial.enteredVaults.has(slug);
   const revealed = financial.revealedVaults.has(slug);
   const bond = state?.bondAmount ?? (financial.fixture ? 5_000_000_000_000_000n : undefined);
   const busy = transactionIsBusy(financial.txStage);
-  const roundOpen = state !== undefined && now !== null ? isVaultRoundOpen(state, now) : false;
+  const roundStatus = getEffectiveVaultRoundStatus(state, financial.latestBlockTimestamp);
+  const roundOpen = roundStatus.depositOpen;
   const saveExceedsRevealedBalance = (() => {
     if (!financial.privateBalanceRevealed || financial.privateBalance === null) return false;
     try {
@@ -48,8 +35,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
           <span className="eyebrow">{slug === "weekly" ? "Recommended vault" : "Private savings vault"}</span>
           <h1>{vault.name} Vault</h1>
           <p>
-            {vault.roundDurationSeconds / 86_400} day round ·{" "}
-            {state?.stateLabel ?? (financial.fixture ? "Open" : "Round unavailable")}
+            {vault.roundDurationSeconds / 86_400} day round · {financial.fixture && !state ? "Open" : roundStatus.label}
           </p>
         </div>
         {entered ? <span className="badge">Entered current round</span> : null}
@@ -90,7 +76,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               <button
                 className="button"
                 data-testid="save-private"
-                disabled={busy || saveExceedsRevealedBalance || (state !== undefined && !roundOpen)}
+                disabled={busy || saveExceedsRevealedBalance || (!financial.fixture && !roundOpen)}
                 onClick={() => {
                   void financial.save(slug, saveAmount).catch(() => undefined);
                 }}
@@ -101,7 +87,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
             {financial.privateBalanceRevealed && financial.privateBalance !== null ? (
               <p className="subtle">Enter an amount up to {formatUsdcAmount(financial.privateBalance)} USDC.</p>
             ) : null}
-            {state !== undefined && !roundOpen ? (
+            {!financial.fixture && state !== undefined && !roundOpen ? (
               <p className="subtle">This vault round is not open for deposits.</p>
             ) : null}
           </article>
@@ -121,7 +107,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               <button
                 className="button secondary"
                 data-testid="withdraw"
-                disabled={busy}
+                disabled={busy || (!financial.fixture && !roundOpen)}
                 onClick={() => {
                   void financial.withdraw(slug, withdrawAmount).catch(() => undefined);
                 }}
@@ -152,7 +138,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               className="button"
               data-testid="enter-round"
               style={{ width: "100%", marginTop: 14 }}
-              disabled={busy || entered || bond === undefined}
+              disabled={busy || entered || bond === undefined || (!financial.fixture && !roundOpen)}
               onClick={() => {
                 void financial.enterRound(slug).catch(() => undefined);
               }}

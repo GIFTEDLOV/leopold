@@ -40,11 +40,35 @@ export type VaultPublicState = {
   settlementReward: bigint;
 };
 
+export type EffectiveVaultRoundStatus = {
+  code: "OPEN" | "NOT_STARTED" | "ENDED" | "SETTLEMENT" | "UNAVAILABLE";
+  label: string;
+  depositOpen: boolean;
+};
+
+/**
+ * The contract's `_isActiveRoundOpen` predicate is the authority for deposits:
+ * the stored state must be OPEN and the chain timestamp must be within the
+ * half-open [opensAt, closesAt) interval. Callers must provide a block-derived
+ * timestamp; browser wall-clock time is deliberately not accepted here.
+ */
+export function getEffectiveVaultRoundStatus(
+  state: Pick<VaultPublicState, "state" | "stateLabel" | "opensAt" | "closesAt"> | undefined,
+  blockTimestamp: bigint | null,
+): EffectiveVaultRoundStatus {
+  if (!state) return { code: "UNAVAILABLE", label: "Round unavailable", depositOpen: false };
+  if (state.state !== 1) return { code: "SETTLEMENT", label: state.stateLabel, depositOpen: false };
+  if (blockTimestamp === null) return { code: "UNAVAILABLE", label: "Checking round", depositOpen: false };
+  if (blockTimestamp < state.opensAt) return { code: "NOT_STARTED", label: "Round not started", depositOpen: false };
+  if (blockTimestamp >= state.closesAt) return { code: "ENDED", label: "Round ended", depositOpen: false };
+  return { code: "OPEN", label: "Open", depositOpen: true };
+}
+
 export function isVaultRoundOpen(
   state: Pick<VaultPublicState, "state" | "opensAt" | "closesAt">,
-  now: bigint,
+  blockTimestamp: bigint,
 ): boolean {
-  return state.state === 1 && now >= state.opensAt && now < state.closesAt;
+  return getEffectiveVaultRoundStatus({ ...state, stateLabel: "" }, blockTimestamp).depositOpen;
 }
 
 export async function readUsdcBalance(client: PublicClient, token: Address, account: Address): Promise<bigint> {
@@ -140,38 +164,54 @@ export async function readVaultPublicState(
   client: PublicClient,
   vaultConfig: LeopoldVaultConfig,
   account: Address,
+  blockNumber?: bigint,
 ): Promise<VaultPublicState> {
   const vault = requireConfiguredAddress(vaultConfig.vault, `${vaultConfig.name} vault`);
   const escrow = requireConfiguredAddress(vaultConfig.bondEscrow, `${vaultConfig.name} bond escrow`);
-  const roundId = await client.readContract({ address: vault, abi: vaultAbi, functionName: "activeRoundId" });
+  const blockTag = blockNumber === undefined ? {} : { blockNumber };
+  const roundId = await client.readContract({
+    address: vault,
+    abi: vaultAbi,
+    functionName: "activeRoundId",
+    ...blockTag,
+  });
   const [round, entered, eligibilityStart, bondAmount, refundAmount, refundClaimed, settlementReward] =
     await Promise.all([
-      client.readContract({ address: vault, abi: vaultAbi, functionName: "roundInfo", args: [roundId] }),
+      client.readContract({ address: vault, abi: vaultAbi, functionName: "roundInfo", args: [roundId], ...blockTag }),
       client.readContract({
         address: escrow,
         abi: bondEscrowAbi,
         functionName: "isRegistered",
         args: [roundId, account],
+        ...blockTag,
       }),
       client.readContract({
         address: vault,
         abi: vaultAbi,
         functionName: "eligibilityStart",
         args: [roundId, account],
+        ...blockTag,
       }),
-      client.readContract({ address: escrow, abi: bondEscrowAbi, functionName: "BOND_AMOUNT" }),
-      client.readContract({ address: escrow, abi: bondEscrowAbi, functionName: "REFUND_PER_COMPLETED_PARTICIPANT" }),
+      client.readContract({ address: escrow, abi: bondEscrowAbi, functionName: "BOND_AMOUNT", ...blockTag }),
+      client.readContract({
+        address: escrow,
+        abi: bondEscrowAbi,
+        functionName: "REFUND_PER_COMPLETED_PARTICIPANT",
+        ...blockTag,
+      }),
       client.readContract({
         address: escrow,
         abi: bondEscrowAbi,
         functionName: "refundClaimed",
         args: [roundId, account],
+        ...blockTag,
       }),
       client.readContract({
         address: escrow,
         abi: bondEscrowAbi,
         functionName: "settlementRewardCredit",
         args: [account],
+        ...blockTag,
       }),
     ]);
   const state = Number(round[2]);
