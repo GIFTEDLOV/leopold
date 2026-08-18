@@ -10,7 +10,7 @@ import {
   type RawLeopoldManifest,
 } from "../lib/leopold/config";
 import { classifyLeopoldError } from "../lib/leopold/errors";
-import { ROUND_STATE_LABELS } from "../lib/leopold/reads";
+import { isVaultRoundOpen, ROUND_STATE_LABELS } from "../lib/leopold/reads";
 import { transactionStageLabel } from "../lib/leopold/transactions";
 
 describe("Leopold frontend core", () => {
@@ -94,8 +94,23 @@ describe("Leopold frontend core", () => {
         .technicalDetail,
     ).not.toContain("secret");
     expect(classifyLeopoldError(new Error("RoundNotOpen")).code).toBe("ROUND_CLOSED");
+    expect(classifyLeopoldError(new Error("ROUND_CLOSED:Daily:1")).code).toBe("ROUND_CLOSED");
+    expect(classifyLeopoldError(new Error("SAVE:SIMULATION: execution reverted")).code).toBe(
+      "TRANSACTION_SIMULATION_FAILED",
+    );
+    expect(classifyLeopoldError(new Error("SAVE:WALLET_SIGNATURE: User rejected request")).code).toBe("USER_REJECTED");
+    expect(classifyLeopoldError(new Error("SAVE:RECEIPT:status=reverted")).code).toBe("TRANSACTION_REVERTED");
     expect(classifyLeopoldError(new Error("relayer timeout")).code).toBe("RELAYER_UNAVAILABLE");
     expect(classifyLeopoldError(new Error("InsufficientManagedAssets")).code).toBe("PRIVATE_LIQUIDITY_UNAVAILABLE");
+  });
+
+  it("recognizes the exact open interval for vault deposits", () => {
+    const round = { state: 1, opensAt: 100n, closesAt: 200n };
+    expect(isVaultRoundOpen(round, 99n)).toBe(false);
+    expect(isVaultRoundOpen(round, 100n)).toBe(true);
+    expect(isVaultRoundOpen(round, 199n)).toBe(true);
+    expect(isVaultRoundOpen(round, 200n)).toBe(false);
+    expect(isVaultRoundOpen({ ...round, state: 2 }, 150n)).toBe(false);
   });
 
   it("uses one consistent transaction and settlement vocabulary", () => {
@@ -113,6 +128,13 @@ describe("Leopold frontend core", () => {
       "Waiting for private conversion signature",
       "Private conversion submitted",
       "Confirming private conversion",
+      "Encrypting private deposit",
+      "Simulating vault deposit",
+      "Waiting for vault deposit signature",
+      "Vault deposit submitted",
+      "Confirming vault deposit",
+      "Vault deposit receipt confirmed",
+      "Refreshing vault state",
       "Private processing",
       "Complete",
       "Failed",

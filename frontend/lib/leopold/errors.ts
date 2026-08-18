@@ -109,7 +109,7 @@ export function classifyLeopoldError(error: unknown): LeopoldError {
     code = "WRONG_NETWORK";
   else if (/insufficient funds|insufficient eth/u.test(lower)) code = "INSUFFICIENT_ETH";
   else if (/insufficient_usdc|insufficient usdc/u.test(lower)) code = "INSUFFICIENT_USDC";
-  else if (/roundnotopen|round closed|roundnotopen/u.test(lower)) code = "ROUND_CLOSED";
+  else if (/round_closed|roundnotopen|round closed/u.test(lower)) code = "ROUND_CLOSED";
   else if (/relayer|kms|timeout|socket/u.test(lower)) code = "RELAYER_UNAVAILABLE";
   else if (/liquid|insufficientmanagedassets/u.test(lower)) code = "PRIVATE_LIQUIDITY_UNAVAILABLE";
   else if (/auth_configuration_required/u.test(lower)) code = "AUTH_CONFIGURATION_REQUIRED";
@@ -121,6 +121,10 @@ export function classifyLeopoldError(error: unknown): LeopoldError {
   else if (/wallet_signer_mismatch/u.test(lower)) code = "WALLET_SIGNER_MISMATCH";
   else if (/network_switch_unavailable/u.test(lower)) code = "NETWORK_SWITCH_UNAVAILABLE";
   else if (/zama_authorization_required/u.test(lower)) code = "ZAMA_AUTHORIZATION_REQUIRED";
+  else if (/save:simulation/u.test(lower)) code = "TRANSACTION_SIMULATION_FAILED";
+  else if (/save:wallet_signature/u.test(lower)) code = "TRANSACTION_SIGNING_FAILED";
+  else if (/save:receipt/u.test(lower))
+    code = /status=reverted|reverted/u.test(lower) ? "TRANSACTION_REVERTED" : "TRANSACTION_CONFIRMATION_FAILED";
   else if (/action_simulation_failed/u.test(lower)) code = "TRANSACTION_SIMULATION_FAILED";
   else if (/action_signing_failed/u.test(lower)) code = "TRANSACTION_SIGNING_FAILED";
   else if (/action_confirmation_failed/u.test(lower)) code = "TRANSACTION_CONFIRMATION_FAILED";

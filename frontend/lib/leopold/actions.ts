@@ -3,7 +3,7 @@
 import { parseEventLogs, type Address, type PublicClient, type WalletClient } from "viem";
 
 import { bondEscrowAbi, confidentialUsdcAbi, erc20Abi, vaultAbi } from "./abis";
-import { CANONICAL_USDC } from "./config";
+import { CANONICAL_USDC, leopoldConfig } from "./config";
 import { decryptPublicValue, encryptPrivateAmount } from "./zama";
 import type { TransactionStage } from "./transactions";
 
@@ -19,13 +19,25 @@ export type ActionClients = {
   onStage?: (stage: TransactionStage) => void;
 };
 
-function notifyPrivateStage(
+function notifyActionStage(
   clients: ActionClients,
   stage: string,
   phase: "simulating" | "signature" | "submitted" | "confirming",
 ): void {
   if (stage === "make-private-approval") clients.onStage?.(`approval-${phase}` as TransactionStage);
   if (stage === "make-private-wrap") clients.onStage?.(`wrap-${phase}` as TransactionStage);
+  if (stage === "save-confidential-transfer") clients.onStage?.(`save-${phase}` as TransactionStage);
+}
+
+function actionFailurePrefix(stage: string, phase: "SIMULATION" | "WALLET_SIGNATURE" | "RECEIPT"): string {
+  if (stage === "save-confidential-transfer") return `SAVE:${phase}`;
+  const genericPhase =
+    phase === "SIMULATION"
+      ? "ACTION_SIMULATION_FAILED"
+      : phase === "WALLET_SIGNATURE"
+        ? "ACTION_SIGNING_FAILED"
+        : "ACTION_CONFIRMATION_FAILED";
+  return `${genericPhase}:${stage}`;
 }
 
 async function assertWalletClient(clients: ActionClients, stage: string): Promise<void> {
@@ -57,7 +69,7 @@ async function writeAndConfirm(
   await assertWalletClient(clients, stage);
   let gas: bigint | undefined;
   if (simulate) {
-    notifyPrivateStage(clients, stage, "simulating");
+    notifyActionStage(clients, stage, "simulating");
     try {
       const simulation = await clients.publicClient.simulateContract({
         account: request.account,
@@ -69,30 +81,35 @@ async function writeAndConfirm(
       } as never);
       gas = simulation.request.gas;
     } catch (error) {
-      throw actionError(`ACTION_SIMULATION_FAILED:${stage}`, error);
+      throw actionError(actionFailurePrefix(stage, "SIMULATION"), error);
     }
   }
   let hash: `0x${string}`;
   await assertWalletClient(clients, stage);
-  notifyPrivateStage(clients, stage, "signature");
+  notifyActionStage(clients, stage, "signature");
   try {
     hash = await clients.walletClient.writeContract({
       ...request,
       ...(gas === undefined ? {} : { gas }),
     } as never);
   } catch (error) {
-    throw actionError(`ACTION_SIGNING_FAILED:${stage}`, error);
+    throw actionError(actionFailurePrefix(stage, "WALLET_SIGNATURE"), error);
   }
   clients.onHash?.(hash);
-  notifyPrivateStage(clients, stage, "submitted");
-  notifyPrivateStage(clients, stage, "confirming");
+  notifyActionStage(clients, stage, "submitted");
+  notifyActionStage(clients, stage, "confirming");
   let receipt;
   try {
     receipt = await clients.publicClient.waitForTransactionReceipt({ hash });
   } catch (error) {
-    throw actionError(`ACTION_CONFIRMATION_FAILED:${stage}`, error);
+    throw actionError(actionFailurePrefix(stage, "RECEIPT"), error);
   }
-  if (receipt.status !== "success") throw new Error(`ACTION_REVERTED:${stage}`);
+  if (receipt.status !== "success") {
+    throw new Error(
+      stage === "save-confidential-transfer" ? "SAVE:RECEIPT:status=reverted" : `ACTION_REVERTED:${stage}`,
+    );
+  }
+  if (stage === "save-confidential-transfer") clients.onStage?.("save-receipt");
   return hash;
 }
 
@@ -202,16 +219,34 @@ export async function savePrivately(
   lcUsdc: Address,
   vault: Address,
   amount: bigint,
+  onStage?: ActionClients["onStage"],
 ): Promise<`0x${string}`> {
-  const encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, lcUsdc, amount);
-  return writeAndConfirm(clients, {
-    account: clients.account,
-    chain: undefined,
-    address: lcUsdc,
-    abi: confidentialUsdcAbi,
-    functionName: "confidentialTransferAndCall",
-    args: [vault, encrypted.encryptedValue, encrypted.inputProof, "0x"],
-  });
+  if (lcUsdc.toLowerCase() !== leopoldConfig.lcUsdc.address?.toLowerCase()) {
+    throw new Error("CONFIGURATION_MISSING:private token target");
+  }
+  const officialVault = leopoldConfig.vaults.some((item) => item.vault.address?.toLowerCase() === vault.toLowerCase());
+  if (!officialVault) throw new Error("CONFIGURATION_MISSING:official vault target");
+  onStage?.("save-encrypting");
+  let encrypted: Awaited<ReturnType<typeof encryptPrivateAmount>>;
+  try {
+    encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, lcUsdc, amount);
+  } catch (error) {
+    throw actionError("SAVE:ENCRYPT_INPUT", error);
+  }
+  const actionClients = onStage ? { ...clients, onStage } : clients;
+  return writeAndConfirm(
+    actionClients,
+    {
+      account: clients.account,
+      chain: undefined,
+      address: lcUsdc,
+      abi: confidentialUsdcAbi,
+      functionName: "confidentialTransferAndCall",
+      args: [vault, encrypted.encryptedValue, encrypted.inputProof, "0x"],
+    },
+    "save-confidential-transfer",
+    true,
+  );
 }
 
 export async function enterPrizeRound(

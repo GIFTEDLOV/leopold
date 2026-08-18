@@ -41,6 +41,7 @@ import { classifyLeopoldError, type LeopoldError } from "@/lib/leopold/errors";
 import {
   readPrivateHandle,
   readUsdcBalance,
+  isVaultRoundOpen,
   readVaultPublicState,
   validateConfiguredDeployment,
   type VaultPublicState,
@@ -599,7 +600,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       },
       hidePrivateBalance: () => setPrivateBalanceRevealed(false),
       save: async (vaultSlug, input) =>
-        execute("save", async (onHash) => {
+        execute("save", async (onHash, onStage) => {
           const amount = parseUsdcAmount(input);
           if (privateBalance !== null && amount > privateBalance) throw new Error("INSUFFICIENT_USDC");
           const vault = getVaultConfig(vaultSlug);
@@ -609,14 +610,26 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setVaultPositions((positions) => ({ ...positions, [vaultSlug]: (positions[vaultSlug] ?? 0n) + amount }));
           } else {
             requireVerified();
+            const liveClients = clients(onHash, true, onStage);
+            const vaultAddress = requireConfiguredAddress(vault.vault, `${vault.name} vault`);
+            const [liveState, latestBlock] = await Promise.all([
+              readVaultPublicState(liveClients.publicClient, vault, liveClients.account),
+              liveClients.publicClient.getBlock(),
+            ]);
+            setPublicVaultState((states) => ({ ...states, [vaultSlug]: liveState }));
+            if (!isVaultRoundOpen(liveState, latestBlock.timestamp)) {
+              throw new Error(`ROUND_CLOSED:${vault.name}:${liveState.roundId.toString()}`);
+            }
             await savePrivately(
-              clients(onHash),
+              liveClients,
               requireConfiguredAddress(leopoldConfig.lcUsdc, "Private USDC"),
-              requireConfiguredAddress(vault.vault, `${vault.name} vault`),
+              vaultAddress,
               amount,
+              onStage,
             );
           }
           addActivity(`Saved to ${vault.name} Vault`, vault.name);
+          onStage("save-post-refresh");
           await refresh();
         }),
       revealVault: async (vaultSlug) => {

@@ -40,6 +40,13 @@ export type VaultPublicState = {
   settlementReward: bigint;
 };
 
+export function isVaultRoundOpen(
+  state: Pick<VaultPublicState, "state" | "opensAt" | "closesAt">,
+  now: bigint,
+): boolean {
+  return state.state === 1 && now >= state.opensAt && now < state.closesAt;
+}
+
 export async function readUsdcBalance(client: PublicClient, token: Address, account: Address): Promise<bigint> {
   return client.readContract({ address: token, abi: erc20Abi, functionName: "balanceOf", args: [account] });
 }

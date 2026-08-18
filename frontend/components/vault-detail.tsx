@@ -1,21 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { formatEther } from "viem";
 import { getVaultConfig, type VaultId } from "@/lib/leopold/config";
+import { formatUsdcAmount, parseUsdcAmount } from "@/lib/leopold/amounts";
+import { isVaultRoundOpen } from "@/lib/leopold/reads";
 import { privateAmountLabel, useFinancial } from "./financial-provider";
 import { transactionIsBusy } from "@/lib/leopold/transactions";
+
+function subscribeToClock(onChange: () => void): () => void {
+  const interval = window.setInterval(onChange, 1_000);
+  return () => window.clearInterval(interval);
+}
+
+function readClock(): bigint {
+  return BigInt(Math.floor(Date.now() / 1_000));
+}
+
+function readServerClock(): null {
+  return null;
+}
 
 export function VaultDetail({ slug }: { slug: VaultId }) {
   const vault = getVaultConfig(slug)!;
   const financial = useFinancial();
   const [saveAmount, setSaveAmount] = useState("10");
   const [withdrawAmount, setWithdrawAmount] = useState("1");
+  const now = useSyncExternalStore(subscribeToClock, readClock, readServerClock);
   const state = financial.publicVaultState[slug];
   const entered = financial.enteredVaults.has(slug);
   const revealed = financial.revealedVaults.has(slug);
   const bond = state?.bondAmount ?? (financial.fixture ? 5_000_000_000_000_000n : undefined);
   const busy = transactionIsBusy(financial.txStage);
+  const roundOpen = state !== undefined && now !== null ? isVaultRoundOpen(state, now) : false;
+  const saveExceedsRevealedBalance = (() => {
+    if (!financial.privateBalanceRevealed || financial.privateBalance === null) return false;
+    try {
+      return parseUsdcAmount(saveAmount) > financial.privateBalance;
+    } catch {
+      return false;
+    }
+  })();
   return (
     <div className="content">
       <div className="page-heading">
@@ -65,7 +90,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               <button
                 className="button"
                 data-testid="save-private"
-                disabled={busy}
+                disabled={busy || saveExceedsRevealedBalance || (state !== undefined && !roundOpen)}
                 onClick={() => {
                   void financial.save(slug, saveAmount).catch(() => undefined);
                 }}
@@ -73,6 +98,12 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
                 Save Privately
               </button>
             </div>
+            {financial.privateBalanceRevealed && financial.privateBalance !== null ? (
+              <p className="subtle">Enter an amount up to {formatUsdcAmount(financial.privateBalance)} USDC.</p>
+            ) : null}
+            {state !== undefined && !roundOpen ? (
+              <p className="subtle">This vault round is not open for deposits.</p>
+            ) : null}
           </article>
           <article className="card">
             <h2>Withdraw savings</h2>

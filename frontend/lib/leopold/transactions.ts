@@ -12,6 +12,13 @@ export type TransactionStage =
   | "wrap-signature"
   | "wrap-submitted"
   | "wrap-confirming"
+  | "save-encrypting"
+  | "save-simulating"
+  | "save-signature"
+  | "save-submitted"
+  | "save-confirming"
+  | "save-receipt"
+  | "save-post-refresh"
   | "private"
   | "complete"
   | "failed";
@@ -30,6 +37,13 @@ export const transactionStageLabel: Record<TransactionStage, string> = {
   "wrap-signature": "Waiting for private conversion signature",
   "wrap-submitted": "Private conversion submitted",
   "wrap-confirming": "Confirming private conversion",
+  "save-encrypting": "Encrypting private deposit",
+  "save-simulating": "Simulating vault deposit",
+  "save-signature": "Waiting for vault deposit signature",
+  "save-submitted": "Vault deposit submitted",
+  "save-confirming": "Confirming vault deposit",
+  "save-receipt": "Vault deposit receipt confirmed",
+  "save-post-refresh": "Refreshing vault state",
   private: "Private processing",
   complete: "Complete",
   failed: "Failed",
@@ -48,6 +62,13 @@ const busyStages = new Set<TransactionStage>([
   "wrap-signature",
   "wrap-submitted",
   "wrap-confirming",
+  "save-encrypting",
+  "save-simulating",
+  "save-signature",
+  "save-submitted",
+  "save-confirming",
+  "save-receipt",
+  "save-post-refresh",
   "private",
 ]);
 
