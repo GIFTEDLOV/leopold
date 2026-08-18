@@ -152,7 +152,7 @@ describe("Leopold frontend core", () => {
   it("does not render unresolved private balance as zero", () => {
     expect(privateBalanceLabel("NOT_REVEALED", null)).toBe("•••••• USDC");
     expect(privateBalanceLabel("REVEAL_FAILED", 0n)).toBe("•••••• USDC");
-    expect(privateBalanceLabel("REVEALING", null)).toBe("Revealing…");
+    expect(privateBalanceLabel("DECRYPTING", null)).toBe("Revealing…");
     expect(privateBalanceLabel("REVEALED", 1_000_000n)).toBe("1 USDC");
     expect(privateBalanceLabel("REVEALED", 0n)).toBe("0 USDC");
   });

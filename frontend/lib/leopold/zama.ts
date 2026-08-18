@@ -1,6 +1,6 @@
 "use client";
 
-import type { Address, Hex } from "viem";
+import type { Address, Hex, WalletClient } from "viem";
 
 type BrowserEthereum = {
   request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>;
@@ -8,10 +8,12 @@ type BrowserEthereum = {
 
 let activeIdentity = "";
 let cachedSdk: import("@zama-fhe/sdk").ZamaSDK | null = null;
+let cachedSigner: WalletClient | BrowserEthereum | null = null;
 
-export async function getZamaSdk(ethereum: BrowserEthereum, account: Address) {
+export async function getZamaSdk(ethereum: BrowserEthereum, account: Address, walletClient?: WalletClient) {
   const identity = account.toLowerCase();
-  if (cachedSdk && activeIdentity === identity) return cachedSdk;
+  const signer = walletClient ?? ethereum;
+  if (cachedSdk && activeIdentity === identity && cachedSigner === signer) return cachedSdk;
   const [{ ZamaSDK, createConfig, memoryStorage }, { sepolia }, { web }, { ViemProvider, ViemSigner }, viem, chains] =
     await Promise.all([
       import("@zama-fhe/sdk"),
@@ -22,29 +24,33 @@ export async function getZamaSdk(ethereum: BrowserEthereum, account: Address) {
       import("viem/chains"),
     ]);
   const publicClient = viem.createPublicClient({ chain: chains.sepolia, transport: viem.http(sepolia.network) });
-  const walletClient = viem.createWalletClient({
-    account,
-    chain: chains.sepolia,
-    transport: viem.custom(ethereum as never),
-  });
+  const signerWalletClient =
+    walletClient ??
+    viem.createWalletClient({
+      account,
+      chain: chains.sepolia,
+      transport: viem.custom(ethereum as never),
+    });
   cachedSdk = new ZamaSDK(
     createConfig({
       chains: [sepolia],
       relayers: { [sepolia.id]: web({ timeout: 300_000 }) },
       provider: new ViemProvider({ publicClient }),
-      signer: new ViemSigner({ walletClient, ethereum: ethereum as never }),
+      signer: new ViemSigner({ walletClient: signerWalletClient, ethereum: ethereum as never }),
       storage: memoryStorage,
       permitStorage: memoryStorage,
       runtime: { singleThread: true, wasmAssetLoadMode: "embedded-base64" },
     }),
   );
   activeIdentity = identity;
+  cachedSigner = signer;
   return cachedSdk;
 }
 
 export function clearPrivateSession(): void {
   cachedSdk = null;
   activeIdentity = "";
+  cachedSigner = null;
 }
 
 export async function encryptPrivateAmount(
@@ -52,8 +58,9 @@ export async function encryptPrivateAmount(
   account: Address,
   contractAddress: Address,
   amount: bigint,
+  walletClient?: WalletClient,
 ): Promise<{ encryptedValue: Hex; inputProof: Hex }> {
-  const sdk = await getZamaSdk(ethereum, account);
+  const sdk = await getZamaSdk(ethereum, account, walletClient);
   const encrypted = await sdk.encrypt({
     values: [{ value: amount, type: "euint64" }],
     contractAddress,
@@ -71,8 +78,9 @@ export async function decryptPrivateValue(
   account: Address,
   contractAddress: Address,
   handle: Hex,
+  walletClient?: WalletClient,
 ): Promise<bigint> {
-  const sdk = await getZamaSdk(ethereum, account);
+  const sdk = await getZamaSdk(ethereum, account, walletClient);
   const values = await sdk.decryption.decryptValues([{ encryptedValue: handle, contractAddress }]);
   const clear = values[handle];
   if (typeof clear === "bigint") return clear;
@@ -84,8 +92,9 @@ export async function decryptPublicValue(
   ethereum: BrowserEthereum,
   account: Address,
   handle: Hex,
+  walletClient?: WalletClient,
 ): Promise<{ clear: bigint; abiEncodedClearValues: Hex; decryptionProof: Hex }> {
-  const sdk = await getZamaSdk(ethereum, account);
+  const sdk = await getZamaSdk(ethereum, account, walletClient);
   const result = await sdk.decryption.decryptPublicValues([handle]);
   const clear = result.clearValues[handle];
   const clearValue =

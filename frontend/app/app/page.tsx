@@ -8,6 +8,10 @@ import { VaultCards } from "@/components/vault-cards";
 
 export default function DashboardPage() {
   const financial = useFinancial();
+  const privateBalanceBusy =
+    financial.privateBalanceStatus === "READING_HANDLE" ||
+    financial.privateBalanceStatus === "AWAITING_DECRYPT_AUTHORIZATION" ||
+    financial.privateBalanceStatus === "DECRYPTING";
   const revealedTotal = Array.from(financial.revealedVaults).reduce(
     (total, vault) => total + (financial.vaultPositions[vault] ?? 0n),
     0n,
@@ -33,17 +37,13 @@ export default function DashboardPage() {
           <div className="stat">{privateBalanceLabel(financial.privateBalanceStatus, financial.privateBalance)}</div>
           <button
             className="button ghost small"
-            disabled={financial.privateBalanceStatus === "REVEALING"}
+            disabled={privateBalanceBusy}
             onClick={() => {
               if (financial.privateBalanceRevealed) financial.hidePrivateBalance();
               else void financial.revealPrivateBalance().catch(() => undefined);
             }}
           >
-            {financial.privateBalanceStatus === "REVEALING"
-              ? "Revealing…"
-              : financial.privateBalanceRevealed
-                ? "Hide"
-                : "Reveal"}
+            {privateBalanceBusy ? "Revealing…" : financial.privateBalanceRevealed ? "Hide" : "Reveal"}
           </button>
           {financial.error ? (
             <div className="inline-notice error" role="alert">

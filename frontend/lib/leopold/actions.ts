@@ -229,7 +229,7 @@ export async function savePrivately(
   onStage?.("save-encrypting");
   let encrypted: Awaited<ReturnType<typeof encryptPrivateAmount>>;
   try {
-    encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, lcUsdc, amount);
+    encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, lcUsdc, amount, clients.walletClient);
   } catch (error) {
     throw actionError("SAVE:ENCRYPT_INPUT", error);
   }
@@ -267,7 +267,7 @@ export async function enterPrizeRound(
 }
 
 export async function withdrawSavings(clients: ActionClients, vault: Address, amount: bigint): Promise<`0x${string}`> {
-  const encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, vault, amount);
+  const encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, vault, amount, clients.walletClient);
   return writeAndConfirm(clients, {
     account: clients.account,
     chain: undefined,
@@ -283,7 +283,7 @@ export async function requestMakePublic(
   lcUsdc: Address,
   amount: bigint,
 ): Promise<`0x${string}`> {
-  const encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, lcUsdc, amount);
+  const encrypted = await encryptPrivateAmount(clients.ethereum, clients.account, lcUsdc, amount, clients.walletClient);
   const requestHash = await writeAndConfirm(clients, {
     account: clients.account,
     chain: undefined,
@@ -300,7 +300,7 @@ export async function requestMakePublic(
   });
   if (!requestEvent) throw new Error("UNWRAP_REQUEST_ID_UNAVAILABLE");
   const requestId = requestEvent.args.unwrapRequestId;
-  const publicDecryption = await decryptPublicValue(clients.ethereum, clients.account, requestId);
+  const publicDecryption = await decryptPublicValue(clients.ethereum, clients.account, requestId, clients.walletClient);
   if (publicDecryption.clear > 0xffffffffffffffffn) throw new Error("RELAYER_PUBLIC_CLEAR_OUT_OF_RANGE");
   return writeAndConfirm(clients, {
     account: clients.account,

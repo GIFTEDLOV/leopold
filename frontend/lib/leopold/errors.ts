@@ -121,7 +121,9 @@ export function classifyLeopoldError(error: unknown): LeopoldError {
     /not_entitled|unauthorized[_ ]ciphertext|handleaccessmanagernotallowed|ciphertext.*not authorized/u.test(lower)
   )
     code = "UNAUTHORIZED_CIPHERTEXT";
-  else if (/wrong_handle|no_ciphertext|invalid_handle/u.test(lower)) code = "WRONG_HANDLE";
+  else if (/wrong_handle|stale_handle|no_ciphertext|invalid_handle/u.test(lower)) code = "WRONG_HANDLE";
+  else if (/private_balance:identity_changed|private_balance:stale_request/u.test(lower))
+    code = "WALLET_SIGNER_MISMATCH";
   else if (/decryption_failed|relayer_invalid_decryption_result/u.test(lower)) code = "DECRYPTION_FAILED";
   else if (/relayer_request_failed|relayer|kms|timeout|socket/u.test(lower)) code = "RELAYER_UNAVAILABLE";
   else if (/liquid|insufficientmanagedassets/u.test(lower)) code = "PRIVATE_LIQUIDITY_UNAVAILABLE";

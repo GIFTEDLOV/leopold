@@ -57,7 +57,13 @@ describe("confidential vault save action", () => {
       savePrivately(probe.clients, LC_USDC, DAILY_VAULT, 1_000_000n, (stage) => stages.push(stage)),
     ).resolves.toBe(HASH);
 
-    expect(encryptPrivateAmount).toHaveBeenCalledWith(probe.clients.ethereum, ACCOUNT, LC_USDC, 1_000_000n);
+    expect(encryptPrivateAmount).toHaveBeenCalledWith(
+      probe.clients.ethereum,
+      ACCOUNT,
+      LC_USDC,
+      1_000_000n,
+      probe.clients.walletClient,
+    );
     expect(probe.simulateContract).toHaveBeenCalledWith(
       expect.objectContaining({
         address: LC_USDC,
