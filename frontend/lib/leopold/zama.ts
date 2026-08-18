@@ -80,12 +80,18 @@ export async function decryptPrivateValue(
   handle: Hex,
   walletClient?: WalletClient,
 ): Promise<bigint> {
-  const sdk = await getZamaSdk(ethereum, account, walletClient);
-  const values = await sdk.decryption.decryptValues([{ encryptedValue: handle, contractAddress }]);
+  let sdk: Awaited<ReturnType<typeof getZamaSdk>>;
+  try {
+    sdk = await getZamaSdk(ethereum, account, walletClient);
+  } catch (error) {
+    throw new Error("PRIVATE_BALANCE:SDK_NOT_READY", { cause: error });
+  }
+  const request = [{ encryptedValue: handle, contractAddress }];
+  const values = await sdk.decryption.decryptValues(request);
   const clear = values[handle];
   if (typeof clear === "bigint") return clear;
   if (typeof clear === "string" && /^\d+$/u.test(clear)) return BigInt(clear);
-  throw new Error("RELAYER_INVALID_DECRYPTION_RESULT");
+  throw new Error("PRIVATE_BALANCE:RESULT_MISSING");
 }
 
 export async function decryptPublicValue(

@@ -5,6 +5,7 @@ import { decryptPrivateValue } from "../lib/leopold/zama";
 import {
   privateBalanceDiagnostic,
   privateBalanceLabel,
+  isZeroBalanceHandle,
   readCurrentPrivateBalanceHandle,
   revealPrivateBalanceFromCurrentHandle,
   samePrivateBalanceIdentity,
@@ -21,6 +22,7 @@ const TOKEN = "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8" as const;
 const ZERO_HANDLE = `0x${"0".repeat(64)}` as const;
 const H1 = `0x${"1".repeat(64)}` as const;
 const H2 = `0x${"2".repeat(64)}` as const;
+const LIVE_HANDLE = "0x3154516a75e67a34d8e59191127f416a85839a0a5dff0000000000aa36a70500" as const;
 
 function clients({
   account = ACCOUNT,
@@ -92,6 +94,29 @@ describe("Zama-reference confidential private balance flow", () => {
       "REVEALED",
     ]);
     expect(initial.request).not.toHaveBeenCalled();
+  });
+
+  it("enters the decrypt path for the exact live-style nonzero handle", async () => {
+    vi.mocked(decryptPrivateValue).mockResolvedValue(1_000_000n);
+    const initial = clients({ handle: LIVE_HANDLE });
+    const current = clients({ handle: LIVE_HANDLE });
+
+    await expect(
+      revealPrivateBalanceFromCurrentHandle({
+        clients: initial.clients,
+        getCurrentClients: () => current.clients,
+        token: TOKEN,
+      }),
+    ).resolves.toMatchObject({ identity: { handle: LIVE_HANDLE }, value: 1_000_000n });
+
+    expect(isZeroBalanceHandle(LIVE_HANDLE)).toBe(false);
+    expect(decryptPrivateValue).toHaveBeenCalledWith(
+      initial.clients.ethereum,
+      ACCOUNT,
+      TOKEN,
+      LIVE_HANDLE,
+      initial.clients.walletClient,
+    );
   });
 
   it("models a successful wrap as H0 to H1 and discovers H1 from a fresh chain read", async () => {
@@ -206,6 +231,21 @@ describe("Zama-reference confidential private balance flow", () => {
         token: TOKEN,
       }),
     ).rejects.toThrow("RELAYER_REQUEST_FAILED");
+  });
+
+  it("treats a missing decrypt result as failure rather than zero", async () => {
+    const initial = clients({ handle: H1 });
+    const current = clients({ handle: H1 });
+    vi.mocked(decryptPrivateValue).mockRejectedValueOnce(new Error("PRIVATE_BALANCE:RESULT_MISSING"));
+
+    await expect(
+      revealPrivateBalanceFromCurrentHandle({
+        clients: initial.clients,
+        getCurrentClients: () => current.clients,
+        token: TOKEN,
+      }),
+    ).rejects.toThrow("PRIVATE_BALANCE:RESULT_MISSING");
+    expect(privateBalanceLabel("REVEAL_FAILED", null)).toBe("•••••• USDC");
   });
 
   it("compares the full identity tuple and exposes no secret material in diagnostics", () => {
