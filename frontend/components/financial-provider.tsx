@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatEther, type Address } from "viem";
-import { useAccount, useBalance, useConnect, useDisconnect, usePublicClient, useWalletClient } from "wagmi";
+import { useBalance, usePublicClient, useWalletClient } from "wagmi";
 
 import {
   claimBondRefund,
@@ -117,9 +117,6 @@ const fixtureAccount = "0x7E57a10D00000000000000000000000000000001" as Address;
 export function FinancialProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const walletIdentity = useWalletIdentity();
-  const accountState = useAccount();
-  const connectState = useConnect();
-  const disconnectState = useDisconnect();
   const publicClient = usePublicClient({ chainId: LEOPOLD_CHAIN_ID });
   const walletClient = useWalletClient({ chainId: LEOPOLD_CHAIN_ID });
   const [fixtureConnected, setFixtureConnected] = useState(false);
@@ -148,33 +145,27 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const accountRef = useRef<Address | null>(null);
   const walletClientId = walletClient.data?.uid ?? null;
 
-  const connected = fixtureEnabled ? fixtureConnected : walletIdentity.identity.providerConnected;
-  const connecting = fixtureEnabled ? false : accountState.isConnecting || connectState.isPending;
-  const account = fixtureEnabled
+  const connected = fixtureEnabled
     ? fixtureConnected
-      ? fixtureAccount
-      : null
-    : walletIdentity.identity.providerActiveAccount;
+    : walletIdentity.walletSession.status === "CONNECTED" || walletIdentity.walletSession.status === "WRONG_NETWORK";
+  const connecting = fixtureEnabled ? false : walletIdentity.walletSession.status === "CONNECTING";
+  const account = fixtureEnabled ? (fixtureConnected ? fixtureAccount : null) : walletIdentity.walletSession.address;
 
   useEffect(() => {
     walletClientRef.current = walletClient.data;
     publicClientRef.current = publicClient;
     accountRef.current = account;
   }, [account, publicClient, walletClient.data]);
-  const networkHealth = walletIdentity.identity.networkHealth;
-  const walletChainId = fixtureEnabled ? fixtureChain : walletIdentity.identity.chainId;
+  const networkHealth = walletIdentity.networkHealth;
+  const walletChainId = fixtureEnabled ? fixtureChain : walletIdentity.walletSession.chainId;
   const financialAuthorized =
-    fixtureEnabled || financialControlsEnabled(auth.clientReady, walletIdentity.identity.state === "READY");
+    fixtureEnabled || financialControlsEnabled(auth.clientReady, walletIdentity.walletSession.status === "CONNECTED");
   const financialActionsEnabled =
-    fixtureEnabled || (financialAuthorized && walletIdentity.identity.canUseFinancialActions);
+    fixtureEnabled || (financialAuthorized && walletIdentity.walletSession.canUseFinancialActions);
 
   const ensureWalletIdentityReady = useCallback(async () => {
     try {
-      const identity = await walletIdentity.refreshWalletIdentity();
-      if (identity.state !== "READY") {
-        const reason = identity.reason === "RPC_UNAVAILABLE" ? identity.networkHealth.state : identity.reason;
-        throw new Error(`WALLET_IDENTITY:${reason}`);
-      }
+      await walletIdentity.requireConnectedFinancialSession();
     } catch (caught) {
       setError(classifyLeopoldError(caught));
       throw caught;
@@ -386,7 +377,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           setTxStage("complete");
         }
         persistStage(completesAfterReceipt ? "complete" : "private");
-        void walletIdentity.refreshWalletIdentity();
+        void walletIdentity.retryNetworkHealth();
       } catch (caught) {
         setError(classifyLeopoldError(caught));
         setTxErrorStage(activeStage);
@@ -398,13 +389,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     [account, ensureFinancialAccess, refreshPrivateBalanceHandle, walletIdentity],
   );
 
+  const publicReadAccount = getPublicReadAccount(walletIdentity.walletSession.verifiedAddress, account);
   const refresh = useCallback(async () => {
-    const publicReadAccount = getPublicReadAccount(walletIdentity.identity.verifiedAddress, account);
     if (!publicReadAccount) return;
     if (fixtureEnabled) return;
     if (!publicClient) return;
-    setDeploymentVerified(false);
-    setLatestBlockTimestamp(null);
     try {
       const latestBlock = await publicClient.getBlock();
       setUsdcBalance(await readUsdcBalance(publicClient, CANONICAL_USDC, publicReadAccount));
@@ -425,11 +414,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       }
       setLatestBlockTimestamp(latestBlock.timestamp);
     } catch (caught) {
-      setLatestBlockTimestamp(null);
-      setDeploymentVerified(false);
       if (networkHealth.state === "HEALTHY" && financialAuthorized) setError(classifyLeopoldError(caught));
     }
-  }, [account, financialAuthorized, networkHealth.state, publicClient, walletIdentity.identity.verifiedAddress]);
+  }, [financialAuthorized, networkHealth.state, publicClient, publicReadAccount]);
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       if (fixtureEnabled && !auth.authenticated) setFixtureConnected(false);
@@ -439,9 +426,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setPrivateResults({});
       setRevealedResults(new Set());
       setPrivateEligibility({});
-      setPublicVaultState({});
-      setLatestBlockTimestamp(null);
-      if (account) {
+      if (walletIdentity.walletSession.verifiedAddress) {
         const labels: Record<string, string> = {
           "get-test-usdc": "Received test USDC",
           "make-private": "Made USDC private",
@@ -453,24 +438,22 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           "claim-reward": "Claimed settlement reward",
         };
         setActivity(
-          loadSafeTransactions(account).map((item) => ({
+          loadSafeTransactions(walletIdentity.walletSession.verifiedAddress).map((item) => ({
             id: item.id,
             label: labels[item.kind] ?? "Leopold transaction",
             status: item.stage === "complete" ? "Confirmed" : "Processing",
           })),
         );
       } else setActivity([]);
-      setDeploymentVerified(false);
     }, 0);
     return () => window.clearTimeout(timeout);
   }, [
-    account,
     auth.authenticated,
     auth.identityKey,
     invalidatePrivateBalance,
-    networkHealth.state,
-    walletIdentity.identity.revision,
-    walletIdentity.identity.state,
+    walletIdentity.walletSession.epoch,
+    walletIdentity.walletSession.status,
+    walletIdentity.walletSession.verifiedAddress,
     walletChainId,
     walletClientId,
   ]);
@@ -483,12 +466,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
-    if (!financialAuthorized || !account || walletIdentity.identity.state !== "READY") return;
+    if (!financialAuthorized || !account || walletIdentity.walletSession.status !== "CONNECTED") return;
     const timeout = window.setTimeout(() => {
       void refreshPrivateBalanceHandle();
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [account, financialAuthorized, refreshPrivateBalanceHandle, walletClientId, walletIdentity.identity.state]);
+  }, [account, financialAuthorized, refreshPrivateBalanceHandle, walletClientId, walletIdentity.walletSession.status]);
 
   const value = useMemo<FinancialContextValue>(
     () => ({
@@ -532,7 +515,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             return;
           }
           if (!auth.configured) throw new Error("AUTH_CONFIGURATION_REQUIRED");
-          auth.openWalletAuthentication();
+          if (!auth.authenticated) auth.openWalletAuthentication();
+          else if (!auth.financialWallet) auth.openWalletLink();
+          else {
+            const result = await walletIdentity.connectVerifiedWallet();
+            if (!result.ok && result.state !== "CONNECTING") throw new Error(`WALLET_SESSION:${result.reason}`);
+          }
           return;
         } catch (caught) {
           setError(classifyLeopoldError(caught));
@@ -541,7 +529,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       },
       disconnectWallet: () => {
         if (fixtureEnabled) setFixtureConnected(false);
-        else disconnectState.disconnect();
+        else walletIdentity.disconnectLeopoldWallet();
       },
       switchToSepolia: async () => {
         try {
@@ -557,7 +545,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         }
       },
       retryNetworkHealth: async () => {
-        await walletIdentity.refreshWalletIdentity();
+        await walletIdentity.retryNetworkHealth();
       },
       refresh,
       acquireUsdc: async () =>
@@ -933,7 +921,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       connected,
       connecting,
       currentPrivateBalanceClients,
-      disconnectState,
       enteredVaults,
       error,
       ethBalance.data?.value,

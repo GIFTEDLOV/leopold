@@ -15,8 +15,8 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
   const [amount, setAmount] = useState("10");
   const busy = transactionIsBusy(financial.txStage);
   const healthState = walletIdentity.identity.networkHealth.state;
-  const walletState = walletIdentity.identity.state;
-  const canUseWrapper = walletIdentity.identity.canUseFinancialActions && financial.connected;
+  const walletState = walletIdentity.walletSession.status;
+  const canUseWrapper = walletIdentity.walletSession.canUseFinancialActions && financial.connected;
   return (
     <div
       className="modal-backdrop"
@@ -40,7 +40,7 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             <span key={item} className={item <= step ? "active" : ""} />
           ))}
         </div>
-        {walletState === "UNINITIALIZED" && healthState === "CHECKING" ? (
+        {walletState === "BOOTSTRAPPING" ? (
           <div className="card" role="status" data-testid="network-checking">
             <span className="badge neutral">Checking wallet network</span>
             <h3>Confirm Ethereum Sepolia</h3>
@@ -59,7 +59,26 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
               Switch to Sepolia
             </button>
           </div>
-        ) : healthState === "WALLET_RPC_UNAVAILABLE" ? (
+        ) : walletState === "CONNECTING" ? (
+          <div className="card" role="status" data-testid="wallet-connecting">
+            <span className="badge neutral">Connecting wallet</span>
+            <h3>
+              {walletIdentity.walletSession.reason === "ACCOUNT_SELECTION_REQUIRED"
+                ? "Select your verified account"
+                : "Connecting your verified wallet"}
+            </h3>
+            <p className="subtle">
+              {walletIdentity.walletSession.reason === "ACCOUNT_SELECTION_REQUIRED"
+                ? "Choose the verified account in Rabby or MetaMask, then continue."
+                : "This bounded connection attempt will finish without a page refresh."}
+            </p>
+            {walletIdentity.walletSession.reason === "ACCOUNT_SELECTION_REQUIRED" ? (
+              <button className="button" onClick={() => void walletIdentity.connectVerifiedWallet()}>
+                I&apos;ve selected the account
+              </button>
+            ) : null}
+          </div>
+        ) : healthState === "WALLET_RPC_UNAVAILABLE" && walletState === "CONNECTED" ? (
           <div className="card" role="alert" data-testid="wallet-rpc-unavailable">
             <span className="badge neutral">Wallet RPC unavailable</span>
             <h3>Your wallet&apos;s Sepolia connection isn&apos;t working</h3>
@@ -67,45 +86,40 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
               Leopold is online, but your wallet cannot currently reach Ethereum Sepolia. Financial actions are paused.
             </p>
             <button className="button" onClick={() => void financial.retryNetworkHealth()} disabled={busy}>
-              Retry connection
+              Retry network
             </button>
           </div>
-        ) : healthState === "APP_RPC_UNAVAILABLE" ? (
+        ) : healthState === "APP_RPC_UNAVAILABLE" && walletState === "CONNECTED" ? (
           <div className="card" role="alert" data-testid="app-rpc-unavailable">
             <span className="badge neutral">Leopold RPC unavailable</span>
             <h3>Leopold&apos;s Sepolia service is unavailable</h3>
             <p className="subtle">Financial actions are paused until Leopold&apos;s public Sepolia service responds.</p>
             <button className="button" onClick={() => void financial.retryNetworkHealth()} disabled={busy}>
-              Retry connection
+              Retry network
             </button>
           </div>
-        ) : walletState === "WALLET_MISMATCH" ? (
-          <div className="card" role="alert" data-testid="wallet-mismatch">
-            <span className="badge neutral">Wallet mismatch</span>
-            <h3>Reconnect your verified financial wallet</h3>
-            <p className="subtle">
-              The active signing wallet does not match the wallet verified for this Leopold account.
-            </p>
-            <button className="button" onClick={() => void walletIdentity.switchToVerifiedWallet()}>
-              Switch to verified wallet
-            </button>
+        ) : walletState === "CONNECTED" && (healthState === "NOT_CHECKED" || healthState === "CHECKING") ? (
+          <div className="card" role="status" data-testid="network-health-checking">
+            <span className="badge neutral">Checking Sepolia service</span>
+            <h3>Your wallet session is connected</h3>
+            <p className="subtle">Financial actions will resume when the bounded network check finishes.</p>
           </div>
-        ) : walletState === "DISCONNECTED" && auth.financialWallet ? (
+        ) : (walletState === "DISCONNECTED" || walletState === "ERROR") && auth.financialWallet ? (
           <div className="card" role="alert" data-testid="wallet-disconnected">
             <span className="badge neutral">Wallet disconnected</span>
             <h3>Reconnect your verified financial wallet</h3>
             <p className="subtle">This Leopold account already has a verified financial wallet.</p>
-            <button className="button" onClick={() => void walletIdentity.reconnectVerifiedWallet()}>
+            <button className="button" onClick={() => void walletIdentity.connectVerifiedWallet()}>
               Reconnect verified wallet
             </button>
           </div>
-        ) : healthState === "UNKNOWN" ? (
+        ) : healthState === "UNKNOWN" && walletState === "CONNECTED" ? (
           <div className="card" role="alert" data-testid="network-health-unknown">
             <span className="badge neutral">Network health unavailable</span>
             <h3>Confirm your Sepolia connection</h3>
             <p className="subtle">Leopold could not confirm the active wallet and public Sepolia connections.</p>
             <button className="button" onClick={() => void financial.retryNetworkHealth()} disabled={busy}>
-              Retry connection
+              Retry network
             </button>
           </div>
         ) : !canUseWrapper ? (
@@ -127,13 +141,9 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
               <button className="button" onClick={auth.openWalletLink}>
                 Link Wallet
               </button>
-            ) : walletIdentity.identity.recoveryAction === "SWITCH_TO_VERIFIED_WALLET" ? (
-              <button className="button" onClick={() => void walletIdentity.switchToVerifiedWallet()}>
-                Switch to verified wallet
-              </button>
             ) : auth.financialWallet ? (
-              <button className="button" onClick={() => void walletIdentity.refreshWalletIdentity()}>
-                Retry wallet connection
+              <button className="button" onClick={() => void walletIdentity.connectVerifiedWallet()}>
+                Reconnect verified wallet
               </button>
             ) : (
               <button className="button" onClick={auth.openWalletLink}>

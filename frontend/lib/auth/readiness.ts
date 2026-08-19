@@ -44,24 +44,6 @@ export function findWalletByAddress<T extends { address: string }>(
   return wallets.find((wallet) => walletsMatch(wallet.address, address)) ?? null;
 }
 
-export type FinancialWalletRecoveryAction =
-  | "LINK_WALLET"
-  | "RECONNECT_WALLET"
-  | "SWITCH_TO_VERIFIED_WALLET"
-  | "SWITCH_TO_SEPOLIA"
-  | "READY";
-
-export function getFinancialWalletRecoveryAction(
-  identity: Pick<AuthIdentitySnapshot, "financialWallet" | "connectedWallet">,
-  chainCorrect: boolean | null,
-): FinancialWalletRecoveryAction {
-  if (!identity.financialWallet) return "LINK_WALLET";
-  if (!identity.connectedWallet) return "RECONNECT_WALLET";
-  if (!walletsMatch(identity.financialWallet, identity.connectedWallet)) return "SWITCH_TO_VERIFIED_WALLET";
-  if (chainCorrect === false) return "SWITCH_TO_SEPOLIA";
-  return "READY";
-}
-
 export function getAuthReadiness(identity: AuthIdentitySnapshot): AuthReadinessState {
   if (identity.sessionExpired) return "SESSION_EXPIRED";
   if (identity.accountConflict) return "ACCOUNT_CONFLICT";
@@ -69,52 +51,13 @@ export function getAuthReadiness(identity: AuthIdentitySnapshot): AuthReadinessS
   if (!identity.emailVerified && identity.walletAuthenticated) return "WALLET_AUTHENTICATED_INCOMPLETE";
   if (!identity.emailVerified) return "EMAIL_AUTHENTICATED";
   if (!identity.username) return "PROFILE_INCOMPLETE";
-  if (!identity.financialWallet || !identity.connectedWallet) return "WALLET_REQUIRED";
-  if (!identity.walletAuthenticated || !walletsMatch(identity.financialWallet, identity.connectedWallet)) {
-    return "WALLET_REQUIRED";
-  }
+  if (!identity.financialWallet) return "WALLET_REQUIRED";
   return "ACCOUNT_READY";
 }
-
-export type FinancialGuardResult = { allowed: true } | { allowed: false; code: string; message: string };
 
 export type WalletLinkGuardResult =
   | { allowed: true; wallet: Address }
   | { allowed: false; code: string; message: string };
-
-export function checkFinancialIdentity(identity: AuthIdentitySnapshot, chainCorrect: boolean): FinancialGuardResult {
-  const readiness = getAuthReadiness(identity);
-  if (readiness === "SESSION_EXPIRED") {
-    return { allowed: false, code: "AUTH_SESSION_EXPIRED", message: "Your Leopold session expired. Sign in again." };
-  }
-  if (readiness === "ACCOUNT_CONFLICT") {
-    return {
-      allowed: false,
-      code: "AUTH_ACCOUNT_CONFLICT",
-      message: "Resolve the account credential conflict before continuing.",
-    };
-  }
-  if (readiness !== "ACCOUNT_READY") {
-    return {
-      allowed: false,
-      code: "FINANCIAL_IDENTITY_REQUIRED",
-      message: "Verify your email, choose a username, and link your financial wallet before continuing.",
-    };
-  }
-  if (!chainCorrect) {
-    return { allowed: false, code: "WRONG_NETWORK", message: "Switch your connected wallet to Ethereum Sepolia." };
-  }
-  return { allowed: true };
-}
-
-export function requireFinancialIdentity(identity: AuthIdentitySnapshot, chainCorrect: boolean): void {
-  const result = checkFinancialIdentity(identity, chainCorrect);
-  if (!result.allowed) {
-    const error = new Error(result.code);
-    error.name = result.code;
-    throw error;
-  }
-}
 
 /**
  * This is the last application-side check before the user confirms the
@@ -169,11 +112,4 @@ export function checkFinancialWalletLink(
     };
   }
   return { allowed: true, wallet: normalizedCandidate };
-}
-
-export function checkPrivateRevealIdentity(
-  identity: AuthIdentitySnapshot,
-  chainCorrect: boolean,
-): FinancialGuardResult {
-  return checkFinancialIdentity(identity, chainCorrect);
 }

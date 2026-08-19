@@ -1,169 +1,241 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  canProbeWalletIdentity,
+  WALLET_SESSION_STORAGE_KEY,
+  clearPersistedWalletSession,
   createNotCheckedWalletRpcHealth,
-  deriveWalletIdentity,
-  WalletIdentityController,
-  type WalletIdentityInputs,
+  deriveWalletSession,
+  initialWalletSessionControl,
+  persistActiveWalletSession,
+  readPersistedWalletSession,
+  walletSessionReducer,
+  withWalletSessionTimeout,
+  type WalletSessionControl,
+  type WalletSessionInputs,
 } from "../lib/auth/wallet-identity";
 
 const VERIFIED = "0x1111111111111111111111111111111111111111" as const;
 const WRONG = "0x2222222222222222222222222222222222222222" as const;
 
-function inputs(overrides: Partial<WalletIdentityInputs> = {}): WalletIdentityInputs {
+function activeControl(overrides: Partial<WalletSessionControl> = {}): WalletSessionControl {
   return {
-    initialized: true,
-    verifiedFinancialWallet: VERIFIED,
-    dynamicPrimaryWallet: VERIFIED,
-    dynamicLinkedWallets: [{ id: "verified", address: VERIFIED }],
-    dynamicWalletObjectForVerifiedAddress: { id: "verified", address: VERIFIED },
-    providerActiveAccount: VERIFIED,
-    providerAccountKnown: true,
-    providerConnected: true,
-    wagmiAccount: VERIFIED,
-    walletClientAccount: VERIFIED,
-    walletClientId: "client-1",
-    chainId: 11_155_111,
-    walletClientChainId: 11_155_111,
-    networkHealth: { ...createNotCheckedWalletRpcHealth(), state: "HEALTHY", checkedAt: 1 },
-    revision: 1,
+    intent: "ACTIVE",
+    status: "CONNECTED",
+    reason: "CONNECTED",
+    epoch: 2,
+    providerRevision: 0,
+    connectOrigin: null,
+    connectAttemptId: null,
+    connectStartedAt: null,
+    connectPhase: null,
     ...overrides,
   };
 }
 
-describe("WalletIdentityController derivation", () => {
-  it("derives DISCONNECTED without an actual provider account", () => {
-    const result = deriveWalletIdentity(inputs({ providerActiveAccount: null, providerConnected: false }));
-    expect(result.state).toBe("DISCONNECTED");
-    expect(result.connectedAddress).toBeNull();
-    expect(result.recoveryAction).toBe("RECONNECT_VERIFIED_WALLET");
+function inputs(overrides: Partial<WalletSessionInputs> = {}): WalletSessionInputs {
+  return {
+    initialized: true,
+    verifiedFinancialWallet: VERIFIED,
+    control: activeControl(),
+    provider: {
+      revision: 0,
+      available: true,
+      connected: true,
+      accountKnown: true,
+      activeAccount: VERIFIED,
+      chainId: 11_155_111,
+    },
+    runtime: {
+      dynamicPrimaryWallet: VERIFIED,
+      dynamicLinkedWallets: [{ id: "verified", address: VERIFIED }],
+      dynamicWalletObjectForVerifiedAddress: { id: "verified", address: VERIFIED },
+      wagmiAccount: VERIFIED,
+      walletClientAccount: VERIFIED,
+      walletClientId: "client-1",
+      walletClientChainId: 11_155_111,
+    },
+    networkHealth: { ...createNotCheckedWalletRpcHealth(), state: "HEALTHY", checkedAt: 1 },
+    ...overrides,
+  };
+}
+
+function memoryStorage() {
+  const data = new Map<string, string>();
+  return {
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => data.set(key, value),
+    removeItem: (key: string) => data.delete(key),
+    data,
+  };
+}
+
+describe("explicit Leopold wallet session", () => {
+  it("uses BOOTSTRAPPING only before auth and SDK initialization", () => {
+    expect(deriveWalletSession(inputs({ initialized: false })).status).toBe("BOOTSTRAPPING");
+    const ready = walletSessionReducer(initialWalletSessionControl(), { type: "SDK_READY" });
+    expect(ready.status).toBe("DISCONNECTED");
   });
 
-  it("remains UNINITIALIZED while the provider account is still resolving", () => {
-    const result = deriveWalletIdentity(
-      inputs({ providerAccountKnown: false, providerActiveAccount: null, providerConnected: false }),
-    );
-    expect(result.state).toBe("UNINITIALIZED");
-    expect(result.reason).toBe("AUTH_INITIALIZING");
+  it("settles to DISCONNECTED when there is no explicit active session", () => {
+    const control = walletSessionReducer(initialWalletSessionControl(), { type: "SDK_READY" });
+    const result = deriveWalletSession(inputs({ control }));
+    expect(result.status).toBe("DISCONNECTED");
+    expect(result.address).toBeNull();
+    expect(result.recoveryAction).toBe("CONNECT_VERIFIED_WALLET");
   });
 
-  it("keeps first-time linking separate from reconnecting a linked wallet", () => {
-    const result = deriveWalletIdentity(
-      inputs({
-        verifiedFinancialWallet: null,
-        dynamicPrimaryWallet: null,
-        dynamicLinkedWallets: [],
-        dynamicWalletObjectForVerifiedAddress: null,
-        providerActiveAccount: null,
-        providerConnected: false,
-        wagmiAccount: null,
-        walletClientAccount: null,
-        walletClientId: null,
-        chainId: null,
-        walletClientChainId: null,
-      }),
-    );
-    expect(result.state).toBe("UNINITIALIZED");
-    expect(result.reason).toBe("FINANCIAL_WALLET_NOT_LINKED");
-    expect(result.recoveryAction).toBe("LINK_WALLET");
-  });
-
-  it("derives READY only when all runtime identities and Sepolia health agree", () => {
-    const result = deriveWalletIdentity(inputs());
-    expect(result.state).toBe("READY");
-    expect(result.canUseFinancialActions).toBe(true);
-    expect(result.verifiedAddress).toBe(result.connectedAddress);
-  });
-
-  it("derives WALLET_MISMATCH from the actual provider account", () => {
-    const result = deriveWalletIdentity(inputs({ providerActiveAccount: WRONG }));
-    expect(result.state).toBe("WALLET_MISMATCH");
-    expect(result.verifiedAddress).not.toBe(result.connectedAddress);
-    expect(result.recoveryAction).toBe("SWITCH_TO_VERIFIED_WALLET");
-    expect(result.canUseFinancialActions).toBe(false);
-  });
-
-  it("keeps mismatch authoritative even when Dynamic primary still points at verified wallet", () => {
-    const result = deriveWalletIdentity(
-      inputs({
-        dynamicPrimaryWallet: VERIFIED,
-        providerActiveAccount: WRONG,
-        providerConnected: true,
-      }),
-    );
-    expect(result.state).toBe("WALLET_MISMATCH");
+  it("makes explicit disconnect immediate and independent of Dynamic, provider, and Wagmi state", () => {
+    const control = walletSessionReducer(activeControl(), {
+      type: "INVALIDATE",
+      reason: "USER_DISCONNECTED",
+      epoch: 3,
+    });
+    const result = deriveWalletSession(inputs({ control }));
+    expect(result.status).toBe("DISCONNECTED");
+    expect(result.reason).toBe("USER_DISCONNECTED");
+    expect(result.address).toBeNull();
+    expect(result.providerObservation.activeAccount).toBe(VERIFIED);
     expect(result.dynamicPrimaryAddress).toBe(VERIFIED);
-    expect(result.connectedAddress).toBe(WRONG);
+    expect(result.wagmiAccount).toBe(VERIFIED);
   });
 
-  it("remains stable in mismatch while the same provider account is active", () => {
-    const first = deriveWalletIdentity(inputs({ providerActiveAccount: WRONG, revision: 10 }));
-    const second = deriveWalletIdentity(inputs({ providerActiveAccount: WRONG, revision: 11 }));
-    expect(first.state).toBe("WALLET_MISMATCH");
-    expect(second.state).toBe("WALLET_MISMATCH");
-    expect(second.connectedAddress).toBe(WRONG);
-  });
-
-  it("cannot derive mismatch when provider and verified addresses are equal", () => {
-    const result = deriveWalletIdentity(inputs({ dynamicPrimaryWallet: WRONG }));
-    expect(result.state).not.toBe("WALLET_MISMATCH");
-    expect(result.providerActiveAccount).toBe(result.verifiedAddress);
-  });
-
-  it("derives WRONG_NETWORK only after provider identity matches", () => {
-    const result = deriveWalletIdentity(inputs({ chainId: 1, walletClientChainId: 1 }));
-    expect(result.state).toBe("WRONG_NETWORK");
-    expect(result.recoveryAction).toBe("SWITCH_TO_SEPOLIA");
-  });
-
-  it("derives WRONG_NETWORK even when Wagmi has no Sepolia wallet client yet", () => {
-    const result = deriveWalletIdentity(inputs({ chainId: 1, walletClientAccount: null, walletClientChainId: null }));
-    expect(result.state).toBe("WRONG_NETWORK");
-    expect(result.recoveryAction).toBe("SWITCH_TO_SEPOLIA");
-  });
-
-  it("keeps RPC health separate from identity mismatch", () => {
-    const result = deriveWalletIdentity(
+  it("does not turn missing Wagmi or WalletClient state into Checking while inactive", () => {
+    const control = walletSessionReducer(activeControl(), {
+      type: "INVALIDATE",
+      reason: "USER_DISCONNECTED",
+      epoch: 4,
+    });
+    const result = deriveWalletSession(
       inputs({
-        providerActiveAccount: WRONG,
-        networkHealth: {
-          ...createNotCheckedWalletRpcHealth(),
-          state: "WALLET_RPC_UNAVAILABLE",
-          technicalDetail: "wallet transport failed",
-        },
+        control,
+        runtime: { ...inputs().runtime, wagmiAccount: null, walletClientAccount: null, walletClientId: null },
       }),
     );
-    expect(result.state).toBe("WALLET_MISMATCH");
-    expect(result.networkHealth.state).toBe("WALLET_RPC_UNAVAILABLE");
+    expect(result.status).toBe("DISCONNECTED");
+    expect(result.status).not.toBe("BOOTSTRAPPING");
   });
 
-  it("blocks READY when Wagmi or WalletClient identity diverges", () => {
-    expect(deriveWalletIdentity(inputs({ wagmiAccount: WRONG })).state).toBe("UNINITIALIZED");
-    expect(deriveWalletIdentity(inputs({ walletClientAccount: WRONG })).state).toBe("UNINITIALIZED");
+  it("invalidates an active session when the provider account changes", () => {
+    const result = deriveWalletSession(inputs({ provider: { ...inputs().provider, activeAccount: WRONG } }));
+    expect(result.status).toBe("DISCONNECTED");
+    expect(result.reason).toBe("ACCOUNT_CHANGED");
+    expect(result.address).toBeNull();
+    expect(result.providerObservation.activeAccount).toBe(WRONG);
   });
 
-  it("provides a controller revision guard for stale async results", () => {
-    const controller = new WalletIdentityController();
-    const first = controller.beginRevision();
-    const second = controller.beginRevision();
-    expect(controller.isCurrent(first)).toBe(false);
-    expect(controller.isCurrent(second)).toBe(true);
+  it("never adopts provider accounts while disconnected, including switching back to verified", () => {
+    const control = walletSessionReducer(activeControl(), { type: "INVALIDATE", reason: "ACCOUNT_CHANGED", epoch: 5 });
+    expect(
+      deriveWalletSession(inputs({ control, provider: { ...inputs().provider, activeAccount: WRONG } })).status,
+    ).toBe("DISCONNECTED");
+    expect(deriveWalletSession(inputs({ control })).status).toBe("DISCONNECTED");
   });
 
-  it("does not probe RPC until the identity inputs are aligned", () => {
-    expect(canProbeWalletIdentity(inputs())).toBe(true);
-    expect(canProbeWalletIdentity(inputs({ providerActiveAccount: WRONG }))).toBe(false);
-    expect(canProbeWalletIdentity(inputs({ providerActiveAccount: null, providerConnected: false }))).toBe(false);
-  });
-
-  it("marks unavailable RPC health as non-ready without changing identity addresses", () => {
-    const result = deriveWalletIdentity(
-      inputs({ networkHealth: { ...createNotCheckedWalletRpcHealth(), state: "APP_RPC_UNAVAILABLE" } }),
+  it("keeps a session invalid after a rapid provider switch away and back", () => {
+    const changedBack = deriveWalletSession(
+      inputs({
+        control: activeControl({ providerRevision: 0 }),
+        provider: { ...inputs().provider, revision: 2, activeAccount: VERIFIED },
+      }),
     );
-    expect(result.state).toBe("UNINITIALIZED");
-    expect(result.reason).toBe("RPC_UNAVAILABLE");
+    expect(changedBack.status).toBe("DISCONNECTED");
+    expect(changedBack.reason).toBe("ACCOUNT_CHANGED");
+    expect(changedBack.canUseFinancialActions).toBe(false);
+  });
+
+  it("derives WRONG_NETWORK only for an explicit active session with the verified account", () => {
+    const result = deriveWalletSession(
+      inputs({
+        control: activeControl({ status: "WRONG_NETWORK", reason: "WRONG_NETWORK" }),
+        provider: { ...inputs().provider, chainId: 1 },
+        runtime: { ...inputs().runtime, walletClientChainId: 1 },
+      }),
+    );
+    expect(result.status).toBe("WRONG_NETWORK");
+    expect(result.recoveryAction).toBe("SWITCH_TO_SEPOLIA");
     expect(result.canUseFinancialActions).toBe(false);
-    expect(result.verifiedAddress).toBe(VERIFIED);
-    expect(result.connectedAddress).toBe(VERIFIED);
+  });
+
+  it("keeps identity CONNECTED while RPC health is checking or unavailable", () => {
+    for (const state of ["CHECKING", "APP_RPC_UNAVAILABLE", "WALLET_RPC_UNAVAILABLE"] as const) {
+      const result = deriveWalletSession(inputs({ networkHealth: { ...createNotCheckedWalletRpcHealth(), state } }));
+      expect(result.status).toBe("CONNECTED");
+      expect(result.canUseFinancialActions).toBe(false);
+      expect(result.networkHealth.state).toBe(state);
+    }
+  });
+
+  it("allows financial actions only when session, runtime, chain, and RPC health align", () => {
+    expect(deriveWalletSession(inputs()).canUseFinancialActions).toBe(true);
+    expect(deriveWalletSession(inputs({ runtime: { ...inputs().runtime, walletClientAccount: WRONG } })).status).toBe(
+      "ERROR",
+    );
+  });
+
+  it("models a bounded account-selection connect attempt", () => {
+    const started = walletSessionReducer(initialWalletSessionControl(), {
+      type: "CONNECT_STARTED",
+      attemptId: "attempt-1",
+      startedAt: 100,
+      epoch: 1,
+    });
+    const waiting = walletSessionReducer(started, {
+      type: "CONNECT_PHASE",
+      attemptId: "attempt-1",
+      phase: "WAITING_FOR_ACCOUNT_SELECTION",
+      reason: "ACCOUNT_SELECTION_REQUIRED",
+    });
+    expect(waiting).toMatchObject({ intent: "CONNECTING", status: "CONNECTING", connectAttemptId: "attempt-1" });
+    const timedOut = walletSessionReducer(waiting, {
+      type: "CONNECT_FAILED",
+      attemptId: "attempt-1",
+      reason: "CONNECT_TIMEOUT",
+      epoch: 2,
+    });
+    expect(timedOut).toMatchObject({ intent: "INACTIVE", status: "ERROR", reason: "CONNECT_TIMEOUT" });
+  });
+
+  it("discards stale connect-attempt transitions", () => {
+    const started = walletSessionReducer(initialWalletSessionControl(), {
+      type: "CONNECT_STARTED",
+      attemptId: "new",
+      startedAt: 1,
+      epoch: 2,
+    });
+    expect(walletSessionReducer(started, { type: "CONNECTED", attemptId: "old", providerRevision: 0 })).toBe(started);
+    expect(
+      walletSessionReducer(started, {
+        type: "CONNECT_PHASE",
+        attemptId: "old",
+        phase: "VERIFYING_RUNTIME",
+      }),
+    ).toBe(started);
+  });
+
+  it("persists only a non-sensitive explicit active-session marker", () => {
+    const storage = memoryStorage();
+    persistActiveWalletSession(storage, VERIFIED);
+    expect(readPersistedWalletSession(storage)).toBe(VERIFIED);
+    const raw = storage.data.get(WALLET_SESSION_STORAGE_KEY) ?? "";
+    expect(raw).toContain("ACTIVE");
+    expect(raw).not.toMatch(/private|signature|token|jwt|balance|handle/iu);
+    clearPersistedWalletSession(storage);
+    expect(readPersistedWalletSession(storage)).toBeNull();
+  });
+
+  it("ignores malformed or wrong-version persisted sessions", () => {
+    const storage = memoryStorage();
+    storage.setItem(WALLET_SESSION_STORAGE_KEY, "not-json");
+    expect(readPersistedWalletSession(storage)).toBeNull();
+    storage.setItem(WALLET_SESSION_STORAGE_KEY, JSON.stringify({ version: 2, intent: "ACTIVE", address: VERIFIED }));
+    expect(readPersistedWalletSession(storage)).toBeNull();
+  });
+
+  it("bounds passive provider and RPC operations", async () => {
+    vi.useFakeTimers();
+    const pending = withWalletSessionTimeout(new Promise<never>(() => undefined), 25, "PROVIDER_TIMEOUT");
+    const rejection = expect(pending).rejects.toThrow("PROVIDER_TIMEOUT");
+    await vi.advanceTimersByTimeAsync(25);
+    await rejection;
+    vi.useRealTimers();
   });
 });

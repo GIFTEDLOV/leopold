@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  checkFinancialIdentity,
   checkFinancialWalletLink,
-  checkPrivateRevealIdentity,
   findWalletByAddress,
-  getFinancialWalletRecoveryAction,
   getAuthReadiness,
   walletsMatch,
   type AuthIdentitySnapshot,
@@ -63,43 +60,25 @@ describe("Leopold unified auth model", () => {
     expect(getAuthReadiness(getFixtureIdentityForMode("wallet"))).toBe("WALLET_AUTHENTICATED_INCOMPLETE");
     expect(getAuthReadiness(getFixtureIdentityForMode("profile-missing"))).toBe("PROFILE_INCOMPLETE");
     expect(getAuthReadiness(getFixtureIdentityForMode("ready"))).toBe("ACCOUNT_READY");
-    expect(getAuthReadiness(getFixtureIdentityForMode("mismatch"))).toBe("WALLET_REQUIRED");
+    expect(getAuthReadiness(getFixtureIdentityForMode("mismatch"))).toBe("ACCOUNT_READY");
     expect(getAuthReadiness(getFixtureIdentityForMode("expired"))).toBe("SESSION_EXPIRED");
     expect(getAuthReadiness(getFixtureIdentityForMode("conflict"))).toBe("ACCOUNT_CONFLICT");
     expect(getAuthReadiness(getFixtureIdentityForMode("x-unavailable"))).toBe("ACCOUNT_READY");
   });
 
-  it("requires the exact external wallet and Sepolia before financial actions", () => {
+  it("keeps account readiness separate from the live wallet session", () => {
     expect(walletsMatch(baseIdentity.financialWallet, baseIdentity.connectedWallet)).toBe(true);
     expect(walletsMatch(baseIdentity.financialWallet, "0x2222222222222222222222222222222222222222")).toBe(false);
-    expect(checkFinancialIdentity(baseIdentity, true)).toEqual({ allowed: true });
-    expect(
-      checkFinancialIdentity({ ...baseIdentity, connectedWallet: "0x2222222222222222222222222222222222222222" }, true),
-    ).toMatchObject({
-      allowed: false,
-      code: "FINANCIAL_IDENTITY_REQUIRED",
-    });
-    expect(checkFinancialIdentity(baseIdentity, false)).toMatchObject({ allowed: false, code: "WRONG_NETWORK" });
-  });
-
-  it("selects the safe wallet recovery branch without relinking identities", () => {
-    expect(getFinancialWalletRecoveryAction({ financialWallet: null, connectedWallet: null }, null)).toBe(
-      "LINK_WALLET",
+    expect(getAuthReadiness({ ...baseIdentity, connectedWallet: null, walletAuthenticated: false })).toBe(
+      "ACCOUNT_READY",
     );
     expect(
-      getFinancialWalletRecoveryAction({ financialWallet: baseIdentity.financialWallet, connectedWallet: null }, null),
-    ).toBe("RECONNECT_WALLET");
-    expect(
-      getFinancialWalletRecoveryAction(
-        {
-          financialWallet: baseIdentity.financialWallet,
-          connectedWallet: "0x2222222222222222222222222222222222222222",
-        },
-        false,
-      ),
-    ).toBe("SWITCH_TO_VERIFIED_WALLET");
-    expect(getFinancialWalletRecoveryAction(baseIdentity, false)).toBe("SWITCH_TO_SEPOLIA");
-    expect(getFinancialWalletRecoveryAction(baseIdentity, true)).toBe("READY");
+      getAuthReadiness({
+        ...baseIdentity,
+        connectedWallet: "0x2222222222222222222222222222222222222222",
+        walletAuthenticated: false,
+      }),
+    ).toBe("ACCOUNT_READY");
   });
 
   it("resolves the current Dynamic wallet object by verified address", () => {
@@ -112,13 +91,11 @@ describe("Leopold unified auth model", () => {
     expect(findWalletByAddress(wallets, null)).toBeNull();
   });
 
-  it("does not permit replacing a designated wallet implicitly", () => {
+  it("does not treat a temporary provider account as financial-wallet metadata", () => {
     const mismatch = getFixtureIdentityForMode("mismatch");
     expect(walletsMatch(mismatch.financialWallet, mismatch.connectedWallet)).toBe(false);
-    expect(checkFinancialIdentity(mismatch, true)).toMatchObject({
-      allowed: false,
-      code: "FINANCIAL_IDENTITY_REQUIRED",
-    });
+    expect(getAuthReadiness(mismatch)).toBe("ACCOUNT_READY");
+    expect(mismatch.financialWallet).not.toBe(mismatch.connectedWallet);
   });
 
   it("requires the authenticated email account and ownership signature before linking", () => {
@@ -143,7 +120,7 @@ describe("Leopold unified auth model", () => {
     ).toMatchObject({ allowed: false, code: "WALLET_SIGNATURE_REQUIRED" });
   });
 
-  it("blocks wallet substitution, conflicts, and stale private reveals", () => {
+  it("blocks wallet substitution during explicit linking", () => {
     expect(
       checkFinancialWalletLink(
         { ...baseIdentity, connectedWallet: "0x2222222222222222222222222222222222222222" },
@@ -153,15 +130,6 @@ describe("Leopold unified auth model", () => {
       allowed: false,
       code: "FINANCIAL_WALLET_CHANGE_REQUIRES_REAUTH",
     });
-    expect(checkPrivateRevealIdentity({ ...baseIdentity, sessionExpired: true }, true)).toMatchObject({
-      allowed: false,
-      code: "AUTH_SESSION_EXPIRED",
-    });
-    expect(checkPrivateRevealIdentity({ ...baseIdentity, accountConflict: true }, true)).toMatchObject({
-      allowed: false,
-      code: "AUTH_ACCOUNT_CONFLICT",
-    });
-    expect(checkPrivateRevealIdentity(baseIdentity, false)).toMatchObject({ allowed: false, code: "WRONG_NETWORK" });
   });
 
   it("fails closed when live provider configuration is absent and keeps X optional", () => {

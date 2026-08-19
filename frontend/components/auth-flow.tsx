@@ -281,25 +281,23 @@ export function OnboardingClient() {
         </div>
       )}
       {auth.emailVerified &&
-      (auth.readiness === "WALLET_REQUIRED" || (auth.financialWallet && walletIdentity.identity.state !== "READY")) ? (
+      (auth.readiness === "WALLET_REQUIRED" ||
+        (auth.financialWallet && walletIdentity.walletSession.status !== "CONNECTED")) ? (
         <button
           className="button secondary"
           onClick={() => {
-            if (walletIdentity.identity.recoveryAction === "SWITCH_TO_VERIFIED_WALLET")
-              void walletIdentity.switchToVerifiedWallet();
-            else if (walletIdentity.identity.recoveryAction === "SWITCH_TO_SEPOLIA")
-              void walletIdentity.switchToSepolia();
-            else if (auth.financialWallet) void walletIdentity.reconnectVerifiedWallet();
+            if (walletIdentity.walletSession.status === "WRONG_NETWORK") void walletIdentity.switchToSepolia();
+            else if (auth.financialWallet) void walletIdentity.connectVerifiedWallet();
             else auth.openWalletLink();
           }}
           type="button"
         >
           {auth.financialWallet
-            ? walletIdentity.identity.recoveryAction === "SWITCH_TO_SEPOLIA"
+            ? walletIdentity.walletSession.status === "WRONG_NETWORK"
               ? "Switch to Sepolia"
-              : walletIdentity.identity.recoveryAction === "SWITCH_TO_VERIFIED_WALLET"
-                ? "Switch to verified wallet"
-                : "Reconnect verified wallet"
+              : walletIdentity.walletSession.status === "CONNECTING"
+                ? "Connecting wallet…"
+                : "Connect verified wallet"
             : "Connect wallet now"}
         </button>
       ) : null}

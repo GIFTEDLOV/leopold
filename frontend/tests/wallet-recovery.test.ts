@@ -19,6 +19,13 @@ describe("existing financial wallet recovery", () => {
   it("syncs a disconnected wallet before switching primary state", async () => {
     const target = wallet({
       isConnected: vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true),
+      connector: {
+        getConnectedAccounts: vi
+          .fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([VERIFIED])
+          .mockResolvedValue([VERIFIED]),
+      },
     });
     const switchWallet = vi.fn().mockResolvedValue(undefined);
     const onProviderAccount = vi.fn();
@@ -34,10 +41,10 @@ describe("existing financial wallet recovery", () => {
     expect(target.sync).toHaveBeenCalledOnce();
     expect(switchWallet).toHaveBeenCalledOnce();
     expect(onProviderAccount).toHaveBeenCalledWith(VERIFIED);
-    expect(result).toEqual({ connected: true, activeAddress: VERIFIED });
+    expect(result).toEqual({ connected: true, activeAddress: VERIFIED, reason: "VERIFIED_ACCOUNT", synced: true });
   });
 
-  it("does not consider primary-wallet selection enough without provider connection", async () => {
+  it("does not sync or adopt a wrong active provider account", async () => {
     const target = wallet({
       isConnected: vi.fn().mockResolvedValue(false),
       sync: vi.fn().mockResolvedValue(undefined),
@@ -53,9 +60,14 @@ describe("existing financial wallet recovery", () => {
       onProviderAccount: vi.fn(),
     });
 
-    expect(target.sync).toHaveBeenCalledOnce();
+    expect(target.sync).not.toHaveBeenCalled();
     expect(switchWallet).not.toHaveBeenCalled();
-    expect(result).toEqual({ connected: false, activeAddress: WRONG });
+    expect(result).toEqual({
+      connected: false,
+      activeAddress: WRONG,
+      reason: "ACCOUNT_SELECTION_REQUIRED",
+      synced: false,
+    });
   });
 
   it("does not sync a connected wallet whose provider account is wrong", async () => {
@@ -74,7 +86,12 @@ describe("existing financial wallet recovery", () => {
     });
 
     expect(target.sync).not.toHaveBeenCalled();
-    expect(result).toEqual({ connected: false, activeAddress: WRONG });
+    expect(result).toEqual({
+      connected: false,
+      activeAddress: WRONG,
+      reason: "ACCOUNT_SELECTION_REQUIRED",
+      synced: false,
+    });
   });
 
   it("rechecks the provider account after switching Dynamic primary state", async () => {
@@ -90,13 +107,19 @@ describe("existing financial wallet recovery", () => {
       onProviderAccount: vi.fn(),
     });
 
-    expect(result).toEqual({ connected: false, activeAddress: WRONG });
+    expect(result).toEqual({
+      connected: false,
+      activeAddress: WRONG,
+      reason: "ACCOUNT_SELECTION_REQUIRED",
+      synced: false,
+    });
   });
 
   it("propagates sync cancellation and performs no automatic retry", async () => {
     const target = wallet({
       isConnected: vi.fn().mockResolvedValue(false),
       sync: vi.fn().mockRejectedValue(new Error("cancelled")),
+      connector: { getConnectedAccounts: vi.fn().mockResolvedValue([]) },
     });
 
     await expect(

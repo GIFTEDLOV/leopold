@@ -4,6 +4,7 @@ import { sanitizeTechnicalDetail } from "./errors";
 
 export const LEOPOLD_SEPOLIA_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
 export const FINANCIAL_NETWORK_HEALTH_CACHE_TTL_MS = 5_000;
+export const FINANCIAL_NETWORK_PROBE_TIMEOUT_MS = 10_000;
 
 export type FinancialNetworkHealthState =
   | "IDLE"
@@ -39,6 +40,7 @@ export type FinancialNetworkPreflightInput = {
   walletClient: RpcRequester | null;
   publicClient: RpcRequester | null;
   dynamicWalletChainId?: number | null;
+  timeoutMs?: number;
   now?: () => number;
 };
 
@@ -113,8 +115,23 @@ function result(
   };
 }
 
-async function request(client: RpcRequester, method: string, params?: readonly unknown[]): Promise<unknown> {
-  return client.request({ method, params });
+async function request(
+  client: RpcRequester,
+  method: string,
+  params?: readonly unknown[],
+  timeoutMs = FINANCIAL_NETWORK_PROBE_TIMEOUT_MS,
+): Promise<unknown> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      client.request({ method, params }),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(`RPC_TIMEOUT:${method}`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
 }
 
 /**
@@ -152,7 +169,9 @@ export async function runFinancialNetworkPreflight(
 
   let walletClientChainId: number | null;
   try {
-    walletClientChainId = normalizeNetworkChainId(await request(input.walletClient, "eth_chainId"));
+    walletClientChainId = normalizeNetworkChainId(
+      await request(input.walletClient, "eth_chainId", undefined, input.timeoutMs),
+    );
   } catch (error) {
     return result("WALLET_RPC_UNAVAILABLE", input, {
       technicalDetail: sanitizeTechnicalDetail(error),
@@ -170,19 +189,23 @@ export async function runFinancialNetworkPreflight(
   const [appProbe, walletProbe] = await Promise.allSettled([
     (async () => {
       if (!input.publicClient) throw new Error("APP_RPC_UNAVAILABLE:public-client-missing");
-      const appChainId = normalizeNetworkChainId(await request(input.publicClient, "eth_chainId"));
+      const appChainId = normalizeNetworkChainId(
+        await request(input.publicClient, "eth_chainId", undefined, input.timeoutMs),
+      );
       if (appChainId !== LEOPOLD_CHAIN_ID) {
         throw new Error(`APP_RPC_UNAVAILABLE:chain-${appChainId ?? "unknown"}`);
       }
-      const blockNumber = await request(input.publicClient, "eth_blockNumber");
+      const blockNumber = await request(input.publicClient, "eth_blockNumber", undefined, input.timeoutMs);
       if (!isRpcQuantity(blockNumber)) throw new Error("APP_RPC_UNAVAILABLE:invalid-block-number");
       return appChainId;
     })(),
     (async () => {
-      const nonce = await request(input.walletClient as RpcRequester, "eth_getTransactionCount", [
-        input.financialWallet,
-        "latest",
-      ]);
+      const nonce = await request(
+        input.walletClient as RpcRequester,
+        "eth_getTransactionCount",
+        [input.financialWallet, "latest"],
+        input.timeoutMs,
+      );
       if (!isRpcQuantity(nonce)) throw new Error("WALLET_RPC_UNAVAILABLE:invalid-nonce");
     })(),
   ]);

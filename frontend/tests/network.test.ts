@@ -168,6 +168,19 @@ describe("financial wallet network authority", () => {
     );
   });
 
+  it("turns a never-settling wallet RPC probe into a finite typed failure", async () => {
+    vi.useFakeTimers();
+    const probe = makePreflight({ walletRequest: () => new Promise<never>(() => undefined) });
+    probe.input.timeoutMs = 25;
+    const pending = runFinancialNetworkPreflight(probe.input);
+    await vi.advanceTimersByTimeAsync(25);
+    await expect(pending).resolves.toMatchObject({
+      state: "WALLET_RPC_UNAVAILABLE",
+      technicalDetail: expect.stringContaining("RPC_TIMEOUT:eth_chainId"),
+    });
+    vi.useRealTimers();
+  });
+
   it("walks nested provider causes and sanitizes credentials", async () => {
     const probe = makePreflight({
       walletRequest: (method) =>

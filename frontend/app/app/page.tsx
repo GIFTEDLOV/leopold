@@ -7,12 +7,9 @@ import { privateBalanceLabel } from "@/lib/leopold/private-balance";
 import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { leopoldConfig } from "@/lib/leopold/config";
 import { VaultCards } from "@/components/vault-cards";
-import { useWalletIdentity } from "@/components/wallet-identity-provider";
 
 export default function DashboardPage() {
   const financial = useFinancial();
-  const walletIdentity = useWalletIdentity();
-  const walletMismatch = walletIdentity.identity.state === "WALLET_MISMATCH";
   const privateBalanceBusy =
     financial.privateBalanceStatus === "READING_HANDLE" ||
     financial.privateBalanceStatus === "AWAITING_DECRYPT_AUTHORIZATION" ||
@@ -49,22 +46,14 @@ export default function DashboardPage() {
           <div className="stat">{privateBalanceLabel(financial.privateBalanceStatus, financial.privateBalance)}</div>
           <button
             className="button ghost small"
-            disabled={privateBalanceBusy || (!financial.financialActionsEnabled && !walletMismatch)}
+            disabled={privateBalanceBusy || !financial.financialActionsEnabled}
             onClick={() => {
-              if (walletMismatch) void walletIdentity.switchToVerifiedWallet();
-              else if (financial.privateBalanceRevealed) financial.hidePrivateBalance();
+              if (financial.privateBalanceRevealed) financial.hidePrivateBalance();
               else void financial.revealPrivateBalance().catch(() => undefined);
             }}
           >
-            {walletMismatch
-              ? "Switch to verified wallet"
-              : privateBalanceBusy
-                ? "Revealing…"
-                : financial.privateBalanceRevealed
-                  ? "Hide"
-                  : "Reveal"}
+            {privateBalanceBusy ? "Revealing…" : financial.privateBalanceRevealed ? "Hide" : "Reveal"}
           </button>
-          {walletMismatch ? <span className="subtle">Switch wallets before revealing private USDC.</span> : null}
           {financial.error ? (
             <div className="inline-notice error" role="alert">
               <strong>{financial.error.message}</strong>

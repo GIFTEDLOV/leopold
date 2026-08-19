@@ -412,6 +412,28 @@ input:focus-visible {
   min-height: 42px;
   padding: 0 13px;
 }
+.account-control {
+  position: relative;
+}
+.account-popover {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(24, 39, 31, 0.14);
+  display: grid;
+  gap: 6px;
+  min-width: 240px;
+  padding: 16px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+}
+.account-popover span {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
 .dot {
   background: #53a475;
   border-radius: 50%;

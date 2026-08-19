@@ -1,4 +1,5 @@
 import { normalizeWalletAddress, walletsMatch } from "./readiness";
+import { withWalletSessionTimeout } from "./wallet-identity";
 import type { Address } from "viem";
 
 export type ExistingWalletConnection = {
@@ -14,6 +15,8 @@ export type ExistingWalletConnection = {
 export type ExistingWalletRecoveryResult = {
   connected: boolean;
   activeAddress: Address | null;
+  reason: "VERIFIED_ACCOUNT" | "ACCOUNT_SELECTION_REQUIRED" | "PROVIDER_DISCONNECTED";
+  synced: boolean;
 };
 
 export async function reconnectExistingWallet({
@@ -29,18 +32,41 @@ export async function reconnectExistingWallet({
   switchWallet(): Promise<void>;
   onProviderAccount(address: Address | null): void;
 }): Promise<ExistingWalletRecoveryResult> {
-  if (!(await wallet.isConnected())) await wallet.sync();
-  const [activeAccount] = await wallet.connector.getConnectedAccounts();
-  const activeAddress = normalizeWalletAddress(activeAccount ?? null);
+  const readAccounts = () =>
+    withWalletSessionTimeout(wallet.connector.getConnectedAccounts(), undefined, "PROVIDER_ACCOUNT_TIMEOUT");
+  let [activeAccount] = await readAccounts();
+  let activeAddress = normalizeWalletAddress(activeAccount ?? null);
   onProviderAccount(activeAddress);
-  if (!walletsMatch(activeAddress, verifiedAddress)) return { connected: false, activeAddress };
-  if (!isPrimary) await switchWallet();
-  if (!(await wallet.isConnected())) return { connected: false, activeAddress };
-  const [finalAccount] = await wallet.connector.getConnectedAccounts();
+  if (activeAddress && !walletsMatch(activeAddress, verifiedAddress)) {
+    return { connected: false, activeAddress, reason: "ACCOUNT_SELECTION_REQUIRED", synced: false };
+  }
+
+  let synced = false;
+  if (!activeAddress) {
+    const connected = await withWalletSessionTimeout(wallet.isConnected(), undefined, "PROVIDER_CONNECTION_TIMEOUT");
+    if (!connected) {
+      await withWalletSessionTimeout(wallet.sync(), undefined, "PROVIDER_SYNC_TIMEOUT");
+      synced = true;
+    }
+    [activeAccount] = await readAccounts();
+    activeAddress = normalizeWalletAddress(activeAccount ?? null);
+    onProviderAccount(activeAddress);
+  }
+  if (!activeAddress) {
+    return { connected: false, activeAddress: null, reason: "PROVIDER_DISCONNECTED", synced };
+  }
+  if (!walletsMatch(activeAddress, verifiedAddress)) {
+    return { connected: false, activeAddress, reason: "ACCOUNT_SELECTION_REQUIRED", synced };
+  }
+
+  if (!isPrimary) await withWalletSessionTimeout(switchWallet(), undefined, "DYNAMIC_PRIMARY_TIMEOUT");
+  const [finalAccount] = await readAccounts();
   const finalAddress = normalizeWalletAddress(finalAccount ?? null);
   onProviderAccount(finalAddress);
   return {
     connected: walletsMatch(finalAddress, verifiedAddress),
     activeAddress: finalAddress,
+    reason: walletsMatch(finalAddress, verifiedAddress) ? "VERIFIED_ACCOUNT" : "ACCOUNT_SELECTION_REQUIRED",
+    synced,
   };
 }

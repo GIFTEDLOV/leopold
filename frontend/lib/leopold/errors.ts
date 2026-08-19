@@ -108,7 +108,17 @@ export function classifyLeopoldError(error: unknown): LeopoldError {
   const detail = errorDetail(error);
   const lower = detail.toLowerCase();
   let code: LeopoldErrorCode = "UNKNOWN";
-  if (/wallet_disconnected/u.test(lower)) code = "WALLET_DISCONNECTED";
+  if (
+    /wallet_session:(?:user_disconnected|account_changed|provider_disconnected|no_active_session|connect_cancelled)/u.test(
+      lower,
+    )
+  )
+    code = "WALLET_DISCONNECTED";
+  else if (/wallet_session:wrong_network/u.test(lower)) code = "WRONG_NETWORK";
+  else if (/wallet_session:wallet_rpc_unavailable/u.test(lower)) code = "WALLET_RPC_UNAVAILABLE";
+  else if (/wallet_session:app_rpc_unavailable/u.test(lower)) code = "APP_RPC_UNAVAILABLE";
+  else if (/wallet_session:(?:wagmi|walletclient|dynamic)_/u.test(lower)) code = "WALLET_SIGNER_MISMATCH";
+  else if (/wallet_disconnected/u.test(lower)) code = "WALLET_DISCONNECTED";
   else if (/wallet_mismatch/u.test(lower)) code = "WALLET_MISMATCH";
   else if (/wallet_identity:provider_account_unavailable/u.test(lower)) code = "WALLET_DISCONNECTED";
   else if (/wallet_identity:provider_account_mismatch/u.test(lower)) code = "WALLET_MISMATCH";

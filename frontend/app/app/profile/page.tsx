@@ -12,7 +12,7 @@ export default function ProfilePage() {
   const walletIdentity = useWalletIdentity();
   const router = useRouter();
   const [amount, setAmount] = useState("1");
-  const walletMismatch = Boolean(walletIdentity.identity.state === "WALLET_MISMATCH");
+  const session = walletIdentity.walletSession;
   return (
     <div className="content">
       <div className="page-heading">
@@ -51,25 +51,17 @@ export default function ProfilePage() {
           </div>
           <div className="list-row">
             <div className="list-main">
-              <strong>Connected wallet</strong>
-              <span>
-                {walletIdentity.identity.connectedAddress
-                  ? walletMismatch
-                    ? "Different from your verified financial wallet"
-                    : walletIdentity.identity.state === "READY"
-                      ? "Ownership verified"
-                      : "Signature required"
-                  : "Disconnected"}
-              </span>
+              <strong>Wallet session</strong>
+              <span>{session.status === "CONNECTED" ? "Ethereum Sepolia" : session.status}</span>
             </div>
-            <span>
-              {walletIdentity.identity.connectedAddress
-                ? `${walletIdentity.identity.connectedAddress.slice(0, 6)}…${walletIdentity.identity.connectedAddress.slice(-4)}`
-                : "Not connected"}
-            </span>
+            <span>{session.status === "CONNECTED" ? "Connected" : "Disconnected"}</span>
           </div>
           <div className="form-row">
-            <button className="button secondary" onClick={financial.disconnectWallet}>
+            <button
+              className="button secondary"
+              onClick={walletIdentity.disconnectLeopoldWallet}
+              disabled={session.status !== "CONNECTED" && session.status !== "WRONG_NETWORK"}
+            >
               Disconnect wallet
             </button>
             <button className="button secondary" onClick={() => void auth.signOut().then(() => router.push("/login"))}>
@@ -130,7 +122,7 @@ export default function ProfilePage() {
             />
             <button
               className="button secondary"
-              disabled={walletIdentity.identity.state !== "READY" || !financial.financialActionsEnabled}
+              disabled={session.status !== "CONNECTED" || !financial.financialActionsEnabled}
               onClick={() => {
                 void financial.makePublic(amount).catch(() => undefined);
               }}

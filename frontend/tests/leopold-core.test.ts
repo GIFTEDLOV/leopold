@@ -87,6 +87,12 @@ describe("Leopold frontend core", () => {
     expect(classifyLeopoldError(new Error("WALLET_DISCONNECTED: RPC Request failed")).message).toBe(
       "Connect your verified financial wallet to continue.",
     );
+    expect(classifyLeopoldError(new Error("WALLET_SESSION:USER_DISCONNECTED")).code).toBe("WALLET_DISCONNECTED");
+    expect(classifyLeopoldError(new Error("WALLET_SESSION:ACCOUNT_CHANGED")).code).toBe("WALLET_DISCONNECTED");
+    expect(classifyLeopoldError(new Error("WALLET_SESSION:WRONG_NETWORK")).code).toBe("WRONG_NETWORK");
+    expect(classifyLeopoldError(new Error("WALLET_SESSION:WALLETCLIENT_ACCOUNT_MISMATCH")).code).toBe(
+      "WALLET_SIGNER_MISMATCH",
+    );
     expect(
       classifyLeopoldError(
         new Error(
