@@ -3,6 +3,7 @@ import {
   checkFinancialIdentity,
   checkFinancialWalletLink,
   checkPrivateRevealIdentity,
+  findWalletByAddress,
   getFinancialWalletRecoveryAction,
   getAuthReadiness,
   walletsMatch,
@@ -99,6 +100,16 @@ describe("Leopold unified auth model", () => {
     ).toBe("SWITCH_TO_VERIFIED_WALLET");
     expect(getFinancialWalletRecoveryAction(baseIdentity, false)).toBe("SWITCH_TO_SEPOLIA");
     expect(getFinancialWalletRecoveryAction(baseIdentity, true)).toBe("READY");
+  });
+
+  it("resolves the current Dynamic wallet object by verified address", () => {
+    const wallets = [
+      { id: "stale", address: "0x2222222222222222222222222222222222222222" },
+      { id: "verified", address: baseIdentity.financialWallet! },
+    ];
+    expect(findWalletByAddress(wallets, baseIdentity.financialWallet)?.id).toBe("verified");
+    expect(findWalletByAddress(wallets, "0x3333333333333333333333333333333333333333")).toBeNull();
+    expect(findWalletByAddress(wallets, null)).toBeNull();
   });
 
   it("does not permit replacing a designated wallet implicitly", () => {

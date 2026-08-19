@@ -27,8 +27,10 @@ import { normalizeEmail } from "@/lib/auth/email";
 import { fixtureWalletA, getFixtureIdentity } from "@/lib/auth/fixtures";
 import {
   checkFinancialWalletLink,
+  findWalletByAddress,
   getAuthReadiness,
   normalizeWalletAddress,
+  walletsMatch,
   type AuthIdentitySnapshot,
   type AuthReadinessState,
 } from "@/lib/auth/readiness";
@@ -111,6 +113,9 @@ function errorMessage(error: unknown): string {
   }
   if (/rate|too many|attempt/i.test(`${code} ${message}`))
     return "Too many attempts. Please wait and request a new code.";
+  if (/cannot make this wallet active|compatible connector|wallet_not_found/i.test(`${code} ${message}`)) {
+    return "Select your verified wallet account in Rabby or MetaMask, then try again.";
+  }
   if (/network|fetch|timeout|connection/i.test(`${code} ${message}`))
     return "Authentication is temporarily unavailable. Try again shortly.";
   return "Authentication could not be completed. Try again.";
@@ -123,6 +128,16 @@ function readMetadata(user: ReturnType<typeof useDynamicContext>["user"]): Recor
 
 function hasVerifiedEmail(user: ReturnType<typeof useDynamicContext>["user"]): boolean {
   return Boolean(user?.verifiedCredentials?.some((credential) => credential.format === "email"));
+}
+
+type InjectedProvider = {
+  request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>;
+};
+
+function getInjectedProvider(): InjectedProvider | null {
+  if (typeof window === "undefined") return null;
+  const provider = (window as unknown as { ethereum?: InjectedProvider }).ethereum;
+  return provider?.request ? provider : null;
 }
 
 function DynamicAuthState({ children }: { children: ReactNode }) {
@@ -300,13 +315,29 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
           setShowLinkNewWalletModal(true);
           return;
         }
-        const wallet = wallets.find(
-          (candidate) =>
-            candidate.connector.isEmbeddedWallet !== true &&
-            candidate.address.toLowerCase() === financialWallet.toLowerCase(),
+        const wallet = findWalletByAddress(
+          wallets.filter((candidate) => candidate.connector.isEmbeddedWallet !== true),
+          financialWallet,
         );
         if (!wallet) {
-          setAuthError("Reconnect your verified financial wallet in your wallet provider, then retry.");
+          const provider = getInjectedProvider();
+          if (!provider) {
+            setAuthError("No compatible wallet provider is available. Open Rabby or MetaMask, then retry.");
+            return;
+          }
+          await withBusy(async () => {
+            const requestedAccounts = await provider.request({ method: "eth_requestAccounts" });
+            if (
+              Array.isArray(requestedAccounts) &&
+              requestedAccounts.some((candidate) => typeof candidate === "string" && walletsMatch(candidate, financialWallet))
+            ) {
+              setAuthError(null);
+              return;
+            }
+            setAuthError(
+              "Select your verified wallet account in Rabby or MetaMask, then click Reconnect verified wallet.",
+            );
+          });
           return;
         }
         await withBusy(() => switchWallet(wallet.id));
@@ -374,6 +405,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       user,
       username,
       verifyOneTimePassword,
+      wallets,
       walletAuthenticated,
       withBusy,
       xLinked,

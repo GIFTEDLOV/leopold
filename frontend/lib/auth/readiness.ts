@@ -36,6 +36,14 @@ export function walletsMatch(left: string | null | undefined, right: string | nu
   return Boolean(normalizedLeft && normalizedRight && normalizedLeft.toLowerCase() === normalizedRight.toLowerCase());
 }
 
+export function findWalletByAddress<T extends { address: string }>(
+  wallets: readonly T[],
+  address: string | null | undefined,
+): T | null {
+  if (!normalizeWalletAddress(address)) return null;
+  return wallets.find((wallet) => walletsMatch(wallet.address, address)) ?? null;
+}
+
 export type FinancialWalletRecoveryAction =
   | "LINK_WALLET"
   | "RECONNECT_WALLET"

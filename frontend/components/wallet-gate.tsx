@@ -5,19 +5,10 @@ import Link from "next/link";
 import { useAuth } from "./auth-provider";
 import { useFinancial } from "./financial-provider";
 import { getAuthHydrationPhase } from "@/lib/auth/hydration";
-import { getFinancialWalletRecoveryAction } from "@/lib/auth/readiness";
 
 export function WalletGate({ children }: { children: ReactNode }) {
   const financial = useFinancial();
   const auth = useAuth();
-  const recoveryAction = getFinancialWalletRecoveryAction(
-    auth.identity,
-    financial.networkHealth.state === "WRONG_NETWORK"
-      ? false
-      : financial.networkHealth.state === "HEALTHY"
-        ? true
-        : null,
-  );
   if (getAuthHydrationPhase(auth.clientReady) === "AUTH_INITIALIZING")
     return (
       <div className="wallet-gate" data-testid="auth-initializing">
@@ -83,7 +74,7 @@ export function WalletGate({ children }: { children: ReactNode }) {
         ) : null}
       </div>
     );
-  if (auth.authenticated && auth.readiness === "WALLET_REQUIRED" && recoveryAction === "LINK_WALLET")
+  if (auth.authenticated && auth.readiness === "WALLET_REQUIRED" && !auth.financialWallet)
     return (
       <>
         <div className="inline-notice" role="status">
@@ -124,22 +115,6 @@ export function WalletGate({ children }: { children: ReactNode }) {
           </div>
         ) : null}
       </div>
-    );
-  if (!financial.connected && auth.authenticated && recoveryAction === "RECONNECT_WALLET")
-    return (
-      <>
-        <div className="inline-notice" role="status">
-          <strong>Connect your verified financial wallet to continue.</strong> Your Leopold financial wallet is already
-          linked; this reconnects that wallet instead of linking a new one.
-          <button
-            className="button secondary"
-            onClick={() => void auth.reconnectFinancialWallet().catch(() => undefined)}
-          >
-            Connect financial wallet
-          </button>
-        </div>
-        {children}
-      </>
     );
   return children;
 }

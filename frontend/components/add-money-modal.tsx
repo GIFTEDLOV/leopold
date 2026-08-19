@@ -97,7 +97,7 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             <h3>Reconnect your verified financial wallet</h3>
             <p className="subtle">This Leopold account already has a verified financial wallet.</p>
             <button className="button" onClick={() => void auth.reconnectFinancialWallet().catch(() => undefined)}>
-              Connect financial wallet
+              Reconnect verified wallet
             </button>
           </div>
         ) : healthState === "UNKNOWN" ? (

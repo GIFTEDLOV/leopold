@@ -116,7 +116,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </strong>
             <span>
               {healthState === "WALLET_DISCONNECTED"
-                ? "Financial and private actions remain paused until your verified external wallet is connected."
+                ? "Financial and private actions remain paused until your verified wallet is connected."
                 : healthState === "WALLET_MISMATCH"
                   ? `Verified: ${auth.financialWallet ? `${auth.financialWallet.slice(0, 6)}…${auth.financialWallet.slice(-4)}` : "Not linked"} · Connected: ${financial.accountLabel}`
                   : healthState === "WALLET_RPC_UNAVAILABLE"
@@ -125,6 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       ? "Leopold cannot currently reach its configured public Sepolia service. Financial actions remain paused."
                       : "Financial actions remain paused until both the wallet and Leopold's public Sepolia connection are confirmed."}
             </span>
+            {auth.authError ? <span className="error">{auth.authError}</span> : null}
             {healthState === "WALLET_MISMATCH" ? (
               <button
                 className="button secondary"

@@ -279,8 +279,15 @@ export function OnboardingClient() {
         </div>
       )}
       {auth.emailVerified && auth.readiness === "WALLET_REQUIRED" ? (
-        <button className="button secondary" onClick={auth.openWalletLink} type="button">
-          Connect wallet now
+        <button
+          className="button secondary"
+          onClick={() => {
+            if (auth.financialWallet) void auth.reconnectFinancialWallet().catch(() => undefined);
+            else auth.openWalletLink();
+          }}
+          type="button"
+        >
+          {auth.financialWallet ? "Reconnect verified wallet" : "Connect wallet now"}
         </button>
       ) : null}
       <Link className="button secondary" href="/app">
