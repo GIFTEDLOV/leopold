@@ -37,6 +37,7 @@ import {
 import { canonicalizeUsername } from "@/lib/auth/username";
 import { normalizeNetworkChainId } from "@/lib/leopold/network";
 import { getAuthHydrationPhase } from "@/lib/auth/hydration";
+import { reconnectExistingWallet } from "@/lib/auth/wallet-recovery";
 
 const FINANCIAL_WALLET_METADATA_KEY = "leopoldFinancialWallet";
 // Dynamic custom fields are stored in user.metadata under the configured
@@ -76,6 +77,7 @@ export type AuthContextValue = {
   resendEmailOtp(): Promise<void>;
   openWalletAuthentication(): void;
   openWalletLink(): void;
+  refreshConnectedWallet(): Promise<Address | null>;
   reconnectFinancialWallet(): Promise<void>;
   confirmCurrentWalletAsFinancial(): Promise<void>;
   saveUsername(username: string): Promise<void>;
@@ -101,6 +103,9 @@ function errorMessage(error: unknown): string {
   }
   if (/financial_wallet_change_requires_reauth/i.test(`${code} ${message}`)) {
     return "The verified financial wallet cannot be replaced automatically.";
+  }
+  if (/wallet_address_mismatch|not currently active|wallet.*active/i.test(`${code} ${message}`)) {
+    return "Select your verified wallet account in Rabby or MetaMask, then try again.";
   }
   if (/invalid_username|username.*(exist|taken|unique)/i.test(`${code} ${message}`)) {
     return "That username is unavailable. Choose another one.";
@@ -155,6 +160,8 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   const [accountConflict, setAccountConflict] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [activeNetworkId, setActiveNetworkId] = useState<number | null>(null);
+  const [providerAccount, setProviderAccount] = useState<Address | null>(null);
+  const [providerAccountKnown, setProviderAccountKnown] = useState(false);
   const clientMounted = useSyncExternalStore(
     noClientHydrationSubscription,
     clientMountedSnapshot,
@@ -163,8 +170,9 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
 
   const clientReady = clientMounted && sdkHasLoaded;
 
-  const connectedWallet = normalizeWalletAddress(account.address);
   const financialWallet = normalizeWalletAddress(String(readMetadata(user)[FINANCIAL_WALLET_METADATA_KEY] ?? ""));
+  const wagmiConnectedWallet = normalizeWalletAddress(account.address);
+  const connectedWallet = providerAccountKnown ? providerAccount : wagmiConnectedWallet;
   const activeWalletAddress = normalizeWalletAddress(String(primaryWallet?.address ?? ""));
   const currentWallet = wallets.find(
     (wallet) =>
@@ -209,6 +217,78 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   const readiness = getAuthReadiness(identity);
   const xLinked = dynamicXEnabled && social.isLinked(twitterProvider);
 
+  const providerWallet = useCallback(() => {
+    if (primaryWallet && primaryWallet.connector.isEmbeddedWallet !== true) return primaryWallet;
+    return findWalletByAddress(
+      wallets.filter((wallet) => wallet.connector.isEmbeddedWallet !== true),
+      financialWallet,
+    );
+  }, [financialWallet, primaryWallet, wallets]);
+
+  const readProviderAccount = useCallback(async (wallet: typeof primaryWallet): Promise<Address | null> => {
+    if (!wallet || wallet.connector.isEmbeddedWallet === true) {
+      setProviderAccount(null);
+      setProviderAccountKnown(true);
+      return null;
+    }
+    try {
+      const [accountAddress] = await wallet.connector.getConnectedAccounts();
+      const next = normalizeWalletAddress(accountAddress ?? null);
+      setProviderAccount(next);
+      setProviderAccountKnown(true);
+      return next;
+    } catch {
+      setProviderAccount(null);
+      setProviderAccountKnown(true);
+      return null;
+    }
+  }, []);
+
+  const refreshConnectedWallet = useCallback(async (): Promise<Address | null> => {
+    return readProviderAccount(providerWallet());
+  }, [providerWallet, readProviderAccount]);
+
+  useEffect(() => {
+    if (!clientReady) return;
+    const timeout = window.setTimeout(() => {
+      setProviderAccountKnown(false);
+      void refreshConnectedWallet();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [clientReady, refreshConnectedWallet]);
+
+  useEffect(() => {
+    const observedConnectors = Array.from(
+      new Set(
+        [
+          primaryWallet?.connector,
+          ...wallets.filter((wallet) => wallet.connector.isEmbeddedWallet !== true).map((wallet) => wallet.connector),
+        ].filter(Boolean),
+      ),
+    );
+    const onAccountChange = ({ accounts }: { accounts: string[] }) => {
+      const next = normalizeWalletAddress(accounts[0] ?? null);
+      setProviderAccount(next);
+      setProviderAccountKnown(true);
+    };
+    const onDisconnect = () => {
+      setProviderAccount(null);
+      setProviderAccountKnown(true);
+    };
+    for (const connector of observedConnectors) {
+      if (!connector) continue;
+      connector.on("accountChange", onAccountChange);
+      connector.on("disconnect", onDisconnect);
+    }
+    return () => {
+      for (const connector of observedConnectors) {
+        if (!connector) continue;
+        connector.off("accountChange", onAccountChange);
+        connector.off("disconnect", onDisconnect);
+      }
+    };
+  }, [primaryWallet, wallets]);
+
   const refreshActiveNetwork = useCallback(async (): Promise<number | null> => {
     if (!primaryWallet) {
       setActiveNetworkId(null);
@@ -231,6 +311,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   });
   useDynamicEvents("primaryWalletChanged", () => {
     void refreshActiveNetwork().catch(() => setActiveNetworkId(null));
+    void refreshConnectedWallet();
   });
 
   const withBusy = useCallback(async (operation: () => Promise<void>) => {
@@ -309,6 +390,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
         }
         setShowLinkNewWalletModal(true);
       },
+      refreshConnectedWallet,
       reconnectFinancialWallet: async () => {
         if (!financialWallet) {
           setAuthError(null);
@@ -329,7 +411,9 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
             const requestedAccounts = await provider.request({ method: "eth_requestAccounts" });
             if (
               Array.isArray(requestedAccounts) &&
-              requestedAccounts.some((candidate) => typeof candidate === "string" && walletsMatch(candidate, financialWallet))
+              requestedAccounts.some(
+                (candidate) => typeof candidate === "string" && walletsMatch(candidate, financialWallet),
+              )
             ) {
               setAuthError(null);
               return;
@@ -340,7 +424,27 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
           });
           return;
         }
-        await withBusy(() => switchWallet(wallet.id));
+        await withBusy(async () => {
+          const recovery = await reconnectExistingWallet({
+            wallet,
+            verifiedAddress: financialWallet,
+            isPrimary: primaryWallet?.id === wallet.id,
+            switchWallet: () => switchWallet(wallet.id),
+            onProviderAccount: (address) => {
+              setProviderAccount(address);
+              setProviderAccountKnown(true);
+            },
+          });
+          if (!recovery.connected) {
+            setAuthError(
+              "Select your verified wallet account in Rabby or MetaMask, then click Reconnect verified wallet.",
+            );
+            return;
+          }
+          const network = normalizeNetworkChainId(await wallet.getNetwork());
+          setActiveNetworkId(network);
+          await refreshConnectedWallet();
+        });
       },
       confirmCurrentWalletAsFinancial: async () =>
         withBusy(async () => {
@@ -411,6 +515,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       xLinked,
       primaryWallet,
       refreshActiveNetwork,
+      refreshConnectedWallet,
     ],
   );
 
@@ -453,6 +558,7 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       resendEmailOtp: async () => undefined,
       openWalletAuthentication: () => undefined,
       openWalletLink: () => undefined,
+      refreshConnectedWallet: async () => identity.connectedWallet,
       reconnectFinancialWallet: async () => undefined,
       confirmCurrentWalletAsFinancial: async () => undefined,
       saveUsername: async () => undefined,

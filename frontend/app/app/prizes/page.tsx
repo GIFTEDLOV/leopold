@@ -5,9 +5,12 @@ import { leopoldConfig } from "@/lib/leopold/config";
 import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { ConfigurationStatus, FixtureStatus } from "@/components/configuration-status";
 import { useFinancial } from "@/components/financial-provider";
+import { useAuth } from "@/components/auth-provider";
 
 export default function PrizesPage() {
   const financial = useFinancial();
+  const auth = useAuth();
+  const walletMismatch = financial.networkHealth.state === "WALLET_MISMATCH";
   return (
     <div className="content">
       <FixtureStatus />
@@ -70,12 +73,13 @@ export default function PrizesPage() {
               <button
                 className="button secondary"
                 data-testid={`reveal-result-${vault.slug}`}
-                disabled={!financial.financialActionsEnabled || !resultReady}
+                disabled={(!financial.financialActionsEnabled && !walletMismatch) || (!resultReady && !walletMismatch)}
                 onClick={() => {
-                  void financial.revealResult(vault.slug).catch(() => undefined);
+                  if (walletMismatch) void auth.reconnectFinancialWallet().catch(() => undefined);
+                  else void financial.revealResult(vault.slug).catch(() => undefined);
                 }}
               >
-                Reveal Private Result
+                {walletMismatch ? "Switch to verified wallet" : "Reveal Private Result"}
               </button>
             </article>
           );

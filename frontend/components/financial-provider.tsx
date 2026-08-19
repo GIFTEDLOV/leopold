@@ -125,9 +125,15 @@ type FinancialContextValue = {
 const FinancialContext = createContext<FinancialContextValue | null>(null);
 const fixtureEnabled = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_LEOPOLD_DEV_FIXTURE === "1";
 const fixtureAccount = "0x7E57a10D00000000000000000000000000000001" as Address;
+type FinancialIdentityOverride = {
+  activeAccount: Address | null;
+  connectedWallet: Address | null;
+};
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
+  const authIdentity = auth.identity;
+  const refreshConnectedWallet = auth.refreshConnectedWallet;
   const accountState = useAccount();
   const connectState = useConnect();
   const disconnectState = useDisconnect();
@@ -162,9 +168,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const accountRef = useRef<Address | null>(null);
   const refreshActiveNetworkRef = useRef(auth.refreshActiveNetwork);
 
-  const connected = fixtureEnabled ? fixtureConnected : accountState.isConnected;
+  const connected = fixtureEnabled ? fixtureConnected : Boolean(auth.connectedWallet);
   const connecting = fixtureEnabled ? false : accountState.isConnecting || connectState.isPending;
-  const account = fixtureEnabled ? (fixtureConnected ? fixtureAccount : null) : (accountState.address ?? null);
+  const account = fixtureEnabled ? (fixtureConnected ? fixtureAccount : null) : (auth.connectedWallet ?? null);
 
   useEffect(() => {
     walletClientRef.current = walletClient.data;
@@ -183,32 +189,35 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     : null;
   const walletClientId = walletClient.data?.uid ?? null;
 
-  const syncWalletNetwork = useCallback(async (): Promise<FinancialNetworkSnapshot> => {
-    if (!connected) {
-      return { connected: false, dynamicWalletChainId: null, walletClientChainId: null };
-    }
-    if (fixtureEnabled) {
-      return { connected: true, dynamicWalletChainId: fixtureChain, walletClientChainId: fixtureChain };
-    }
-    let dynamicWalletChainId: number | null = null;
-    try {
-      dynamicWalletChainId = await refreshActiveNetworkRef.current();
-    } catch {
-      dynamicWalletChainId = null;
-    }
-    let currentWalletClientChainId: number | null = null;
-    try {
-      currentWalletClientChainId = walletClientRef.current ? await walletClientRef.current.getChainId() : null;
-    } catch {
-      currentWalletClientChainId = null;
-    }
-    return {
-      connected: true,
-      dynamicWalletChainId,
-      walletClientChainId: currentWalletClientChainId,
-      wagmiAccountChainId: accountState.chainId ?? null,
-    };
-  }, [accountState.chainId, connected, fixtureChain]);
+  const syncWalletNetwork = useCallback(
+    async (connectedOverride = connected): Promise<FinancialNetworkSnapshot> => {
+      if (!connectedOverride) {
+        return { connected: false, dynamicWalletChainId: null, walletClientChainId: null };
+      }
+      if (fixtureEnabled) {
+        return { connected: true, dynamicWalletChainId: fixtureChain, walletClientChainId: fixtureChain };
+      }
+      let dynamicWalletChainId: number | null = null;
+      try {
+        dynamicWalletChainId = await refreshActiveNetworkRef.current();
+      } catch {
+        dynamicWalletChainId = null;
+      }
+      let currentWalletClientChainId: number | null = null;
+      try {
+        currentWalletClientChainId = walletClientRef.current ? await walletClientRef.current.getChainId() : null;
+      } catch {
+        currentWalletClientChainId = null;
+      }
+      return {
+        connected: true,
+        dynamicWalletChainId,
+        walletClientChainId: currentWalletClientChainId,
+        wagmiAccountChainId: accountState.chainId ?? null,
+      };
+    },
+    [accountState.chainId, connected, fixtureChain],
+  );
 
   const healthKey = [
     connected,
@@ -226,7 +235,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   ].join("|");
 
   const runNetworkHealth = useCallback(
-    async (force = false, mode: FinancialNetworkCheckMode = "auto"): Promise<FinancialNetworkHealth> => {
+    async (
+      force = false,
+      mode: FinancialNetworkCheckMode = "auto",
+      identityOverride?: FinancialIdentityOverride,
+    ): Promise<FinancialNetworkHealth> => {
       if (!auth.clientReady || !auth.financialWallet) {
         ++healthRunRef.current;
         healthCacheRef.current = null;
@@ -234,14 +247,31 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setNetworkHealth(idle);
         return idle;
       }
+      const resolvedAccount = identityOverride?.activeAccount ?? account;
+      const resolvedConnectedWallet = identityOverride?.connectedWallet ?? auth.connectedWallet;
+      const resolvedConnected = Boolean(resolvedConnectedWallet);
+      const resolvedHealthKey = [
+        resolvedConnected,
+        financialAuthorized,
+        getFinancialNetworkHealthKey({
+          activeAccount: resolvedAccount,
+          financialWallet: auth.financialWallet,
+          connectedWallet: resolvedConnectedWallet,
+          activeWallet: auth.activeWalletAddress,
+          walletClientAccount,
+          walletClientId,
+          dynamicWalletChainId: auth.activeNetworkId,
+          wagmiAccountChainId: accountState.chainId ?? null,
+        }),
+      ].join("|");
       const cachedHealth = healthCacheRef.current;
-      if (!force && cachedHealth && isFinancialNetworkHealthFresh(cachedHealth, healthKey)) {
+      if (!force && cachedHealth && isFinancialNetworkHealthFresh(cachedHealth, resolvedHealthKey)) {
         setNetworkHealth(cachedHealth.health);
         return cachedHealth.health;
       }
       const runId = ++healthRunRef.current;
       setNetworkHealth((current) => beginFinancialNetworkCheck(current, mode));
-      const snapshot = await syncWalletNetwork();
+      const snapshot = await syncWalletNetwork(resolvedConnected);
       const requester = (client: unknown): RpcRequester | null => {
         if (!client || typeof client !== "object" || !("request" in client)) return null;
         const rawRequest = (client as { request: (...args: never[]) => Promise<unknown> }).request;
@@ -261,9 +291,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             backgroundChecking: false,
           }
         : await runFinancialNetworkPreflight({
-            activeAccount: account,
+            activeAccount: resolvedAccount,
             financialWallet: auth.financialWallet,
-            connectedWallet: auth.connectedWallet,
+            connectedWallet: resolvedConnectedWallet,
             activeWallet: auth.activeWalletAddress,
             walletClientAccount,
             walletClient: requester(walletClientRef.current),
@@ -272,12 +302,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           });
       if (runId === healthRunRef.current) {
         const resolvedKey = [
-          connected,
+          resolvedConnected,
           financialAuthorized,
           getFinancialNetworkHealthKey({
-            activeAccount: account,
+            activeAccount: resolvedAccount,
             financialWallet: auth.financialWallet,
-            connectedWallet: auth.connectedWallet,
+            connectedWallet: resolvedConnectedWallet,
             activeWallet: auth.activeWalletAddress,
             walletClientAccount,
             walletClientId,
@@ -312,48 +342,54 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     },
     [
       account,
+      accountState.chainId,
+      auth.activeNetworkId,
       auth.activeWalletAddress,
       auth.connectedWallet,
       auth.financialWallet,
       auth.clientReady,
-      connected,
       financialAuthorized,
       fixtureChain,
       fixtureConnected,
-      healthKey,
       syncWalletNetwork,
       walletClientAccount,
       walletClientId,
     ],
   );
 
-  const ensureSepoliaWalletHealth = useCallback(async () => {
-    const health = await runNetworkHealth(false, "write");
-    if (!financialWritesAllowed(health)) {
-      throw new Error(`${health.state}:${health.technicalDetail ?? "financial network preflight failed"}`);
-    }
-  }, [runNetworkHealth]);
+  const ensureSepoliaWalletHealth = useCallback(
+    async (identityOverride?: FinancialIdentityOverride) => {
+      const health = await runNetworkHealth(false, "write", identityOverride);
+      if (!financialWritesAllowed(health)) {
+        throw new Error(`${health.state}:${health.technicalDetail ?? "financial network preflight failed"}`);
+      }
+    },
+    [runNetworkHealth],
+  );
 
   const ensureFinancialAccess = useCallback(async () => {
     try {
-      if (!connected) throw new Error("FINANCIAL_IDENTITY_REQUIRED");
-      await ensureSepoliaWalletHealth();
-      requireFinancialIdentity(auth.identity, true);
+      const activeAccount = await refreshConnectedWallet();
+      const currentIdentity = { ...authIdentity, connectedWallet: activeAccount };
+      requireFinancialIdentity(currentIdentity, true);
+      await ensureSepoliaWalletHealth({ activeAccount, connectedWallet: activeAccount });
     } catch (caught) {
       setError(classifyLeopoldError(caught));
       throw caught;
     }
-  }, [auth.identity, connected, ensureSepoliaWalletHealth]);
+  }, [authIdentity, ensureSepoliaWalletHealth, refreshConnectedWallet]);
 
   const ensurePrivateRevealAccess = useCallback(async () => {
     try {
-      await ensureSepoliaWalletHealth();
-      const result = checkPrivateRevealIdentity(auth.identity, true);
+      const activeAccount = await refreshConnectedWallet();
+      const currentIdentity = { ...authIdentity, connectedWallet: activeAccount };
+      const result = checkPrivateRevealIdentity(currentIdentity, true);
       if (!result.allowed) {
         const error = new Error(result.code);
         error.name = result.code;
         throw error;
       }
+      await ensureSepoliaWalletHealth({ activeAccount, connectedWallet: activeAccount });
       // The Zama SDK is signer-bound and kept only in memory. Recreate it for
       // every reveal so a wallet switch, logout, or stale authorization cannot
       // reuse the prior private-session object.
@@ -362,7 +398,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setError(classifyLeopoldError(caught));
       throw caught;
     }
-  }, [auth.identity, ensureSepoliaWalletHealth]);
+  }, [authIdentity, ensureSepoliaWalletHealth, refreshConnectedWallet]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
