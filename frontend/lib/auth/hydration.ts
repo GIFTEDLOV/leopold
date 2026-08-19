@@ -12,6 +12,6 @@ export function financialControlsEnabled(clientReady: boolean, authorized: boole
   return clientReady && authorized;
 }
 
-export function addMoneyButtonDisabled(clientReady: boolean, authenticated: boolean, fixture: boolean): boolean {
-  return !clientReady || (!authenticated && !fixture);
+export function addMoneyButtonDisabled(clientReady: boolean, accountReady: boolean, fixture: boolean): boolean {
+  return !clientReady || (!accountReady && !fixture);
 }

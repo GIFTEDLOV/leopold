@@ -29,47 +29,110 @@ export function AppShell({ children }: { children: ReactNode }) {
   const walletIdentity = useWalletIdentity();
   const session = walletIdentity.walletSession;
   const health = walletIdentity.networkHealth;
+  const recovery = walletIdentity.recovery;
   const clientReady = auth.clientReady;
   const [addMoney, setAddMoney] = useState(false);
   const [walletMenu, setWalletMenu] = useState(false);
 
   const networkLabel =
-    session.status === "BOOTSTRAPPING"
-      ? "Loading wallet session"
-      : session.status === "DISCONNECTED"
-        ? "Wallet disconnected"
-        : session.status === "CONNECTING"
-          ? "Connecting wallet"
-          : session.status === "WRONG_NETWORK"
-            ? "Wrong network — switch to Sepolia"
-            : session.status === "ERROR"
-              ? "Wallet connection error"
-              : health.state === "WALLET_RPC_UNAVAILABLE"
-                ? "Wallet RPC unavailable"
-                : health.state === "APP_RPC_UNAVAILABLE"
-                  ? "Leopold RPC unavailable"
-                  : health.state === "UNKNOWN"
-                    ? "Network health unavailable"
-                    : "Ethereum Sepolia";
+    auth.accountStatus === "AUTH_LOADING"
+      ? "Loading account"
+      : auth.accountStatus === "SIGNED_OUT"
+        ? "Account sign-in required"
+        : auth.accountStatus === "SIGNED_IN_PROFILE_INCOMPLETE"
+          ? "Account setup required"
+          : auth.financialWalletMetadata.status === "LOADING"
+            ? "Loading wallet information"
+            : auth.financialWalletMetadata.status === "NONE"
+              ? "Financial wallet not linked"
+              : session.status === "BOOTSTRAPPING"
+                ? "Loading wallet session"
+                : session.status === "DISCONNECTED"
+                  ? "Wallet disconnected"
+                  : session.status === "CONNECTING"
+                    ? "Connecting wallet"
+                    : session.status === "WRONG_NETWORK"
+                      ? "Wrong network — switch to Sepolia"
+                      : session.status === "ERROR"
+                        ? "Wallet connection error"
+                        : health.state === "WALLET_RPC_UNAVAILABLE"
+                          ? "Wallet RPC unavailable"
+                          : health.state === "APP_RPC_UNAVAILABLE"
+                            ? "Leopold RPC unavailable"
+                            : health.state === "UNKNOWN"
+                              ? "Network health unavailable"
+                              : "Ethereum Sepolia";
   const networkIsHealthy = session.status === "CONNECTED" && health.state === "HEALTHY";
   const headerWalletLabel =
-    session.status === "BOOTSTRAPPING"
+    auth.accountStatus === "AUTH_LOADING"
       ? "Checking…"
-      : session.status === "DISCONNECTED" || session.status === "ERROR"
-        ? "Disconnected"
-        : session.status === "CONNECTING"
-          ? "Connecting…"
-          : session.status === "WRONG_NETWORK"
-            ? `Wrong network · ${shortAddress(session.verifiedAddress)}`
-            : shortAddress(session.address);
-  const showSessionBanner =
-    session.status === "DISCONNECTED" ||
-    session.status === "CONNECTING" ||
-    session.status === "WRONG_NETWORK" ||
-    session.status === "ERROR";
-  const showHealthBanner =
-    session.status === "CONNECTED" &&
-    (health.state === "WALLET_RPC_UNAVAILABLE" || health.state === "APP_RPC_UNAVAILABLE" || health.state === "UNKNOWN");
+      : auth.accountStatus === "SIGNED_OUT"
+        ? "Signed out"
+        : auth.accountStatus === "SIGNED_IN_PROFILE_INCOMPLETE"
+          ? "Account setup"
+          : auth.financialWalletMetadata.status === "LOADING"
+            ? "Checking…"
+            : auth.financialWalletMetadata.status === "NONE"
+              ? "Not linked"
+              : session.status === "BOOTSTRAPPING"
+                ? "Checking…"
+                : session.status === "DISCONNECTED" || session.status === "ERROR"
+                  ? "Disconnected"
+                  : session.status === "CONNECTING"
+                    ? "Connecting…"
+                    : session.status === "WRONG_NETWORK"
+                      ? `Wrong network · ${shortAddress(session.verifiedAddress)}`
+                      : shortAddress(session.address);
+
+  const recoveryButton = (() => {
+    switch (recovery.action) {
+      case "LINK_FINANCIAL_WALLET":
+        return (
+          <button className="button secondary" onClick={auth.openWalletLink}>
+            Link financial wallet
+          </button>
+        );
+      case "CONNECT_VERIFIED_WALLET":
+        return (
+          <button className="button secondary" onClick={() => void walletIdentity.connectVerifiedWallet()}>
+            Connect verified wallet
+          </button>
+        );
+      case "CONFIRM_ACCOUNT_SELECTION":
+        return (
+          <button className="button secondary" onClick={() => void walletIdentity.connectVerifiedWallet()}>
+            I&apos;ve selected the account
+          </button>
+        );
+      case "CANCEL_CONNECTION":
+        return (
+          <button className="button secondary" onClick={walletIdentity.disconnectLeopoldWallet}>
+            Cancel
+          </button>
+        );
+      case "SWITCH_TO_SEPOLIA":
+        return (
+          <button className="button secondary" onClick={() => void walletIdentity.switchToSepolia()}>
+            Switch to Ethereum Sepolia
+          </button>
+        );
+      case "RETRY_PROVIDER":
+        return (
+          <button className="button secondary" onClick={() => void walletIdentity.connectVerifiedWallet()}>
+            Retry provider connection
+          </button>
+        );
+      case "RETRY_NETWORK":
+        return (
+          <button className="button secondary" onClick={() => void walletIdentity.retryNetworkHealth()}>
+            Retry network
+          </button>
+        );
+      case "NONE":
+      case "ERROR":
+        return null;
+    }
+  })();
 
   return (
     <div className="app-frame">
@@ -151,74 +214,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             className="button"
             onClick={() => setAddMoney(true)}
-            disabled={addMoneyButtonDisabled(clientReady, auth.authenticated, financial.fixture)}
+            disabled={addMoneyButtonDisabled(clientReady, auth.accountStatus === "SIGNED_IN_READY", financial.fixture)}
           >
             + Add Money
           </button>
         </header>
 
-        {showSessionBanner || showHealthBanner ? (
+        {recovery.visible ? (
           <div className="inline-notice" role="alert">
-            <strong>
-              {session.status === "DISCONNECTED"
-                ? session.recoveryMessage
-                : session.status === "CONNECTING"
-                  ? session.reason === "ACCOUNT_SELECTION_REQUIRED"
-                    ? "Select your verified account in Rabby or MetaMask."
-                    : "Connecting your verified financial wallet…"
-                  : session.status === "WRONG_NETWORK"
-                    ? "Switch to Ethereum Sepolia to continue."
-                    : session.status === "ERROR"
-                      ? "Your wallet connection could not be completed."
-                      : health.state === "WALLET_RPC_UNAVAILABLE"
-                        ? "Your wallet's Sepolia connection isn't working."
-                        : health.state === "APP_RPC_UNAVAILABLE"
-                          ? "Leopold's Sepolia service is currently unavailable."
-                          : "Network health could not be confirmed."}
-            </strong>
-            <span>
-              {session.status === "DISCONNECTED"
-                ? "Financial and private actions remain paused. Public Leopold information remains available."
-                : session.status === "CONNECTING"
-                  ? session.reason === "ACCOUNT_SELECTION_REQUIRED"
-                    ? `Select ${shortAddress(session.verifiedAddress)} in your wallet. Leopold will not adopt another account.`
-                    : "This user-initiated connection attempt is verifying your provider, account, and network."
-                  : session.status === "WRONG_NETWORK"
-                    ? "No financial transaction will be attempted until your verified wallet is on Sepolia."
-                    : session.status === "ERROR"
-                      ? "The connection attempt ended safely. You can retry without refreshing the page."
-                      : health.state === "WALLET_RPC_UNAVAILABLE"
-                        ? "Your Leopold wallet session remains connected, but its Sepolia RPC is unavailable."
-                        : health.state === "APP_RPC_UNAVAILABLE"
-                          ? "Your wallet remains connected, but Leopold's public Sepolia service is unavailable."
-                          : "Your wallet remains connected while network health is retried."}
-            </span>
+            <strong>{recovery.message}</strong>
+            <span>{recovery.detail}</span>
             {auth.authError ? <span className="error">{auth.authError}</span> : null}
-            {session.status === "DISCONNECTED" && auth.financialWallet ? (
-              <button className="button secondary" onClick={() => void walletIdentity.connectVerifiedWallet()}>
-                Reconnect verified wallet
-              </button>
-            ) : session.status === "CONNECTING" && session.reason === "ACCOUNT_SELECTION_REQUIRED" ? (
-              <button className="button secondary" onClick={() => void walletIdentity.connectVerifiedWallet()}>
-                I&apos;ve selected the account
-              </button>
-            ) : session.status === "CONNECTING" ? (
-              <button className="button secondary" onClick={walletIdentity.disconnectLeopoldWallet}>
-                Cancel
-              </button>
-            ) : session.status === "WRONG_NETWORK" ? (
-              <button className="button secondary" onClick={() => void walletIdentity.switchToSepolia()}>
-                Switch to Ethereum Sepolia
-              </button>
-            ) : session.status === "ERROR" ? (
-              <button className="button secondary" onClick={() => void walletIdentity.connectVerifiedWallet()}>
-                Retry provider connection
-              </button>
-            ) : (
-              <button className="button secondary" onClick={() => void walletIdentity.retryNetworkHealth()}>
-                Retry network
-              </button>
-            )}
+            {recoveryButton}
             {health.state === "WALLET_RPC_UNAVAILABLE" ? (
               <details>
                 <summary>How to fix</summary>

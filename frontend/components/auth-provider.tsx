@@ -40,11 +40,16 @@ import { canonicalizeUsername } from "@/lib/auth/username";
 import { normalizeNetworkChainId } from "@/lib/leopold/network";
 import { getAuthHydrationPhase } from "@/lib/auth/hydration";
 import { reconnectExistingWallet } from "@/lib/auth/wallet-recovery";
-
-const FINANCIAL_WALLET_METADATA_KEY = "leopoldFinancialWallet";
-// Dynamic custom fields are stored in user.metadata under the configured
-// field name. The built-in Dynamic username field is intentionally disabled.
-const LEOPOLD_USERNAME_METADATA_KEY = "Leopold Username";
+import {
+  FINANCIAL_WALLET_METADATA_KEY,
+  LEOPOLD_USERNAME_METADATA_KEY,
+  deriveAccountState,
+  type AccountProfileStatus,
+  type AccountState,
+  type AccountStatus,
+  type DynamicAccountProfile,
+  type FinancialWalletMetadata,
+} from "@/lib/auth/account-state";
 const twitterProvider = "twitter" as Parameters<ReturnType<typeof useSocialAccounts>["isLinked"]>[0];
 const fixtureFinancialEnabled =
   process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_LEOPOLD_DEV_FIXTURE === "1";
@@ -55,6 +60,11 @@ const serverMountedSnapshot = () => false;
 export type AuthContextValue = {
   clientReady: boolean;
   hydrationPhase: ReturnType<typeof getAuthHydrationPhase>;
+  account: AccountState;
+  accountStatus: AccountStatus;
+  accountAuthentication: AccountState["authentication"];
+  accountIdentity: DynamicAccountProfile | null;
+  profileStatus: AccountProfileStatus;
   configured: boolean;
   fixture: boolean;
   loading: boolean;
@@ -64,6 +74,8 @@ export type AuthContextValue = {
   username: string | null;
   providerUserId: string | null;
   financialWallet: Address | null;
+  verifiedFinancialWallet: Address | null;
+  financialWalletMetadata: FinancialWalletMetadata;
   connectedWallet: Address | null;
   activeWalletAddress: Address | null;
   dynamicPrimaryWallet: Address | null;
@@ -86,6 +98,7 @@ export type AuthContextValue = {
   verifyEmailOtp(otp: string): Promise<void>;
   resendEmailOtp(): Promise<void>;
   openWalletAuthentication(): void;
+  openProfileCompletion(): void;
   openWalletLink(): void;
   refreshConnectedWallet(): Promise<Address | null>;
   getProviderAccountRevision(): number;
@@ -145,17 +158,13 @@ function errorMessage(error: unknown): string {
   return "Authentication could not be completed. Try again.";
 }
 
-function readMetadata(user: ReturnType<typeof useDynamicContext>["user"]): Record<string, unknown> {
+function readMetadata(user: DynamicAccountProfile | null): Record<string, unknown> {
   if (!user?.metadata || typeof user.metadata !== "object") return {};
   return user.metadata as Record<string, unknown>;
 }
 
-function hasVerifiedEmail(user: ReturnType<typeof useDynamicContext>["user"]): boolean {
-  return Boolean(user?.verifiedCredentials?.some((credential) => credential.format === "email"));
-}
-
 function DynamicAuthState({ children }: { children: ReactNode }) {
-  const { user, sdkHasLoaded, handleLogOut, setShowAuthFlow, primaryWallet } = useDynamicContext();
+  const { user, userWithMissingInfo, sdkHasLoaded, handleLogOut, setShowAuthFlow, primaryWallet } = useDynamicContext();
   const { connectWithEmail, verifyOneTimePassword, retryOneTimePassword } = useConnectWithOtp();
   const { setShowLinkNewWalletModal } = useDynamicModals();
   const switchWallet = useSwitchWallet();
@@ -183,6 +192,11 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   );
 
   const clientReady = clientMounted && sdkHasLoaded;
+  const account = useMemo(
+    () => deriveAccountState({ clientReady, completedUser: user, incompleteUser: userWithMissingInfo }),
+    [clientReady, user, userWithMissingInfo],
+  );
+  const accountIdentity = account.identity;
 
   const commitProviderAccount = useCallback((next: Address | null) => {
     const previous = providerAccountRef.current;
@@ -199,7 +213,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
     setProviderAccountKnown(true);
   }, []);
 
-  const financialWallet = normalizeWalletAddress(String(readMetadata(user)[FINANCIAL_WALLET_METADATA_KEY] ?? ""));
+  const financialWallet = account.financialWallet.address;
   const connectedWallet = providerAccountKnown ? providerAccount : null;
   const activeWalletAddress = normalizeWalletAddress(String(primaryWallet?.address ?? ""));
   const dynamicLinkedWallets = useMemo<readonly DynamicWalletDescriptor[]>(
@@ -225,22 +239,14 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
     wallets.filter((wallet) => wallet.connector.isEmbeddedWallet !== true),
     financialWallet,
   );
-  const emailVerified = hasVerifiedEmail(user);
-  let username: string | null = null;
-  const configuredUsername = readMetadata(user)[LEOPOLD_USERNAME_METADATA_KEY];
-  if (typeof configuredUsername === "string") {
-    try {
-      username = canonicalizeUsername(configuredUsername);
-    } catch {
-      username = null;
-    }
-  }
+  const emailVerified = account.emailVerified;
+  const username = account.username;
   const identity = useMemo<AuthIdentitySnapshot>(
     () => ({
-      authenticated: Boolean(user),
+      authenticated: account.authenticated,
       emailVerified,
       username,
-      providerUserId: user?.userId ?? null,
+      providerUserId: account.providerUserId,
       financialWallet,
       connectedWallet,
       walletAuthenticated,
@@ -253,7 +259,8 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       emailVerified,
       financialWallet,
       sessionExpired,
-      user,
+      account.authenticated,
+      account.providerUserId,
       username,
       walletAuthenticated,
     ],
@@ -400,15 +407,22 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
     () => ({
       clientReady,
       hydrationPhase: getAuthHydrationPhase(clientReady),
+      account,
+      accountStatus: account.status,
+      accountAuthentication: account.authentication,
+      accountIdentity,
+      profileStatus: account.profileStatus,
       configured: true,
       fixture: false,
       loading: !sdkHasLoaded || busy,
       authenticated: identity.authenticated,
-      email: user?.email ?? null,
+      email: account.email,
       emailVerified,
       username,
       providerUserId: identity.providerUserId,
       financialWallet,
+      verifiedFinancialWallet: financialWallet,
+      financialWalletMetadata: account.financialWallet,
       connectedWallet,
       activeWalletAddress,
       dynamicPrimaryWallet: activeWalletAddress,
@@ -451,12 +465,21 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
         setAuthError(null);
         setShowAuthFlow(true);
       },
+      openProfileCompletion: () => {
+        setAuthError(null);
+        setShowAuthFlow(true);
+      },
       openWalletLink: () => {
         setAuthError(null);
         if (!identity.authenticated) {
           setShowAuthFlow(true);
           return;
         }
+        if (account.status !== "SIGNED_IN_READY") {
+          setShowAuthFlow(true);
+          return;
+        }
+        if (account.financialWallet.status !== "NONE") return;
         setShowLinkNewWalletModal(true);
       },
       refreshConnectedWallet,
@@ -525,7 +548,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
         withBusy(async () => {
           const linkCheck = checkFinancialWalletLink(identity, connectedWallet);
           if (!linkCheck.allowed) throw new Error(linkCheck.code);
-          const metadata = readMetadata(user);
+          const metadata = readMetadata(accountIdentity);
           await updateUser({
             metadata: { ...metadata, [FINANCIAL_WALLET_METADATA_KEY]: linkCheck.wallet },
           });
@@ -533,7 +556,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       saveUsername: async (valueToSave) =>
         withBusy(async () => {
           const normalized = canonicalizeUsername(valueToSave);
-          const metadata = readMetadata(user);
+          const metadata = readMetadata(accountIdentity);
           await updateUser({ metadata: { ...metadata, [LEOPOLD_USERNAME_METADATA_KEY]: normalized } });
         }),
       linkX: async () => {
@@ -567,6 +590,8 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
     }),
     [
       authError,
+      account,
+      accountIdentity,
       clientReady,
       activeNetworkId,
       activeWalletAddress,
@@ -589,7 +614,6 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       setShowLinkNewWalletModal,
       switchWallet,
       updateUser,
-      user,
       username,
       verifyOneTimePassword,
       wallets,
@@ -616,10 +640,40 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
     () => getFixtureIdentity() ?? getFixtureIdentityForFinancialFixture(),
   );
   const readiness = getAuthReadiness(identity);
+  const fixtureProfile = useMemo<DynamicAccountProfile | null>(
+    () =>
+      identity.authenticated
+        ? {
+            email: identity.emailVerified ? "fixture@example.invalid" : null,
+            userId: identity.providerUserId,
+            verifiedCredentials: identity.emailVerified ? [{ format: "email" }] : [],
+            missingFields: identity.emailVerified && identity.username ? [] : ["fixture-profile-incomplete"],
+            metadata: {
+              ...(identity.username ? { [LEOPOLD_USERNAME_METADATA_KEY]: identity.username } : {}),
+              ...(identity.financialWallet ? { [FINANCIAL_WALLET_METADATA_KEY]: identity.financialWallet } : {}),
+            },
+          }
+        : null,
+    [identity],
+  );
+  const account = useMemo(
+    () =>
+      deriveAccountState({
+        clientReady: true,
+        completedUser: identity.emailVerified && identity.username ? fixtureProfile : null,
+        incompleteUser: fixtureProfile,
+      }),
+    [fixtureProfile, identity.emailVerified, identity.username],
+  );
   const value = useMemo<AuthContextValue>(
     () => ({
       clientReady: true,
       hydrationPhase: getAuthHydrationPhase(true),
+      account,
+      accountStatus: account.status,
+      accountAuthentication: account.authentication,
+      accountIdentity: account.identity,
+      profileStatus: account.profileStatus,
       configured: false,
       fixture: true,
       loading: false,
@@ -629,6 +683,8 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       username: identity.username,
       providerUserId: identity.providerUserId,
       financialWallet: identity.financialWallet,
+      verifiedFinancialWallet: identity.financialWallet,
+      financialWalletMetadata: account.financialWallet,
       connectedWallet: identity.connectedWallet,
       activeWalletAddress: identity.connectedWallet,
       dynamicPrimaryWallet: identity.connectedWallet,
@@ -657,6 +713,7 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       verifyEmailOtp: async () => undefined,
       resendEmailOtp: async () => undefined,
       openWalletAuthentication: () => undefined,
+      openProfileCompletion: () => undefined,
       openWalletLink: () => undefined,
       refreshConnectedWallet: async () => identity.connectedWallet,
       getProviderAccountRevision: () => 0,
@@ -686,7 +743,7 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       refreshActiveNetwork: async () => null,
       switchFinancialWalletToSepolia: async () => undefined,
     }),
-    [authError, identity, readiness],
+    [account, authError, identity, readiness],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

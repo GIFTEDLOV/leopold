@@ -35,6 +35,7 @@ import {
 import { runFinancialNetworkPreflight, type FinancialNetworkHealth, type RpcRequester } from "@/lib/leopold/network";
 import { normalizeNetworkChainId } from "@/lib/leopold/network";
 import { normalizeWalletAddress, walletsMatch } from "@/lib/auth/readiness";
+import { deriveLeopoldRecovery, type LeopoldRecovery } from "@/lib/auth/recovery";
 
 export type WalletSessionControllerValue = {
   /** Compatibility name for existing business code; this is the explicit Leopold session snapshot. */
@@ -42,6 +43,7 @@ export type WalletSessionControllerValue = {
   walletSession: WalletSessionSnapshot;
   providerObservation: ProviderObservation;
   networkHealth: WalletRpcHealth;
+  recovery: LeopoldRecovery;
   connectVerifiedWallet(): Promise<WalletIdentityCommandResult>;
   disconnectLeopoldWallet(): void;
   switchToSepolia(): Promise<WalletIdentityCommandResult>;
@@ -165,13 +167,24 @@ export function WalletIdentityProvider({ children }: { children: ReactNode }) {
 
   const identityWithoutHealth = useMemo(
     () => ({
-      initialized: auth.clientReady,
+      initialized:
+        auth.clientReady &&
+        auth.accountStatus === "SIGNED_IN_READY" &&
+        auth.financialWalletMetadata.status !== "LOADING",
       verifiedFinancialWallet: auth.financialWallet,
       control,
       provider: providerObservation,
       runtime: runtimeObservation,
     }),
-    [auth.clientReady, auth.financialWallet, control, providerObservation, runtimeObservation],
+    [
+      auth.accountStatus,
+      auth.clientReady,
+      auth.financialWallet,
+      auth.financialWalletMetadata.status,
+      control,
+      providerObservation,
+      runtimeObservation,
+    ],
   );
   const identityKey = walletSessionIdentityKey(identityWithoutHealth);
   const effectiveHealth = useMemo<WalletRpcHealth>(() => {
@@ -180,6 +193,23 @@ export function WalletIdentityProvider({ children }: { children: ReactNode }) {
     return createNotCheckedWalletRpcHealth();
   }, [healthInFlightKey, healthRecord, identityKey]);
   const walletSession = deriveWalletSession({ ...identityWithoutHealth, networkHealth: effectiveHealth });
+  const recovery = useMemo(
+    () =>
+      deriveLeopoldRecovery({
+        accountStatus: auth.accountStatus,
+        financialMetadataStatus: auth.financialWalletMetadata.status,
+        walletSessionStatus: walletSession.status,
+        walletSessionReason: walletSession.reason,
+        networkHealth: effectiveHealth.state,
+      }),
+    [
+      auth.accountStatus,
+      auth.financialWalletMetadata.status,
+      effectiveHealth.state,
+      walletSession.reason,
+      walletSession.status,
+    ],
+  );
   const walletSessionRef = useRef(walletSession);
   useEffect(() => {
     walletSessionRef.current = walletSession;
@@ -306,8 +336,13 @@ export function WalletIdentityProvider({ children }: { children: ReactNode }) {
   );
 
   const connectVerifiedWallet = useCallback(async (): Promise<WalletIdentityCommandResult> => {
+    if (auth.accountStatus !== "SIGNED_IN_READY") {
+      return commandFailure(walletSessionRef.current, "ACCOUNT_NOT_READY");
+    }
     if (!auth.financialWallet) {
-      auth.openWalletLink();
+      if (auth.accountStatus === "SIGNED_IN_READY" && auth.financialWalletMetadata.status === "NONE") {
+        auth.openWalletLink();
+      }
       return commandFailure(walletSessionRef.current, "FINANCIAL_WALLET_NOT_LINKED");
     }
     if (controlRef.current.intent === "CONNECTING" && controlRef.current.connectAttemptId) {
@@ -371,6 +406,8 @@ export function WalletIdentityProvider({ children }: { children: ReactNode }) {
     const epoch = sessionEpochRef.current;
     const before = walletSessionRef.current;
     if (
+      auth.accountStatus !== "SIGNED_IN_READY" ||
+      auth.financialWalletMetadata.status !== "PRESENT" ||
       !sessionAuthorizedRef.current ||
       controlRef.current.providerRevision !== auth.getProviderAccountRevision() ||
       before.status !== "CONNECTED" ||
@@ -448,15 +485,34 @@ export function WalletIdentityProvider({ children }: { children: ReactNode }) {
   }, [auth, invalidateSession, persistSessionMarker]);
 
   useEffect(() => {
-    if (!auth.clientReady) return;
-    const bootstrapKey = `${auth.providerUserId ?? "anonymous"}:${auth.financialWallet ?? "unlinked"}`;
+    if (
+      !auth.clientReady ||
+      auth.accountStatus === "AUTH_LOADING" ||
+      auth.financialWalletMetadata.status === "LOADING"
+    ) {
+      return;
+    }
+    const bootstrapKey = `${auth.accountStatus}:${auth.providerUserId ?? "anonymous"}:${auth.financialWalletMetadata.status}:${auth.financialWallet ?? "unlinked"}`;
     if (bootstrapKeyRef.current === bootstrapKey) return;
     bootstrapKeyRef.current = bootstrapKey;
     const epoch = ++sessionEpochRef.current;
     sessionAuthorizedRef.current = false;
-    if (!auth.financialWallet) {
+    if (auth.accountStatus === "SIGNED_IN_PROFILE_INCOMPLETE") {
+      dispatch({ type: "INVALIDATE", reason: "NO_ACTIVE_SESSION", epoch });
+      return;
+    }
+    if (auth.accountStatus === "SIGNED_OUT") {
       clearSessionMarker();
-      dispatch({ type: "INVALIDATE", reason: "FINANCIAL_WALLET_NOT_LINKED", epoch });
+      dispatch({ type: "INVALIDATE", reason: "NO_ACTIVE_SESSION", epoch });
+      return;
+    }
+    if (auth.financialWalletMetadata.status !== "PRESENT" || !auth.financialWallet) {
+      clearSessionMarker();
+      dispatch({
+        type: "INVALIDATE",
+        reason: auth.financialWalletMetadata.status === "NONE" ? "FINANCIAL_WALLET_NOT_LINKED" : "NO_ACTIVE_SESSION",
+        epoch,
+      });
       return;
     }
     if (auth.fixture && auth.connectedWallet) {
@@ -491,9 +547,11 @@ export function WalletIdentityProvider({ children }: { children: ReactNode }) {
     );
   }, [
     auth,
+    auth.accountStatus,
     auth.clientReady,
     auth.connectedWallet,
     auth.financialWallet,
+    auth.financialWalletMetadata.status,
     auth.fixture,
     auth.providerUserId,
     auth.refreshActiveNetwork,
@@ -615,13 +673,20 @@ export function WalletIdentityProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
-    if (walletSession.status !== "CONNECTED" || !walletSession.runtimeAligned) return;
+    if (
+      auth.accountStatus !== "SIGNED_IN_READY" ||
+      walletSession.status !== "CONNECTED" ||
+      !walletSession.runtimeAligned
+    ) {
+      return;
+    }
     if (healthRecord?.key === identityKey || healthInFlightKey === identityKey) return;
     void runNetworkHealthProbe();
   }, [
     healthInFlightKey,
     healthRecord?.key,
     identityKey,
+    auth.accountStatus,
     runNetworkHealthProbe,
     walletSession.runtimeAligned,
     walletSession.status,
@@ -633,6 +698,7 @@ export function WalletIdentityProvider({ children }: { children: ReactNode }) {
       walletSession,
       providerObservation,
       networkHealth: effectiveHealth,
+      recovery,
       connectVerifiedWallet,
       disconnectLeopoldWallet,
       switchToSepolia,
@@ -644,6 +710,7 @@ export function WalletIdentityProvider({ children }: { children: ReactNode }) {
       disconnectLeopoldWallet,
       effectiveHealth,
       providerObservation,
+      recovery,
       requireConnectedFinancialSession,
       runNetworkHealthProbe,
       switchToSepolia,
@@ -662,3 +729,39 @@ export function useWalletIdentity(): WalletSessionControllerValue {
 
 /** Presentation-independent API intended for the final Leopold UI. */
 export const useWalletSessionController = useWalletIdentity;
+
+/** Headless state boundary: presentation code does not need Dynamic-specific user semantics. */
+export function useLeopoldSessionState() {
+  const auth = useAuth();
+  const controller = useWalletIdentity();
+  return useMemo(
+    () => ({
+      account: {
+        status: auth.accountStatus,
+        authenticated: auth.authenticated,
+        profileStatus: auth.profileStatus,
+        email: auth.email,
+        username: auth.username,
+      },
+      financialWallet: {
+        status: auth.financialWalletMetadata.status,
+        address: auth.verifiedFinancialWallet,
+      },
+      walletSession: controller.walletSession,
+      networkHealth: controller.networkHealth,
+      recovery: controller.recovery,
+    }),
+    [
+      auth.accountStatus,
+      auth.authenticated,
+      auth.email,
+      auth.financialWalletMetadata.status,
+      auth.profileStatus,
+      auth.username,
+      auth.verifiedFinancialWallet,
+      controller.networkHealth,
+      controller.recovery,
+      controller.walletSession,
+    ],
+  );
+}

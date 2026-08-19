@@ -271,6 +271,17 @@ export function OnboardingClient() {
             {submitting ? "Saving…" : "Save username"}
           </button>
         </form>
+      ) : auth.profileStatus === "INCOMPLETE" ? (
+        <div className="card" role="status">
+          <span className="badge">Account signed in</span>
+          <h2>Complete required account information</h2>
+          <p className="subtle">
+            Dynamic is protecting this account until its remaining profile or security requirements are complete.
+          </p>
+          <button className="button" type="button" onClick={auth.openProfileCompletion}>
+            Complete account information
+          </button>
+        </div>
       ) : (
         <div className="card">
           <span className="badge">Email verified</span>
@@ -280,15 +291,16 @@ export function OnboardingClient() {
           </p>
         </div>
       )}
-      {auth.emailVerified &&
+      {auth.profileStatus === "COMPLETE" &&
+      auth.emailVerified &&
       (auth.readiness === "WALLET_REQUIRED" ||
         (auth.financialWallet && walletIdentity.walletSession.status !== "CONNECTED")) ? (
         <button
           className="button secondary"
           onClick={() => {
             if (walletIdentity.walletSession.status === "WRONG_NETWORK") void walletIdentity.switchToSepolia();
-            else if (auth.financialWallet) void walletIdentity.connectVerifiedWallet();
-            else auth.openWalletLink();
+            else if (auth.financialWalletMetadata.status === "PRESENT") void walletIdentity.connectVerifiedWallet();
+            else if (auth.financialWalletMetadata.status === "NONE") auth.openWalletLink();
           }}
           type="button"
         >

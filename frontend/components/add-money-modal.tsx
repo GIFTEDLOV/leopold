@@ -40,7 +40,35 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             <span key={item} className={item <= step ? "active" : ""} />
           ))}
         </div>
-        {walletState === "BOOTSTRAPPING" ? (
+        {auth.accountStatus === "AUTH_LOADING" || auth.financialWalletMetadata.status === "LOADING" ? (
+          <div className="card" role="status" data-testid="account-metadata-loading">
+            <span className="badge neutral">Loading account</span>
+            <h3>Resolving verified wallet information</h3>
+            <p className="subtle">No wallet command will run until account metadata finishes loading.</p>
+          </div>
+        ) : auth.accountStatus === "SIGNED_OUT" ? (
+          <div className="card" role="status">
+            <span className="badge neutral">Account sign-in required</span>
+            <h3>Enter your Leopold account</h3>
+            <a className="button" href="/login">
+              Continue to sign in
+            </a>
+          </div>
+        ) : auth.accountStatus === "SIGNED_IN_PROFILE_INCOMPLETE" ? (
+          <div className="card" role="status">
+            <span className="badge neutral">Account signed in</span>
+            <h3>Complete required account information</h3>
+            <button className="button" onClick={auth.openProfileCompletion}>
+              Complete account information
+            </button>
+          </div>
+        ) : auth.financialWalletMetadata.status === "ERROR" || auth.financialWalletMetadata.status === "UNAVAILABLE" ? (
+          <div className="card" role="alert">
+            <span className="badge neutral">Wallet metadata unavailable</span>
+            <h3>Financial actions are paused</h3>
+            <p className="subtle">No verified wallet metadata has been changed.</p>
+          </div>
+        ) : walletState === "BOOTSTRAPPING" ? (
           <div className="card" role="status" data-testid="network-checking">
             <span className="badge neutral">Checking wallet network</span>
             <h3>Confirm Ethereum Sepolia</h3>
@@ -129,26 +157,16 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             <p className="subtle">
               Your wallet controls your savings. Leopold does not hold your funds or create an embedded wallet.
             </p>
-            {!auth.authenticated ? (
-              <a className="button" href="/login">
-                Continue with email or wallet
-              </a>
-            ) : auth.readiness === "PROFILE_INCOMPLETE" ? (
-              <a className="button" href="/onboarding">
-                Finish your Leopold profile
-              </a>
-            ) : !auth.financialWallet ? (
+            {auth.financialWalletMetadata.status === "NONE" ? (
               <button className="button" onClick={auth.openWalletLink}>
-                Link Wallet
+                Link financial wallet
               </button>
-            ) : auth.financialWallet ? (
+            ) : auth.financialWalletMetadata.status === "PRESENT" ? (
               <button className="button" onClick={() => void walletIdentity.connectVerifiedWallet()}>
                 Reconnect verified wallet
               </button>
             ) : (
-              <button className="button" onClick={auth.openWalletLink}>
-                Connect and verify external wallet
-              </button>
+              <span className="subtle">Wallet recovery is not available in this state.</span>
             )}
             {auth.authError ? (
               <div className="error" role="alert">

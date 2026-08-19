@@ -159,7 +159,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const networkHealth = walletIdentity.networkHealth;
   const walletChainId = fixtureEnabled ? fixtureChain : walletIdentity.walletSession.chainId;
   const financialAuthorized =
-    fixtureEnabled || financialControlsEnabled(auth.clientReady, walletIdentity.walletSession.status === "CONNECTED");
+    fixtureEnabled ||
+    financialControlsEnabled(
+      auth.clientReady,
+      auth.accountStatus === "SIGNED_IN_READY" && walletIdentity.walletSession.status === "CONNECTED",
+    );
   const financialActionsEnabled =
     fixtureEnabled || (financialAuthorized && walletIdentity.walletSession.canUseFinancialActions);
 
@@ -515,12 +519,16 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             return;
           }
           if (!auth.configured) throw new Error("AUTH_CONFIGURATION_REQUIRED");
-          if (!auth.authenticated) auth.openWalletAuthentication();
-          else if (!auth.financialWallet) auth.openWalletLink();
-          else {
+          if (auth.accountStatus === "AUTH_LOADING" || auth.financialWalletMetadata.status === "LOADING") {
+            throw new Error("ACCOUNT_METADATA_LOADING");
+          }
+          if (auth.accountStatus === "SIGNED_OUT") auth.openWalletAuthentication();
+          else if (auth.accountStatus === "SIGNED_IN_PROFILE_INCOMPLETE") auth.openProfileCompletion();
+          else if (auth.financialWalletMetadata.status === "NONE") auth.openWalletLink();
+          else if (auth.financialWalletMetadata.status === "PRESENT") {
             const result = await walletIdentity.connectVerifiedWallet();
             if (!result.ok && result.state !== "CONNECTING") throw new Error(`WALLET_SESSION:${result.reason}`);
-          }
+          } else throw new Error("FINANCIAL_WALLET_METADATA_UNAVAILABLE");
           return;
         } catch (caught) {
           setError(classifyLeopoldError(caught));
