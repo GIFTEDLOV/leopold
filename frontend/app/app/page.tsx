@@ -7,12 +7,12 @@ import { privateBalanceLabel } from "@/lib/leopold/private-balance";
 import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { leopoldConfig } from "@/lib/leopold/config";
 import { VaultCards } from "@/components/vault-cards";
-import { useAuth } from "@/components/auth-provider";
+import { useWalletIdentity } from "@/components/wallet-identity-provider";
 
 export default function DashboardPage() {
   const financial = useFinancial();
-  const auth = useAuth();
-  const walletMismatch = financial.networkHealth.state === "WALLET_MISMATCH";
+  const walletIdentity = useWalletIdentity();
+  const walletMismatch = walletIdentity.identity.state === "WALLET_MISMATCH";
   const privateBalanceBusy =
     financial.privateBalanceStatus === "READING_HANDLE" ||
     financial.privateBalanceStatus === "AWAITING_DECRYPT_AUTHORIZATION" ||
@@ -51,7 +51,7 @@ export default function DashboardPage() {
             className="button ghost small"
             disabled={privateBalanceBusy || (!financial.financialActionsEnabled && !walletMismatch)}
             onClick={() => {
-              if (walletMismatch) void auth.reconnectFinancialWallet().catch(() => undefined);
+              if (walletMismatch) void walletIdentity.switchToVerifiedWallet();
               else if (financial.privateBalanceRevealed) financial.hidePrivateBalance();
               else void financial.revealPrivateBalance().catch(() => undefined);
             }}

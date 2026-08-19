@@ -4,17 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { useFinancial } from "@/components/financial-provider";
+import { useWalletIdentity } from "@/components/wallet-identity-provider";
 
 export default function ProfilePage() {
   const financial = useFinancial();
   const auth = useAuth();
+  const walletIdentity = useWalletIdentity();
   const router = useRouter();
   const [amount, setAmount] = useState("1");
-  const walletMismatch = Boolean(
-    auth.financialWallet &&
-    auth.connectedWallet &&
-    auth.financialWallet.toLowerCase() !== auth.connectedWallet.toLowerCase(),
-  );
+  const walletMismatch = Boolean(walletIdentity.identity.state === "WALLET_MISMATCH");
   return (
     <div className="content">
       <div className="page-heading">
@@ -55,16 +53,20 @@ export default function ProfilePage() {
             <div className="list-main">
               <strong>Connected wallet</strong>
               <span>
-                {auth.connectedWallet
+                {walletIdentity.identity.connectedAddress
                   ? walletMismatch
                     ? "Different from your verified financial wallet"
-                    : auth.walletAuthenticated
+                    : walletIdentity.identity.state === "READY"
                       ? "Ownership verified"
                       : "Signature required"
                   : "Disconnected"}
               </span>
             </div>
-            <span>{financial.accountLabel}</span>
+            <span>
+              {walletIdentity.identity.connectedAddress
+                ? `${walletIdentity.identity.connectedAddress.slice(0, 6)}…${walletIdentity.identity.connectedAddress.slice(-4)}`
+                : "Not connected"}
+            </span>
           </div>
           <div className="form-row">
             <button className="button secondary" onClick={financial.disconnectWallet}>
@@ -128,7 +130,7 @@ export default function ProfilePage() {
             />
             <button
               className="button secondary"
-              disabled={financial.networkHealth.state === "WALLET_MISMATCH" || !financial.financialActionsEnabled}
+              disabled={walletIdentity.identity.state !== "READY" || !financial.financialActionsEnabled}
               onClick={() => {
                 void financial.makePublic(amount).catch(() => undefined);
               }}

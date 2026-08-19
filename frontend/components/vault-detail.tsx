@@ -6,13 +6,13 @@ import { getVaultConfig, type VaultId } from "@/lib/leopold/config";
 import { formatUsdcAmount, parseUsdcAmount } from "@/lib/leopold/amounts";
 import { canPrepareVaultWithdrawal, getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { privateAmountLabel, useFinancial } from "./financial-provider";
-import { useAuth } from "./auth-provider";
+import { useWalletIdentity } from "./wallet-identity-provider";
 import { transactionIsBusy } from "@/lib/leopold/transactions";
 
 export function VaultDetail({ slug }: { slug: VaultId }) {
   const vault = getVaultConfig(slug)!;
   const financial = useFinancial();
-  const auth = useAuth();
+  const walletIdentity = useWalletIdentity();
   const [saveAmount, setSaveAmount] = useState("10");
   const [withdrawAmount, setWithdrawAmount] = useState("1");
   const state = financial.publicVaultState[slug];
@@ -24,7 +24,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
   const roundOpen = roundStatus.depositOpen;
   const canPrepareWithdrawal = financial.fixture || canPrepareVaultWithdrawal(state, financial.latestBlockTimestamp);
   const knownZeroPosition = financial.revealedVaults.has(slug) && (financial.vaultPositions[slug] ?? 0n) === 0n;
-  const walletMismatch = financial.networkHealth.state === "WALLET_MISMATCH";
+  const walletMismatch = walletIdentity.identity.state === "WALLET_MISMATCH";
   const saveExceedsRevealedBalance = (() => {
     if (!financial.privateBalanceRevealed || financial.privateBalance === null) return false;
     try {
@@ -57,7 +57,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               data-testid="reveal-position"
               disabled={busy || (!financial.financialActionsEnabled && !walletMismatch)}
               onClick={() => {
-                if (walletMismatch) void auth.reconnectFinancialWallet().catch(() => undefined);
+                if (walletMismatch) void walletIdentity.switchToVerifiedWallet();
                 else if (revealed) financial.hideVault(slug);
                 else void financial.revealVault(slug).catch(() => undefined);
               }}
@@ -188,7 +188,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
                 busy || (!financial.financialActionsEnabled && !walletMismatch) || (!entered && !walletMismatch)
               }
               onClick={() => {
-                if (walletMismatch) void auth.reconnectFinancialWallet().catch(() => undefined);
+                if (walletMismatch) void walletIdentity.switchToVerifiedWallet();
                 else void financial.revealEligibility(slug).catch(() => undefined);
               }}
             >

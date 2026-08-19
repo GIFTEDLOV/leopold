@@ -4,16 +4,19 @@ import { useState } from "react";
 import { formatUsdcAmount } from "@/lib/leopold/amounts";
 import { useFinancial } from "./financial-provider";
 import { useAuth } from "./auth-provider";
+import { useWalletIdentity } from "./wallet-identity-provider";
 import { transactionIsBusy } from "@/lib/leopold/transactions";
 
 export function AddMoneyModal({ onClose }: { onClose(): void }) {
   const financial = useFinancial();
   const auth = useAuth();
+  const walletIdentity = useWalletIdentity();
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState("10");
   const busy = transactionIsBusy(financial.txStage);
-  const healthState = financial.networkHealth.state;
-  const canUseWrapper = financial.financialAuthorized && financial.connected && healthState === "HEALTHY";
+  const healthState = walletIdentity.identity.networkHealth.state;
+  const walletState = walletIdentity.identity.state;
+  const canUseWrapper = walletIdentity.identity.canUseFinancialActions && financial.connected;
   return (
     <div
       className="modal-backdrop"
@@ -37,7 +40,7 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             <span key={item} className={item <= step ? "active" : ""} />
           ))}
         </div>
-        {healthState === "CHECKING" ? (
+        {walletState === "UNINITIALIZED" && healthState === "CHECKING" ? (
           <div className="card" role="status" data-testid="network-checking">
             <span className="badge neutral">Checking wallet network</span>
             <h3>Confirm Ethereum Sepolia</h3>
@@ -45,18 +48,14 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
               Financial actions remain disabled until Leopold confirms the active signing wallet.
             </p>
           </div>
-        ) : healthState === "WRONG_NETWORK" ? (
+        ) : walletState === "WRONG_NETWORK" ? (
           <div className="card" role="alert" data-testid="wrong-network">
             <span className="badge neutral">Wrong network</span>
             <h3>Switch to Ethereum Sepolia</h3>
             <p className="subtle">
               No financial transaction will be simulated or sent while your wallet is on another chain.
             </p>
-            <button
-              className="button"
-              disabled={busy}
-              onClick={() => void financial.switchToSepolia().catch(() => undefined)}
-            >
+            <button className="button" disabled={busy} onClick={() => void walletIdentity.switchToSepolia()}>
               Switch to Sepolia
             </button>
           </div>
@@ -80,23 +79,23 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
               Retry connection
             </button>
           </div>
-        ) : healthState === "WALLET_MISMATCH" ? (
+        ) : walletState === "WALLET_MISMATCH" ? (
           <div className="card" role="alert" data-testid="wallet-mismatch">
             <span className="badge neutral">Wallet mismatch</span>
             <h3>Reconnect your verified financial wallet</h3>
             <p className="subtle">
               The active signing wallet does not match the wallet verified for this Leopold account.
             </p>
-            <button className="button" onClick={() => void auth.reconnectFinancialWallet().catch(() => undefined)}>
+            <button className="button" onClick={() => void walletIdentity.switchToVerifiedWallet()}>
               Switch to verified wallet
             </button>
           </div>
-        ) : healthState === "WALLET_DISCONNECTED" && auth.financialWallet ? (
+        ) : walletState === "DISCONNECTED" && auth.financialWallet ? (
           <div className="card" role="alert" data-testid="wallet-disconnected">
             <span className="badge neutral">Wallet disconnected</span>
             <h3>Reconnect your verified financial wallet</h3>
             <p className="subtle">This Leopold account already has a verified financial wallet.</p>
-            <button className="button" onClick={() => void auth.reconnectFinancialWallet().catch(() => undefined)}>
+            <button className="button" onClick={() => void walletIdentity.reconnectVerifiedWallet()}>
               Reconnect verified wallet
             </button>
           </div>
@@ -128,12 +127,14 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
               <button className="button" onClick={auth.openWalletLink}>
                 Link Wallet
               </button>
-            ) : auth.connectedWallet &&
-              auth.financialWallet &&
-              auth.connectedWallet.toLowerCase() !== auth.financialWallet.toLowerCase() ? (
-              <p className="error" role="alert">
-                Connected wallet does not match your Leopold account. Switch back to your linked wallet.
-              </p>
+            ) : walletIdentity.identity.recoveryAction === "SWITCH_TO_VERIFIED_WALLET" ? (
+              <button className="button" onClick={() => void walletIdentity.switchToVerifiedWallet()}>
+                Switch to verified wallet
+              </button>
+            ) : auth.financialWallet ? (
+              <button className="button" onClick={() => void walletIdentity.refreshWalletIdentity()}>
+                Retry wallet connection
+              </button>
             ) : (
               <button className="button" onClick={auth.openWalletLink}>
                 Connect and verify external wallet

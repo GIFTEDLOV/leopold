@@ -26,19 +26,7 @@ import {
   requireConfiguredAddress,
   type VaultId,
 } from "@/lib/leopold/config";
-import {
-  beginFinancialNetworkCheck,
-  createIdleFinancialNetworkHealth,
-  financialWritesAllowed,
-  getFinancialNetworkHealthKey,
-  getPublicReadAccount,
-  isFinancialNetworkHealthFresh,
-  runFinancialNetworkPreflight,
-  type FinancialNetworkCheckMode,
-  type FinancialNetworkHealth,
-  type FinancialNetworkSnapshot,
-  type RpcRequester,
-} from "@/lib/leopold/network";
+import { getPublicReadAccount } from "@/lib/leopold/network";
 import { classifyLeopoldError, sanitizeTechnicalDetail, type LeopoldError } from "@/lib/leopold/errors";
 import {
   readPrivateHandle,
@@ -65,8 +53,9 @@ import {
 } from "@/lib/leopold/private-balance";
 import { clearPrivateSession, decryptPrivateValue } from "@/lib/leopold/zama";
 import { useAuth } from "@/components/auth-provider";
-import { checkPrivateRevealIdentity, requireFinancialIdentity } from "@/lib/auth/readiness";
 import { financialControlsEnabled } from "@/lib/auth/hydration";
+import { useWalletIdentity } from "@/components/wallet-identity-provider";
+import type { WalletRpcHealth } from "@/lib/auth/wallet-identity";
 import { prepareWithdrawalRound } from "@/lib/leopold/withdrawal";
 
 export type ActivityItem = { id: string; label: string; status: "Confirmed" | "Processing"; vault?: string };
@@ -75,7 +64,7 @@ type FinancialContextValue = {
   fixture: boolean;
   connected: boolean;
   connecting: boolean;
-  networkHealth: FinancialNetworkHealth;
+  networkHealth: WalletRpcHealth;
   walletChainId: number | null;
   account: Address | null;
   accountLabel: string;
@@ -125,15 +114,9 @@ type FinancialContextValue = {
 const FinancialContext = createContext<FinancialContextValue | null>(null);
 const fixtureEnabled = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_LEOPOLD_DEV_FIXTURE === "1";
 const fixtureAccount = "0x7E57a10D00000000000000000000000000000001" as Address;
-type FinancialIdentityOverride = {
-  activeAccount: Address | null;
-  connectedWallet: Address | null;
-};
-
 export function FinancialProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
-  const authIdentity = auth.identity;
-  const refreshConnectedWallet = auth.refreshConnectedWallet;
+  const walletIdentity = useWalletIdentity();
   const accountState = useAccount();
   const connectState = useConnect();
   const disconnectState = useDisconnect();
@@ -160,252 +143,49 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<LeopoldError | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [deploymentVerified, setDeploymentVerified] = useState(false);
-  const [networkHealth, setNetworkHealth] = useState<FinancialNetworkHealth>(createIdleFinancialNetworkHealth);
-  const healthCacheRef = useRef<{ key: string; health: FinancialNetworkHealth } | null>(null);
-  const healthRunRef = useRef(0);
   const walletClientRef = useRef(walletClient.data);
   const publicClientRef = useRef(publicClient);
   const accountRef = useRef<Address | null>(null);
-  const refreshActiveNetworkRef = useRef(auth.refreshActiveNetwork);
+  const walletClientId = walletClient.data?.uid ?? null;
 
-  const connected = fixtureEnabled ? fixtureConnected : Boolean(auth.connectedWallet);
+  const connected = fixtureEnabled ? fixtureConnected : walletIdentity.identity.providerConnected;
   const connecting = fixtureEnabled ? false : accountState.isConnecting || connectState.isPending;
-  const account = fixtureEnabled ? (fixtureConnected ? fixtureAccount : null) : (auth.connectedWallet ?? null);
+  const account = fixtureEnabled
+    ? fixtureConnected
+      ? fixtureAccount
+      : null
+    : walletIdentity.identity.providerActiveAccount;
 
   useEffect(() => {
     walletClientRef.current = walletClient.data;
     publicClientRef.current = publicClient;
     accountRef.current = account;
-    refreshActiveNetworkRef.current = auth.refreshActiveNetwork;
-  }, [account, auth.refreshActiveNetwork, publicClient, walletClient.data]);
-  const wagmiAccountChainId = fixtureEnabled ? fixtureChain : (accountState.chainId ?? null);
-  const walletChainId = networkHealth.walletClientChainId ?? auth.activeNetworkId ?? wagmiAccountChainId;
-  const financialAuthorized = financialControlsEnabled(auth.clientReady, auth.readiness === "ACCOUNT_READY");
-  const financialActionsEnabled = fixtureEnabled || (financialAuthorized && networkHealth.state === "HEALTHY");
-  const walletClientAccount = walletClient.data
-    ? ((typeof walletClient.data.account === "string"
-        ? walletClient.data.account
-        : walletClient.data.account?.address) ?? null)
-    : null;
-  const walletClientId = walletClient.data?.uid ?? null;
+  }, [account, publicClient, walletClient.data]);
+  const networkHealth = walletIdentity.identity.networkHealth;
+  const walletChainId = fixtureEnabled ? fixtureChain : walletIdentity.identity.chainId;
+  const financialAuthorized =
+    fixtureEnabled || financialControlsEnabled(auth.clientReady, walletIdentity.identity.state === "READY");
+  const financialActionsEnabled =
+    fixtureEnabled || (financialAuthorized && walletIdentity.identity.canUseFinancialActions);
 
-  const syncWalletNetwork = useCallback(
-    async (connectedOverride = connected): Promise<FinancialNetworkSnapshot> => {
-      if (!connectedOverride) {
-        return { connected: false, dynamicWalletChainId: null, walletClientChainId: null };
-      }
-      if (fixtureEnabled) {
-        return { connected: true, dynamicWalletChainId: fixtureChain, walletClientChainId: fixtureChain };
-      }
-      let dynamicWalletChainId: number | null = null;
-      try {
-        dynamicWalletChainId = await refreshActiveNetworkRef.current();
-      } catch {
-        dynamicWalletChainId = null;
-      }
-      let currentWalletClientChainId: number | null = null;
-      try {
-        currentWalletClientChainId = walletClientRef.current ? await walletClientRef.current.getChainId() : null;
-      } catch {
-        currentWalletClientChainId = null;
-      }
-      return {
-        connected: true,
-        dynamicWalletChainId,
-        walletClientChainId: currentWalletClientChainId,
-        wagmiAccountChainId: accountState.chainId ?? null,
-      };
-    },
-    [accountState.chainId, connected, fixtureChain],
-  );
-
-  const healthKey = [
-    connected,
-    financialAuthorized,
-    getFinancialNetworkHealthKey({
-      activeAccount: account,
-      financialWallet: auth.financialWallet,
-      connectedWallet: auth.connectedWallet,
-      activeWallet: auth.activeWalletAddress,
-      walletClientAccount,
-      walletClientId,
-      dynamicWalletChainId: auth.activeNetworkId,
-      wagmiAccountChainId: accountState.chainId ?? null,
-    }),
-  ].join("|");
-
-  const runNetworkHealth = useCallback(
-    async (
-      force = false,
-      mode: FinancialNetworkCheckMode = "auto",
-      identityOverride?: FinancialIdentityOverride,
-    ): Promise<FinancialNetworkHealth> => {
-      if (!auth.clientReady || !auth.financialWallet) {
-        ++healthRunRef.current;
-        healthCacheRef.current = null;
-        const idle = createIdleFinancialNetworkHealth();
-        setNetworkHealth(idle);
-        return idle;
-      }
-      const resolvedAccount = identityOverride?.activeAccount ?? account;
-      const resolvedConnectedWallet = identityOverride?.connectedWallet ?? auth.connectedWallet;
-      const resolvedConnected = Boolean(resolvedConnectedWallet);
-      const resolvedHealthKey = [
-        resolvedConnected,
-        financialAuthorized,
-        getFinancialNetworkHealthKey({
-          activeAccount: resolvedAccount,
-          financialWallet: auth.financialWallet,
-          connectedWallet: resolvedConnectedWallet,
-          activeWallet: auth.activeWalletAddress,
-          walletClientAccount,
-          walletClientId,
-          dynamicWalletChainId: auth.activeNetworkId,
-          wagmiAccountChainId: accountState.chainId ?? null,
-        }),
-      ].join("|");
-      const cachedHealth = healthCacheRef.current;
-      if (!force && cachedHealth && isFinancialNetworkHealthFresh(cachedHealth, resolvedHealthKey)) {
-        setNetworkHealth(cachedHealth.health);
-        return cachedHealth.health;
-      }
-      const runId = ++healthRunRef.current;
-      setNetworkHealth((current) => beginFinancialNetworkCheck(current, mode));
-      const snapshot = await syncWalletNetwork(resolvedConnected);
-      const requester = (client: unknown): RpcRequester | null => {
-        if (!client || typeof client !== "object" || !("request" in client)) return null;
-        const rawRequest = (client as { request: (...args: never[]) => Promise<unknown> }).request;
-        return { request: (args) => rawRequest(args as never) };
-      };
-      const health = fixtureEnabled
-        ? {
-            state: fixtureConnected
-              ? fixtureChain === LEOPOLD_CHAIN_ID
-                ? ("HEALTHY" as const)
-                : ("WRONG_NETWORK" as const)
-              : ("WALLET_DISCONNECTED" as const),
-            checkedAt: Date.now(),
-            dynamicWalletChainId: fixtureConnected ? fixtureChain : null,
-            walletClientChainId: fixtureConnected ? fixtureChain : null,
-            appChainId: fixtureConnected ? LEOPOLD_CHAIN_ID : null,
-            backgroundChecking: false,
-          }
-        : await runFinancialNetworkPreflight({
-            activeAccount: resolvedAccount,
-            financialWallet: auth.financialWallet,
-            connectedWallet: resolvedConnectedWallet,
-            activeWallet: auth.activeWalletAddress,
-            walletClientAccount,
-            walletClient: requester(walletClientRef.current),
-            publicClient: requester(publicClientRef.current),
-            dynamicWalletChainId: snapshot.dynamicWalletChainId,
-          });
-      if (runId === healthRunRef.current) {
-        const resolvedKey = [
-          resolvedConnected,
-          financialAuthorized,
-          getFinancialNetworkHealthKey({
-            activeAccount: resolvedAccount,
-            financialWallet: auth.financialWallet,
-            connectedWallet: resolvedConnectedWallet,
-            activeWallet: auth.activeWalletAddress,
-            walletClientAccount,
-            walletClientId,
-            dynamicWalletChainId: snapshot.dynamicWalletChainId,
-            wagmiAccountChainId: snapshot.wagmiAccountChainId ?? null,
-          }),
-        ].join("|");
-        healthCacheRef.current = { key: resolvedKey, health };
-        setNetworkHealth(health);
-        if (
-          health.state === "WALLET_DISCONNECTED" ||
-          health.state === "WALLET_MISMATCH" ||
-          health.state === "HEALTHY"
-        ) {
-          setError((current) =>
-            current &&
-            [
-              "WALLET_DISCONNECTED",
-              "WALLET_MISMATCH",
-              "WALLET_RPC_UNAVAILABLE",
-              "APP_RPC_UNAVAILABLE",
-              "RPC_FAILURE",
-              "UNKNOWN",
-              "WRONG_NETWORK",
-            ].includes(current.code)
-              ? null
-              : current,
-          );
-        }
-      }
-      return health;
-    },
-    [
-      account,
-      accountState.chainId,
-      auth.activeNetworkId,
-      auth.activeWalletAddress,
-      auth.connectedWallet,
-      auth.financialWallet,
-      auth.clientReady,
-      financialAuthorized,
-      fixtureChain,
-      fixtureConnected,
-      syncWalletNetwork,
-      walletClientAccount,
-      walletClientId,
-    ],
-  );
-
-  const ensureSepoliaWalletHealth = useCallback(
-    async (identityOverride?: FinancialIdentityOverride) => {
-      const health = await runNetworkHealth(false, "write", identityOverride);
-      if (!financialWritesAllowed(health)) {
-        throw new Error(`${health.state}:${health.technicalDetail ?? "financial network preflight failed"}`);
-      }
-    },
-    [runNetworkHealth],
-  );
-
-  const ensureFinancialAccess = useCallback(async () => {
+  const ensureWalletIdentityReady = useCallback(async () => {
     try {
-      const activeAccount = await refreshConnectedWallet();
-      const currentIdentity = { ...authIdentity, connectedWallet: activeAccount };
-      requireFinancialIdentity(currentIdentity, true);
-      await ensureSepoliaWalletHealth({ activeAccount, connectedWallet: activeAccount });
+      const identity = await walletIdentity.refreshWalletIdentity();
+      if (identity.state !== "READY") {
+        const reason = identity.reason === "RPC_UNAVAILABLE" ? identity.networkHealth.state : identity.reason;
+        throw new Error(`WALLET_IDENTITY:${reason}`);
+      }
     } catch (caught) {
       setError(classifyLeopoldError(caught));
       throw caught;
     }
-  }, [authIdentity, ensureSepoliaWalletHealth, refreshConnectedWallet]);
+  }, [walletIdentity]);
 
+  const ensureFinancialAccess = ensureWalletIdentityReady;
   const ensurePrivateRevealAccess = useCallback(async () => {
-    try {
-      const activeAccount = await refreshConnectedWallet();
-      const currentIdentity = { ...authIdentity, connectedWallet: activeAccount };
-      const result = checkPrivateRevealIdentity(currentIdentity, true);
-      if (!result.allowed) {
-        const error = new Error(result.code);
-        error.name = result.code;
-        throw error;
-      }
-      await ensureSepoliaWalletHealth({ activeAccount, connectedWallet: activeAccount });
-      // The Zama SDK is signer-bound and kept only in memory. Recreate it for
-      // every reveal so a wallet switch, logout, or stale authorization cannot
-      // reuse the prior private-session object.
-      clearPrivateSession();
-    } catch (caught) {
-      setError(classifyLeopoldError(caught));
-      throw caught;
-    }
-  }, [authIdentity, ensureSepoliaWalletHealth, refreshConnectedWallet]);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      void runNetworkHealth(false, "auto");
-    }, 0);
-    return () => window.clearTimeout(timeout);
-  }, [healthKey, runNetworkHealth]);
+    await ensureWalletIdentityReady();
+    clearPrivateSession();
+  }, [ensureWalletIdentityReady]);
 
   const ethBalance = useBalance({
     address: fixtureEnabled ? undefined : (account ?? undefined),
@@ -606,7 +386,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           setTxStage("complete");
         }
         persistStage(completesAfterReceipt ? "complete" : "private");
-        void runNetworkHealth(true, "background");
+        void walletIdentity.refreshWalletIdentity();
       } catch (caught) {
         setError(classifyLeopoldError(caught));
         setTxErrorStage(activeStage);
@@ -615,11 +395,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         throw caught;
       }
     },
-    [account, ensureFinancialAccess, refreshPrivateBalanceHandle, runNetworkHealth],
+    [account, ensureFinancialAccess, refreshPrivateBalanceHandle, walletIdentity],
   );
 
   const refresh = useCallback(async () => {
-    const publicReadAccount = getPublicReadAccount(auth.financialWallet, account);
+    const publicReadAccount = getPublicReadAccount(walletIdentity.identity.verifiedAddress, account);
     if (!publicReadAccount) return;
     if (fixtureEnabled) return;
     if (!publicClient) return;
@@ -649,7 +429,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setDeploymentVerified(false);
       if (networkHealth.state === "HEALTHY" && financialAuthorized) setError(classifyLeopoldError(caught));
     }
-  }, [account, auth.financialWallet, financialAuthorized, networkHealth.state, publicClient]);
+  }, [account, financialAuthorized, networkHealth.state, publicClient, walletIdentity.identity.verifiedAddress]);
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       if (fixtureEnabled && !auth.authenticated) setFixtureConnected(false);
@@ -685,12 +465,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timeout);
   }, [
     account,
-    auth.activeWalletAddress,
     auth.authenticated,
-    auth.financialWallet,
     auth.identityKey,
     invalidatePrivateBalance,
     networkHealth.state,
+    walletIdentity.identity.revision,
+    walletIdentity.identity.state,
     walletChainId,
     walletClientId,
   ]);
@@ -703,12 +483,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
-    if (!financialAuthorized || !account || networkHealth.state !== "HEALTHY") return;
+    if (!financialAuthorized || !account || walletIdentity.identity.state !== "READY") return;
     const timeout = window.setTimeout(() => {
       void refreshPrivateBalanceHandle();
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [account, financialAuthorized, networkHealth.state, refreshPrivateBalanceHandle, walletClientId]);
+  }, [account, financialAuthorized, refreshPrivateBalanceHandle, walletClientId, walletIdentity.identity.state]);
 
   const value = useMemo<FinancialContextValue>(
     () => ({
@@ -769,15 +549,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setFixtureChain(LEOPOLD_CHAIN_ID);
             return;
           }
-          await auth.switchFinancialWalletToSepolia();
-          await ensureSepoliaWalletHealth();
+          const result = await walletIdentity.switchToSepolia();
+          if (!result.ok) throw new Error(`WALLET_IDENTITY:${result.reason}`);
         } catch (caught) {
           setError(classifyLeopoldError(caught));
           throw caught;
         }
       },
       retryNetworkHealth: async () => {
-        await runNetworkHealth(true, "retry");
+        await walletIdentity.refreshWalletIdentity();
       },
       refresh,
       acquireUsdc: async () =>
@@ -845,7 +625,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           revealAccount = liveClients.account;
           token = requireConfiguredAddress(leopoldConfig.lcUsdc, "Private USDC");
           chainId = await liveClients.walletClient.getChainId();
-          if (auth.financialWallet?.toLowerCase() !== revealAccount.toLowerCase()) {
+          if (walletIdentity.identity.verifiedAddress?.toLowerCase() !== revealAccount.toLowerCase()) {
             throw new Error("PRIVATE_BALANCE:WRONG_ACCOUNT");
           }
           const result = await revealPrivateBalanceFromCurrentHandle({
@@ -1182,11 +962,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       financialAuthorized,
       financialActionsEnabled,
       ensurePrivateRevealAccess,
-      ensureSepoliaWalletHealth,
       invalidatePrivateBalance,
       refreshPrivateBalanceHandle,
       requireLiveOpenRound,
-      runNetworkHealth,
+      walletIdentity,
     ],
   );
 

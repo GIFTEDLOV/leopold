@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, type FormEvent, type ReactNode, useState } from "react";
 import { useAuth } from "./auth-provider";
+import { useWalletIdentity } from "./wallet-identity-provider";
 import { normalizeEmail } from "@/lib/auth/email";
 
 function AuthFrame({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
@@ -143,6 +144,7 @@ export function LoginClient() {
 
 export function OnboardingClient() {
   const auth = useAuth();
+  const walletIdentity = useWalletIdentity();
   const router = useRouter();
   const [username, setUsername] = useState(auth.username ?? "");
   const [email, setEmail] = useState("");
@@ -278,16 +280,27 @@ export function OnboardingClient() {
           </p>
         </div>
       )}
-      {auth.emailVerified && auth.readiness === "WALLET_REQUIRED" ? (
+      {auth.emailVerified &&
+      (auth.readiness === "WALLET_REQUIRED" || (auth.financialWallet && walletIdentity.identity.state !== "READY")) ? (
         <button
           className="button secondary"
           onClick={() => {
-            if (auth.financialWallet) void auth.reconnectFinancialWallet().catch(() => undefined);
+            if (walletIdentity.identity.recoveryAction === "SWITCH_TO_VERIFIED_WALLET")
+              void walletIdentity.switchToVerifiedWallet();
+            else if (walletIdentity.identity.recoveryAction === "SWITCH_TO_SEPOLIA")
+              void walletIdentity.switchToSepolia();
+            else if (auth.financialWallet) void walletIdentity.reconnectVerifiedWallet();
             else auth.openWalletLink();
           }}
           type="button"
         >
-          {auth.financialWallet ? "Reconnect verified wallet" : "Connect wallet now"}
+          {auth.financialWallet
+            ? walletIdentity.identity.recoveryAction === "SWITCH_TO_SEPOLIA"
+              ? "Switch to Sepolia"
+              : walletIdentity.identity.recoveryAction === "SWITCH_TO_VERIFIED_WALLET"
+                ? "Switch to verified wallet"
+                : "Reconnect verified wallet"
+            : "Connect wallet now"}
         </button>
       ) : null}
       <Link className="button secondary" href="/app">

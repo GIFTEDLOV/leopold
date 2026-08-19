@@ -110,6 +110,13 @@ export function classifyLeopoldError(error: unknown): LeopoldError {
   let code: LeopoldErrorCode = "UNKNOWN";
   if (/wallet_disconnected/u.test(lower)) code = "WALLET_DISCONNECTED";
   else if (/wallet_mismatch/u.test(lower)) code = "WALLET_MISMATCH";
+  else if (/wallet_identity:provider_account_unavailable/u.test(lower)) code = "WALLET_DISCONNECTED";
+  else if (/wallet_identity:provider_account_mismatch/u.test(lower)) code = "WALLET_MISMATCH";
+  else if (/wallet_identity:wrong_network|wallet_identity:provider_network_unavailable/u.test(lower))
+    code = "WRONG_NETWORK";
+  else if (/wallet_identity:wallet_rpc_unavailable/u.test(lower)) code = "WALLET_RPC_UNAVAILABLE";
+  else if (/wallet_identity:app_rpc_unavailable/u.test(lower)) code = "APP_RPC_UNAVAILABLE";
+  else if (/wallet_identity:unknown/u.test(lower)) code = "RPC_FAILURE";
   else if (/^wallet_rpc_unavailable/u.test(lower)) code = "WALLET_RPC_UNAVAILABLE";
   else if (/^app_rpc_unavailable/u.test(lower)) code = "APP_RPC_UNAVAILABLE";
   else if (detail.startsWith("CONFIGURATION_MISSING")) code = "CONFIGURATION_MISSING";

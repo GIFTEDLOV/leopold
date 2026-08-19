@@ -4,11 +4,13 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useAuth } from "./auth-provider";
 import { useFinancial } from "./financial-provider";
+import { useWalletIdentity } from "./wallet-identity-provider";
 import { getAuthHydrationPhase } from "@/lib/auth/hydration";
 
 export function WalletGate({ children }: { children: ReactNode }) {
   const financial = useFinancial();
   const auth = useAuth();
+  const walletIdentity = useWalletIdentity();
   if (getAuthHydrationPhase(auth.clientReady) === "AUTH_INITIALIZING")
     return (
       <div className="wallet-gate" data-testid="auth-initializing">
@@ -74,7 +76,7 @@ export function WalletGate({ children }: { children: ReactNode }) {
         ) : null}
       </div>
     );
-  if (auth.authenticated && auth.readiness === "WALLET_REQUIRED" && !auth.financialWallet)
+  if (auth.authenticated && walletIdentity.identity.recoveryAction === "LINK_WALLET")
     return (
       <>
         <div className="inline-notice" role="status">
@@ -86,35 +88,6 @@ export function WalletGate({ children }: { children: ReactNode }) {
         </div>
         {children}
       </>
-    );
-  if (financial.networkHealth.state === "CHECKING")
-    return (
-      <div className="wallet-gate" data-testid="network-checking">
-        <span className="brand-mark">L</span>
-        <h2>Checking wallet network</h2>
-        <p>Financial actions stay disabled until the active signing wallet is confirmed on Ethereum Sepolia.</p>
-      </div>
-    );
-  if (financial.networkHealth.state === "WRONG_NETWORK")
-    return (
-      <div className="wallet-gate">
-        <span className="brand-mark">L</span>
-        <h2>Switch to Ethereum Sepolia</h2>
-        <p>Leopold’s test financial operations only run on Sepolia. No transaction has been attempted.</p>
-        <button
-          className="button"
-          onClick={() => {
-            void financial.switchToSepolia().catch(() => undefined);
-          }}
-        >
-          Switch to Sepolia
-        </button>
-        {financial.error ? (
-          <div className="error" role="alert">
-            {financial.error.message}
-          </div>
-        ) : null}
-      </div>
     );
   return children;
 }

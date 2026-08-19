@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -34,6 +35,7 @@ import {
   type AuthIdentitySnapshot,
   type AuthReadinessState,
 } from "@/lib/auth/readiness";
+import type { DynamicWalletDescriptor } from "@/lib/auth/wallet-identity";
 import { canonicalizeUsername } from "@/lib/auth/username";
 import { normalizeNetworkChainId } from "@/lib/leopold/network";
 import { getAuthHydrationPhase } from "@/lib/auth/hydration";
@@ -64,6 +66,12 @@ export type AuthContextValue = {
   financialWallet: Address | null;
   connectedWallet: Address | null;
   activeWalletAddress: Address | null;
+  dynamicPrimaryWallet: Address | null;
+  dynamicLinkedWallets: readonly DynamicWalletDescriptor[];
+  dynamicWalletObjectForVerifiedAddress: DynamicWalletDescriptor | null;
+  providerActiveAccount: Address | null;
+  providerAccountKnown: boolean;
+  providerConnected: boolean;
   walletAuthenticated: boolean;
   readiness: AuthReadinessState;
   identity: AuthIdentitySnapshot;
@@ -162,6 +170,8 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   const [activeNetworkId, setActiveNetworkId] = useState<number | null>(null);
   const [providerAccount, setProviderAccount] = useState<Address | null>(null);
   const [providerAccountKnown, setProviderAccountKnown] = useState(false);
+  const providerReadRevisionRef = useRef(0);
+  const networkReadRevisionRef = useRef(0);
   const clientMounted = useSyncExternalStore(
     noClientHydrationSubscription,
     clientMountedSnapshot,
@@ -174,6 +184,17 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   const wagmiConnectedWallet = normalizeWalletAddress(account.address);
   const connectedWallet = providerAccountKnown ? providerAccount : wagmiConnectedWallet;
   const activeWalletAddress = normalizeWalletAddress(String(primaryWallet?.address ?? ""));
+  const dynamicLinkedWallets = useMemo<readonly DynamicWalletDescriptor[]>(
+    () =>
+      wallets
+        .filter((wallet) => wallet.connector.isEmbeddedWallet !== true)
+        .map((wallet) => {
+          const address = normalizeWalletAddress(wallet.address);
+          return address ? { id: wallet.id, address } : null;
+        })
+        .filter((wallet): wallet is DynamicWalletDescriptor => wallet !== null),
+    [wallets],
+  );
   const currentWallet = wallets.find(
     (wallet) =>
       connectedWallet &&
@@ -181,6 +202,11 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       wallet.connector.isEmbeddedWallet !== true,
   );
   const walletAuthenticated = Boolean(currentWallet?.isAuthenticated);
+  const providerConnected = providerAccountKnown && Boolean(providerAccount);
+  const dynamicWalletObjectForVerifiedAddress = findWalletByAddress(
+    wallets.filter((wallet) => wallet.connector.isEmbeddedWallet !== true),
+    financialWallet,
+  );
   const emailVerified = hasVerifiedEmail(user);
   let username: string | null = null;
   const configuredUsername = readMetadata(user)[LEOPOLD_USERNAME_METADATA_KEY];
@@ -226,7 +252,9 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   }, [financialWallet, primaryWallet, wallets]);
 
   const readProviderAccount = useCallback(async (wallet: typeof primaryWallet): Promise<Address | null> => {
+    const revision = ++providerReadRevisionRef.current;
     if (!wallet || wallet.connector.isEmbeddedWallet === true) {
+      if (revision !== providerReadRevisionRef.current) return null;
       setProviderAccount(null);
       setProviderAccountKnown(true);
       return null;
@@ -234,10 +262,12 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
     try {
       const [accountAddress] = await wallet.connector.getConnectedAccounts();
       const next = normalizeWalletAddress(accountAddress ?? null);
+      if (revision !== providerReadRevisionRef.current) return null;
       setProviderAccount(next);
       setProviderAccountKnown(true);
       return next;
     } catch {
+      if (revision !== providerReadRevisionRef.current) return null;
       setProviderAccount(null);
       setProviderAccountKnown(true);
       return null;
@@ -267,34 +297,45 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       ),
     );
     const onAccountChange = ({ accounts }: { accounts: string[] }) => {
+      ++providerReadRevisionRef.current;
       const next = normalizeWalletAddress(accounts[0] ?? null);
       setProviderAccount(next);
       setProviderAccountKnown(true);
     };
     const onDisconnect = () => {
+      ++providerReadRevisionRef.current;
       setProviderAccount(null);
       setProviderAccountKnown(true);
+    };
+    const onChainChange = (network: unknown) => {
+      const next = normalizeNetworkChainId(network);
+      setActiveNetworkId(next);
     };
     for (const connector of observedConnectors) {
       if (!connector) continue;
       connector.on("accountChange", onAccountChange);
       connector.on("disconnect", onDisconnect);
+      connector.on("chainChange", onChainChange);
     }
     return () => {
       for (const connector of observedConnectors) {
         if (!connector) continue;
         connector.off("accountChange", onAccountChange);
         connector.off("disconnect", onDisconnect);
+        connector.off("chainChange", onChainChange);
       }
     };
   }, [primaryWallet, wallets]);
 
   const refreshActiveNetwork = useCallback(async (): Promise<number | null> => {
+    const revision = ++networkReadRevisionRef.current;
     if (!primaryWallet) {
+      if (revision !== networkReadRevisionRef.current) return null;
       setActiveNetworkId(null);
       return null;
     }
     const next = normalizeNetworkChainId(await primaryWallet.connector.getNetwork());
+    if (revision !== networkReadRevisionRef.current) return next;
     setActiveNetworkId(next);
     return next;
   }, [primaryWallet]);
@@ -355,6 +396,17 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       financialWallet,
       connectedWallet,
       activeWalletAddress,
+      dynamicPrimaryWallet: activeWalletAddress,
+      dynamicLinkedWallets,
+      dynamicWalletObjectForVerifiedAddress: dynamicWalletObjectForVerifiedAddress
+        ? {
+            id: dynamicWalletObjectForVerifiedAddress.id,
+            address: normalizeWalletAddress(dynamicWalletObjectForVerifiedAddress.address)!,
+          }
+        : null,
+      providerActiveAccount: providerAccount,
+      providerAccountKnown,
+      providerConnected,
       walletAuthenticated,
       readiness,
       identity,
@@ -493,6 +545,8 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       busy,
       connectWithEmail,
       connectedWallet,
+      dynamicLinkedWallets,
+      dynamicWalletObjectForVerifiedAddress,
       emailVerified,
       financialWallet,
       handleLogOut,
@@ -514,6 +568,9 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       withBusy,
       xLinked,
       primaryWallet,
+      providerAccount,
+      providerAccountKnown,
+      providerConnected,
       refreshActiveNetwork,
       refreshConnectedWallet,
     ],
@@ -543,6 +600,16 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       financialWallet: identity.financialWallet,
       connectedWallet: identity.connectedWallet,
       activeWalletAddress: identity.connectedWallet,
+      dynamicPrimaryWallet: identity.connectedWallet,
+      dynamicLinkedWallets: identity.financialWallet
+        ? [{ id: "fixture-wallet", address: identity.financialWallet }]
+        : [],
+      dynamicWalletObjectForVerifiedAddress: identity.financialWallet
+        ? { id: "fixture-wallet", address: identity.financialWallet }
+        : null,
+      providerActiveAccount: identity.connectedWallet,
+      providerAccountKnown: true,
+      providerConnected: Boolean(identity.connectedWallet),
       walletAuthenticated: identity.walletAuthenticated,
       readiness,
       identity,

@@ -14,6 +14,7 @@ import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { dynamicApiBaseUrl, dynamicAuthConfigured, dynamicEnvironmentId } from "@/lib/auth/config";
 import { AuthProvider } from "@/components/auth-provider";
+import { WalletIdentityProvider } from "@/components/wallet-identity-provider";
 import { FinancialProvider } from "@/components/financial-provider";
 import { LEOPOLD_SEPOLIA_RPC_URL } from "@/lib/leopold/network";
 
@@ -35,12 +36,16 @@ export function Providers({ children }: { children: ReactNode }) {
         {dynamicAuthConfigured ? (
           <DynamicWagmiConnector suppressChainMismatchError>
             <AuthProvider configured>
-              <FinancialProvider>{children}</FinancialProvider>
+              <WalletIdentityProvider>
+                <FinancialProvider>{children}</FinancialProvider>
+              </WalletIdentityProvider>
             </AuthProvider>
           </DynamicWagmiConnector>
         ) : (
           <AuthProvider configured={false}>
-            <FinancialProvider>{children}</FinancialProvider>
+            <WalletIdentityProvider>
+              <FinancialProvider>{children}</FinancialProvider>
+            </WalletIdentityProvider>
           </AuthProvider>
         )}
       </QueryClientProvider>
