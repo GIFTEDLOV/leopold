@@ -129,13 +129,13 @@ export function WalletGate({ children }: { children: ReactNode }) {
     return (
       <>
         <div className="inline-notice" role="status">
-          <strong>Reconnect your existing verified wallet to continue.</strong> Your Leopold financial wallet is already
-          linked; reconnect that wallet instead of linking a new one.
+          <strong>Connect your verified financial wallet to continue.</strong> Your Leopold financial wallet is already
+          linked; this reconnects that wallet instead of linking a new one.
           <button
             className="button secondary"
             onClick={() => void auth.reconnectFinancialWallet().catch(() => undefined)}
           >
-            Reconnect verified wallet
+            Connect financial wallet
           </button>
         </div>
         {children}
