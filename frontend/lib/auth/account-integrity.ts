@@ -28,6 +28,7 @@ export type AccountIntegrityPolicy = {
   status: IntegrityFieldStatus;
   username: IntegrityFieldStatus;
   financialWallet: IntegrityFieldStatus;
+  financialWalletOwnership: "DYNAMIC_VERIFIED_WALLET";
   errors: readonly string[];
 };
 
@@ -55,7 +56,13 @@ export function evaluateAccountIntegrityPolicy(
   settings: DynamicProjectSettingsLike | null | undefined,
 ): AccountIntegrityPolicy {
   if (!settings) {
-    return { status: "LOADING", username: "LOADING", financialWallet: "LOADING", errors: [] };
+    return {
+      status: "LOADING",
+      username: "LOADING",
+      financialWallet: "READY",
+      financialWalletOwnership: "DYNAMIC_VERIFIED_WALLET",
+      errors: [],
+    };
   }
 
   const errors: string[] = [];
@@ -70,19 +77,15 @@ export function evaluateAccountIntegrityPolicy(
     }
   }
 
-  const financialWallet = fieldByName(settings, FINANCIAL_WALLET_METADATA_KEY);
-  if (!financialWallet) errors.push("FINANCIAL_WALLET_FIELD_MISSING");
-  else {
-    if (financialWallet.enabled !== true) errors.push("FINANCIAL_WALLET_FIELD_DISABLED");
-    if (!fieldIsUnique(financialWallet)) errors.push("FINANCIAL_WALLET_FIELD_NOT_UNIQUE");
-  }
-
   const usernameErrors = errors.some((error) => error.startsWith("USERNAME_"));
-  const walletErrors = errors.some((error) => error.startsWith("FINANCIAL_WALLET_"));
   return {
     status: errors.length === 0 ? "READY" : "ERROR",
     username: usernameErrors ? "ERROR" : "READY",
-    financialWallet: walletErrors ? "ERROR" : "READY",
+    // Wallet uniqueness comes from Dynamic's verified-wallet ownership boundary, not from the
+    // application metadata projection. The write path additionally requires a stable Dynamic user
+    // id and an authenticated wallet returned by useUserWallets before this metadata is recorded.
+    financialWallet: "READY",
+    financialWalletOwnership: "DYNAMIC_VERIFIED_WALLET",
     errors,
   };
 }

@@ -19,7 +19,6 @@ const readySettings = {
       unique: true,
       validationRules: { regex: "^[a-z0-9_]{3,20}$" },
     },
-    { name: "leopoldFinancialWallet", enabled: true, required: false, unique: true },
   ],
 };
 const policy = evaluateAccountIntegrityPolicy(readySettings);
@@ -36,16 +35,23 @@ const identity: DynamicAccountProfile = {
 };
 
 describe("Leopold account-integrity invariants", () => {
-  it("fails closed until provider-side uniqueness configuration is loaded", () => {
+  it("keeps username policy loading separate from verified-wallet ownership", () => {
     expect(evaluateAccountIntegrityPolicy(undefined)).toMatchObject({
       status: "LOADING",
       username: "LOADING",
-      financialWallet: "LOADING",
+      financialWallet: "READY",
+      financialWalletOwnership: "DYNAMIC_VERIFIED_WALLET",
     });
   });
 
   it("requires username uniqueness, requiredness, and the lowercase product pattern", () => {
-    expect(policy).toEqual({ status: "READY", username: "READY", financialWallet: "READY", errors: [] });
+    expect(policy).toEqual({
+      status: "READY",
+      username: "READY",
+      financialWallet: "READY",
+      financialWalletOwnership: "DYNAMIC_VERIFIED_WALLET",
+      errors: [],
+    });
     expect(
       evaluateAccountIntegrityPolicy({
         customFields: [
@@ -58,7 +64,14 @@ describe("Leopold account-integrity invariants", () => {
           },
         ],
       }),
-    ).toMatchObject({ status: "ERROR", username: "ERROR", financialWallet: "ERROR" });
+    ).toMatchObject({ status: "ERROR", username: "ERROR", financialWallet: "READY" });
+  });
+
+  it("does not misclassify application wallet metadata as a Dynamic custom field", () => {
+    expect(evaluateAccountIntegrityPolicy(readySettings)).toMatchObject({
+      financialWallet: "READY",
+      financialWalletOwnership: "DYNAMIC_VERIFIED_WALLET",
+    });
   });
 
   it("canonicalizes case variants before the unique backend write", () => {

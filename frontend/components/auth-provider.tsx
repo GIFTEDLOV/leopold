@@ -691,7 +691,13 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
     [fixtureProfile, identity.emailVerified, identity.username],
   );
   const integrityPolicy = useMemo<AccountIntegrityPolicy>(
-    () => ({ status: "READY", username: "READY", financialWallet: "READY", errors: [] }),
+    () => ({
+      status: "READY",
+      username: "READY",
+      financialWallet: "READY",
+      financialWalletOwnership: "DYNAMIC_VERIFIED_WALLET",
+      errors: [],
+    }),
     [],
   );
   const value = useMemo<AuthContextValue>(
