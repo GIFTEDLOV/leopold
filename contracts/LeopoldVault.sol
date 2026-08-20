@@ -316,8 +316,8 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         if (data.length != 0) revert InvalidCallbackData();
         if (!_isActiveRoundOpen()) revert RoundNotOpen();
 
-        euint64 proposedTotal = FHE.add(_totalPrincipal, amount);
-        ebool withinCap = FHE.le(proposedTotal, MAX_POOL_BASE_UNITS);
+        euint64 remainingCapacity = FHE.sub(MAX_POOL_BASE_UNITS, _totalPrincipal);
+        ebool withinCap = FHE.le(amount, remainingCapacity);
         ebool positive = FHE.gt(amount, uint64(0));
         ebool accepted = FHE.and(withinCap, positive);
         euint64 acceptedAmount = FHE.select(accepted, amount, FHE.asEuint64(0));
@@ -1013,7 +1013,7 @@ contract LeopoldVault is ZamaEthereumConfig, ReentrancyGuardTransient, IERC7984R
         ebool wantsAutoSave = FHE.asEbool(_preferenceAt(participant, round.closesAt) == AutoSavePreference.AUTO_SAVE);
         euint64 zero = FHE.asEuint64(0);
         euint64 prize = FHE.select(winner, round.reservedPrize, zero);
-        ebool autoFits = FHE.le(FHE.add(_totalPrincipal, prize), MAX_POOL_BASE_UNITS);
+        ebool autoFits = FHE.le(prize, FHE.sub(MAX_POOL_BASE_UNITS, _totalPrincipal));
         ebool autoSaveWinner = FHE.and(FHE.and(winner, wantsAutoSave), autoFits);
         euint64 autoSaved = FHE.select(autoSaveWinner, round.reservedPrize, zero);
         euint64 kept = FHE.sub(prize, autoSaved);

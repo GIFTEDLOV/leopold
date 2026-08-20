@@ -64,6 +64,14 @@ async function deposit(fixture: Fixture, account: HardhatEthersSigner, amount: b
     ](await fixture.vault.getAddress(), input.handles[0], input.inputProof, "0x");
 }
 
+async function testOnlyCallReceiver(fixture: Fixture, account: HardhatEthersSigner, amount: bigint) {
+  const assetAddress = await fixture.asset.getAddress();
+  const input = await fhevm.createEncryptedInput(assetAddress, account.address).add64(amount).encrypt();
+  return fixture.asset
+    .connect(account)
+    .testOnlyCallReceiver(await fixture.vault.getAddress(), account.address, input.handles[0], input.inputProof);
+}
+
 async function withdraw(fixture: Fixture, account: HardhatEthersSigner, amount: bigint) {
   const vaultAddress = await fixture.vault.getAddress();
   const input = await fhevm.createEncryptedInput(vaultAddress, account.address).add64(amount).encrypt();
@@ -96,6 +104,11 @@ async function decryptPrincipal(fixture: Fixture, account: HardhatEthersSigner):
   return fhevm.userDecryptEuint(FhevmType.euint64, handle, await fixture.vault.getAddress(), account);
 }
 
+async function decryptConfidentialBalance(fixture: Fixture, account: HardhatEthersSigner): Promise<bigint> {
+  const handle = await fixture.asset.confidentialBalanceOf(account.address);
+  return fhevm.userDecryptEuint(FhevmType.euint64, handle, await fixture.asset.getAddress(), account);
+}
+
 describe("Leopold CP1 confidential vault foundation", function () {
   before(function () {
     if (!fhevm.isMock) this.skip();
@@ -112,21 +125,59 @@ describe("Leopold CP1 confidential vault foundation", function () {
     expect(await fixture.vault.eligibilityStart(1, fixture.alice.address)).not.to.equal(0n);
   });
 
-  it("enforces the encrypted global principal cap and preserves refunded assets", async function () {
+  it("preserves exact cap, cap-plus-one, zero, and withdrawal-restored capacity", async function () {
     const fixture = await deployFixture();
-    await fundConfidential(fixture, fixture.alice, MAX_POOL + 1n);
-    await deposit(fixture, fixture.alice, MAX_POOL);
+    await fundConfidential(fixture, fixture.alice, MAX_POOL + 2n);
+
+    await deposit(fixture, fixture.alice, 10n);
+    expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(10n);
+
+    await deposit(fixture, fixture.alice, MAX_POOL - 10n);
+    expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(MAX_POOL);
+
     await deposit(fixture, fixture.alice, 1n);
     expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(MAX_POOL);
-    const tokenBalanceHandle = await fixture.asset.confidentialBalanceOf(fixture.alice.address);
-    expect(
-      await fhevm.userDecryptEuint(
-        FhevmType.euint64,
-        tokenBalanceHandle,
-        await fixture.asset.getAddress(),
-        fixture.alice,
-      ),
-    ).to.equal(1n);
+    expect(await decryptConfidentialBalance(fixture, fixture.alice)).to.equal(2n);
+
+    await deposit(fixture, fixture.alice, 0n);
+    expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(MAX_POOL);
+    expect(await decryptConfidentialBalance(fixture, fixture.alice)).to.equal(2n);
+
+    await withdraw(fixture, fixture.alice, 1n);
+    expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(MAX_POOL - 1n);
+    await deposit(fixture, fixture.alice, 1n);
+    expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(MAX_POOL);
+
+    await deposit(fixture, fixture.alice, 1n);
+    expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(MAX_POOL);
+    expect(await decryptConfidentialBalance(fixture, fixture.alice)).to.equal(2n);
+  });
+
+  it("rejects the high-width wrap vector without mutating principal, liquidity, or eligible accounting", async function () {
+    const fixture = await deployFixture();
+    const round = await fixture.vault.roundInfo(1);
+    await enterRound(fixture, fixture.alice);
+    await fundConfidential(fixture, fixture.alice, MAX_POOL);
+    const depositReceipt = await (await deposit(fixture, fixture.alice, 10n)).wait();
+    const depositBlock = await ethers.provider.getBlock(depositReceipt!.blockNumber);
+
+    const wrapVector = (1n << 64n) - 10n + 1n;
+    await testOnlyCallReceiver(fixture, fixture.alice, wrapVector);
+
+    expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(10n);
+
+    await time.increaseTo(round[1]);
+    await fixture.vault.closeRound();
+    const aggregateHandle = await fixture.vault.aggregateTwabHandle(1);
+    const aggregateResult = await fhevm.publicDecrypt([aggregateHandle]);
+    expect(aggregateResult.clearValues[aggregateHandle as `0x${string}`]).to.equal(
+      10n * (round[1] - BigInt(depositBlock!.timestamp)),
+    );
+
+    await withdraw(fixture, fixture.alice, 10n);
+    expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(0n);
+    await deposit(fixture, fixture.alice, MAX_POOL);
+    expect(await decryptPrincipal(fixture, fixture.alice)).to.equal(MAX_POOL);
   });
 
   it("supports partial and full immediate withdrawals without duplicate entitlement", async function () {
