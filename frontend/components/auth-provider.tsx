@@ -16,6 +16,7 @@ import {
   useDynamicContext,
   useDynamicEvents,
   useDynamicModals,
+  useProjectSettings,
   useSocialAccounts,
   useSwitchWallet,
   useUserUpdateRequest,
@@ -36,10 +37,17 @@ import {
 } from "@/lib/auth/readiness";
 import type { DynamicWalletDescriptor } from "@/lib/auth/wallet-identity";
 import { withWalletSessionTimeout } from "@/lib/auth/wallet-identity";
-import { canonicalizeUsername } from "@/lib/auth/username";
 import { normalizeNetworkChainId } from "@/lib/leopold/network";
 import { getAuthHydrationPhase } from "@/lib/auth/hydration";
 import { reconnectExistingWallet } from "@/lib/auth/wallet-recovery";
+import {
+  accountIntegrityErrorMessage,
+  createFinancialWalletMetadataUpdate,
+  createUsernameMetadataUpdate,
+  evaluateAccountIntegrityPolicy,
+  type AccountIntegrityOperation,
+  type AccountIntegrityPolicy,
+} from "@/lib/auth/account-integrity";
 import {
   FINANCIAL_WALLET_METADATA_KEY,
   LEOPOLD_USERNAME_METADATA_KEY,
@@ -76,6 +84,7 @@ export type AuthContextValue = {
   financialWallet: Address | null;
   verifiedFinancialWallet: Address | null;
   financialWalletMetadata: FinancialWalletMetadata;
+  integrityPolicy: AccountIntegrityPolicy;
   connectedWallet: Address | null;
   activeWalletAddress: Address | null;
   dynamicPrimaryWallet: Address | null;
@@ -87,6 +96,7 @@ export type AuthContextValue = {
   providerConnected: boolean;
   providerAvailable: boolean;
   walletAuthenticated: boolean;
+  canConfirmCurrentWalletAsFinancial: boolean;
   readiness: AuthReadinessState;
   identity: AuthIdentitySnapshot;
   identityKey: string;
@@ -124,7 +134,9 @@ export type VerifiedWalletConnectionResult =
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function errorMessage(error: unknown): string {
+function errorMessage(error: unknown, operation: AccountIntegrityOperation = "AUTH"): string {
+  const integrityMessage = accountIntegrityErrorMessage(error, operation);
+  if (integrityMessage) return integrityMessage;
   const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
   const message = error instanceof Error ? error.message : "";
   if (/auth_session_expired|session.*expired|jwt.*expired/i.test(`${code} ${message}`)) {
@@ -158,17 +170,13 @@ function errorMessage(error: unknown): string {
   return "Authentication could not be completed. Try again.";
 }
 
-function readMetadata(user: DynamicAccountProfile | null): Record<string, unknown> {
-  if (!user?.metadata || typeof user.metadata !== "object") return {};
-  return user.metadata as Record<string, unknown>;
-}
-
 function DynamicAuthState({ children }: { children: ReactNode }) {
   const { user, userWithMissingInfo, sdkHasLoaded, handleLogOut, setShowAuthFlow, primaryWallet } = useDynamicContext();
   const { connectWithEmail, verifyOneTimePassword, retryOneTimePassword } = useConnectWithOtp();
   const { setShowLinkNewWalletModal } = useDynamicModals();
   const switchWallet = useSwitchWallet();
   const { updateUser } = useUserUpdateRequest();
+  const projectSettings = useProjectSettings();
   const wallets = useUserWallets();
   const social = useSocialAccounts();
   const [otpSent, setOtpSent] = useState(false);
@@ -197,6 +205,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
     [clientReady, user, userWithMissingInfo],
   );
   const accountIdentity = account.identity;
+  const integrityPolicy = useMemo(() => evaluateAccountIntegrityPolicy(projectSettings), [projectSettings]);
 
   const commitProviderAccount = useCallback((next: Address | null) => {
     const previous = providerAccountRef.current;
@@ -234,6 +243,10 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       wallet.connector.isEmbeddedWallet !== true,
   );
   const walletAuthenticated = Boolean(currentWallet?.isAuthenticated);
+  const canConfirmCurrentWalletAsFinancial =
+    account.status === "SIGNED_IN_READY" &&
+    account.financialWallet.status === "NONE" &&
+    Boolean(connectedWallet && currentWallet?.isAuthenticated);
   const providerConnected = providerAccountKnown && Boolean(providerAccount);
   const dynamicWalletObjectForVerifiedAddress = findWalletByAddress(
     wallets.filter((wallet) => wallet.connector.isEmbeddedWallet !== true),
@@ -377,31 +390,34 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
     void refreshConnectedWallet();
   });
 
-  const withBusy = useCallback(async (operation: () => Promise<void>) => {
-    setAuthError(null);
-    setAccountConflict(false);
-    setSessionExpired(false);
-    setBusy(true);
-    try {
-      await operation();
-    } catch (error) {
-      setAuthError(errorMessage(error));
-      const detail = `${typeof error === "object" && error !== null && "code" in error ? String(error.code) : ""} ${
-        error instanceof Error ? error.message : String(error)
-      }`;
-      if (
-        /(credential|wallet|email|social|account).*(already.*linked|already.*exist|already.*used|conflict)|(already.*linked|already.*exist|already.*used|conflict).*(credential|wallet|email|social|account)/i.test(
-          detail,
-        )
-      ) {
-        setAccountConflict(true);
+  const withBusy = useCallback(
+    async (operation: () => Promise<void>, integrityOperation: AccountIntegrityOperation = "AUTH") => {
+      setAuthError(null);
+      setAccountConflict(false);
+      setSessionExpired(false);
+      setBusy(true);
+      try {
+        await operation();
+      } catch (error) {
+        setAuthError(errorMessage(error, integrityOperation));
+        const detail = `${typeof error === "object" && error !== null && "code" in error ? String(error.code) : ""} ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+        if (
+          /(credential|wallet|email|social|account).*(already.*linked|already.*exist|already.*used|conflict)|(already.*linked|already.*exist|already.*used|conflict).*(credential|wallet|email|social|account)/i.test(
+            detail,
+          )
+        ) {
+          setAccountConflict(true);
+        }
+        if (/session|jwt|auth.*token.*expir/i.test(detail)) setSessionExpired(true);
+        throw error;
+      } finally {
+        setBusy(false);
       }
-      if (/session|jwt|auth.*token.*expir/i.test(detail)) setSessionExpired(true);
-      throw error;
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -423,6 +439,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       financialWallet,
       verifiedFinancialWallet: financialWallet,
       financialWalletMetadata: account.financialWallet,
+      integrityPolicy,
       connectedWallet,
       activeWalletAddress,
       dynamicPrimaryWallet: activeWalletAddress,
@@ -439,6 +456,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       providerConnected,
       providerAvailable: Boolean(providerWallet()),
       walletAuthenticated,
+      canConfirmCurrentWalletAsFinancial,
       readiness,
       identity,
       identityKey: [identity.providerUserId, financialWallet, connectedWallet, readiness].join(":"),
@@ -477,6 +495,10 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
         }
         if (account.status !== "SIGNED_IN_READY") {
           setShowAuthFlow(true);
+          return;
+        }
+        if (integrityPolicy.financialWallet !== "READY") {
+          setAuthError("Financial-wallet linking is paused because unique ownership cannot be verified.");
           return;
         }
         if (account.financialWallet.status !== "NONE") return;
@@ -548,17 +570,18 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
         withBusy(async () => {
           const linkCheck = checkFinancialWalletLink(identity, connectedWallet);
           if (!linkCheck.allowed) throw new Error(linkCheck.code);
-          const metadata = readMetadata(accountIdentity);
+          if (!accountIdentity) throw new Error("FINANCIAL_IDENTITY_REQUIRED");
+          const metadata = createFinancialWalletMetadataUpdate(accountIdentity, linkCheck.wallet, integrityPolicy);
           await updateUser({
-            metadata: { ...metadata, [FINANCIAL_WALLET_METADATA_KEY]: linkCheck.wallet },
+            metadata,
           });
-        }),
+        }, "FINANCIAL_WALLET"),
       saveUsername: async (valueToSave) =>
         withBusy(async () => {
-          const normalized = canonicalizeUsername(valueToSave);
-          const metadata = readMetadata(accountIdentity);
-          await updateUser({ metadata: { ...metadata, [LEOPOLD_USERNAME_METADATA_KEY]: normalized } });
-        }),
+          if (!accountIdentity) throw new Error("FINANCIAL_IDENTITY_REQUIRED");
+          const metadata = createUsernameMetadataUpdate(accountIdentity, valueToSave, integrityPolicy);
+          await updateUser({ metadata });
+        }, "USERNAME"),
       linkX: async () => {
         if (!dynamicXEnabled) throw new Error("X_UNAVAILABLE");
         await withBusy(() => social.linkSocialAccount(twitterProvider));
@@ -603,6 +626,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       dynamicWalletObjectForVerifiedAddress,
       emailVerified,
       financialWallet,
+      integrityPolicy,
       handleLogOut,
       identity,
       otpSent,
@@ -618,6 +642,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       verifyOneTimePassword,
       wallets,
       walletAuthenticated,
+      canConfirmCurrentWalletAsFinancial,
       withBusy,
       xLinked,
       primaryWallet,
@@ -665,6 +690,10 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       }),
     [fixtureProfile, identity.emailVerified, identity.username],
   );
+  const integrityPolicy = useMemo<AccountIntegrityPolicy>(
+    () => ({ status: "READY", username: "READY", financialWallet: "READY", errors: [] }),
+    [],
+  );
   const value = useMemo<AuthContextValue>(
     () => ({
       clientReady: true,
@@ -685,6 +714,7 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       financialWallet: identity.financialWallet,
       verifiedFinancialWallet: identity.financialWallet,
       financialWalletMetadata: account.financialWallet,
+      integrityPolicy,
       connectedWallet: identity.connectedWallet,
       activeWalletAddress: identity.connectedWallet,
       dynamicPrimaryWallet: identity.connectedWallet,
@@ -700,6 +730,10 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       providerConnected: Boolean(identity.connectedWallet),
       providerAvailable: Boolean(identity.financialWallet),
       walletAuthenticated: identity.walletAuthenticated,
+      canConfirmCurrentWalletAsFinancial:
+        account.status === "SIGNED_IN_READY" &&
+        account.financialWallet.status === "NONE" &&
+        Boolean(identity.connectedWallet && identity.walletAuthenticated),
       readiness,
       identity,
       identityKey: [identity.providerUserId, identity.financialWallet, identity.connectedWallet, readiness].join(":"),
@@ -743,7 +777,7 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
       refreshActiveNetwork: async () => null,
       switchFinancialWalletToSepolia: async () => undefined,
     }),
-    [account, authError, identity, readiness],
+    [account, authError, identity, integrityPolicy, readiness],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

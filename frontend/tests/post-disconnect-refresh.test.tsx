@@ -57,6 +57,18 @@ vi.mock("@dynamic-labs/sdk-react-core", () => ({
     retryOneTimePassword: vi.fn(async () => undefined),
   }),
   useDynamicModals: () => ({ setShowLinkNewWalletModal: dynamic.setShowLinkNewWalletModal }),
+  useProjectSettings: () => ({
+    customFields: [
+      {
+        name: "Leopold Username",
+        enabled: true,
+        required: true,
+        unique: true,
+        validationRules: { regex: "^[a-z0-9_]{3,20}$" },
+      },
+      { name: "leopoldFinancialWallet", enabled: true, required: false, unique: true },
+    ],
+  }),
   useSwitchWallet: () => dynamic.switchWallet,
   useUserUpdateRequest: () => ({ updateUser: dynamic.updateUser }),
   useUserWallets: () => [dynamic.wallet],
@@ -124,7 +136,12 @@ function Probe() {
         auth.verifiedFinancialWallet,
         wallet.walletSession.status,
         wallet.recovery.action,
+        auth.authError,
       ].join("|")}
+      <button onClick={() => void auth.saveUsername("COLLISION_USER").catch(() => undefined)}>
+        Test username collision
+      </button>
+      <button onClick={() => void auth.signOut().catch(() => undefined)}>Test account sign out</button>
     </div>
   );
 }
@@ -169,6 +186,8 @@ describe("explicit wallet disconnect followed by account rehydration", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    dynamic.updateUser.mockResolvedValue(undefined);
+    dynamic.handleLogOut.mockResolvedValue(undefined);
     dynamic.completedUser = profile;
     dynamic.rawUser = profile;
     window.sessionStorage.clear();
@@ -233,5 +252,68 @@ describe("explicit wallet disconnect followed by account rehydration", () => {
     expect(dynamic.setShowLinkNewWalletModal).not.toHaveBeenCalled();
     expect(dynamic.switchWallet).not.toHaveBeenCalled();
     expect(dynamic.wallet.sync).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a username collision without overwriting the existing account", async () => {
+    const collision = Object.assign(new Error("Custom Field for user must be unique within the environment"), {
+      code: "custom_field_data_not_unique",
+    });
+    dynamic.updateUser.mockRejectedValueOnce(collision);
+    await act(async () => root?.render(<TestApplication />));
+    await waitFor(container, "Ethereum Sepolia");
+
+    await act(async () => buttonWithText(container, "Test username collision").click());
+    await waitFor(container, "That username is unavailable. Choose another one.");
+
+    expect(dynamic.updateUser).toHaveBeenCalledWith({
+      metadata: expect.objectContaining({
+        "Leopold Username": "collision_user",
+        leopoldFinancialWallet: dynamic.address,
+        xLinkage: "preserved",
+      }),
+    });
+    expect(dynamic.completedUser).toBe(profile);
+    expect((dynamic.completedUser?.metadata as Record<string, unknown>)["Leopold Username"]).toBe("leopold_user");
+    expect((dynamic.completedUser?.metadata as Record<string, unknown>).leopoldFinancialWallet).toBe(dynamic.address);
+  });
+
+  it("offers explicit financial-wallet confirmation for a wallet-first account without metadata", async () => {
+    const walletFirstProfile = {
+      ...profile,
+      metadata: { "Leopold Username": "leopold_user", xLinkage: "preserved" },
+    };
+    dynamic.completedUser = walletFirstProfile;
+    dynamic.rawUser = walletFirstProfile;
+    await act(async () => root?.render(<TestApplication />));
+    await waitFor(container, "Confirm financial wallet");
+
+    await act(async () => buttonWithText(container, "Confirm financial wallet").click());
+    await waitFor(container, "SIGNED_IN_READY");
+
+    expect(dynamic.updateUser).toHaveBeenCalledWith({
+      metadata: {
+        "Leopold Username": "leopold_user",
+        xLinkage: "preserved",
+        leopoldFinancialWallet: dynamic.address,
+      },
+    });
+    expect(dynamic.setShowLinkNewWalletModal).not.toHaveBeenCalled();
+    expect(dynamic.switchWallet).not.toHaveBeenCalled();
+  });
+
+  it("keeps account signout separate and clears the Leopold wallet-session marker", async () => {
+    await act(async () => root?.render(<TestApplication />));
+    await waitFor(container, "Ethereum Sepolia");
+
+    await act(async () => buttonWithText(container, "Test account sign out").click());
+    expect(dynamic.handleLogOut).toHaveBeenCalledOnce();
+    dynamic.completedUser = null;
+    dynamic.rawUser = null;
+    await act(async () => root?.render(<TestApplication />));
+    await waitFor(container, "Enter your Leopold account");
+    await flush();
+
+    expect(window.sessionStorage.getItem(WALLET_SESSION_STORAGE_KEY)).toBeNull();
+    expect(dynamic.updateUser).not.toHaveBeenCalled();
   });
 });

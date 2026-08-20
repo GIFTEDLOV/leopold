@@ -300,7 +300,10 @@ export function OnboardingClient() {
           onClick={() => {
             if (walletIdentity.walletSession.status === "WRONG_NETWORK") void walletIdentity.switchToSepolia();
             else if (auth.financialWalletMetadata.status === "PRESENT") void walletIdentity.connectVerifiedWallet();
-            else if (auth.financialWalletMetadata.status === "NONE") auth.openWalletLink();
+            else if (auth.financialWalletMetadata.status === "NONE") {
+              if (auth.canConfirmCurrentWalletAsFinancial) void auth.confirmCurrentWalletAsFinancial();
+              else auth.openWalletLink();
+            }
           }}
           type="button"
         >
@@ -310,7 +313,9 @@ export function OnboardingClient() {
               : walletIdentity.walletSession.status === "CONNECTING"
                 ? "Connecting wallet…"
                 : "Connect verified wallet"
-            : "Connect wallet now"}
+            : auth.canConfirmCurrentWalletAsFinancial
+              ? "Confirm financial wallet"
+              : "Connect wallet now"}
         </button>
       ) : null}
       <Link className="button secondary" href="/app">

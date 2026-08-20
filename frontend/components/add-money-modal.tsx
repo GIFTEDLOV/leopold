@@ -158,9 +158,15 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
               Your wallet controls your savings. Leopold does not hold your funds or create an embedded wallet.
             </p>
             {auth.financialWalletMetadata.status === "NONE" ? (
-              <button className="button" onClick={auth.openWalletLink}>
-                Link financial wallet
-              </button>
+              auth.canConfirmCurrentWalletAsFinancial ? (
+                <button className="button" onClick={() => void auth.confirmCurrentWalletAsFinancial()}>
+                  Confirm financial wallet
+                </button>
+              ) : (
+                <button className="button" onClick={auth.openWalletLink}>
+                  Link financial wallet
+                </button>
+              )
             ) : auth.financialWalletMetadata.status === "PRESENT" ? (
               <button className="button" onClick={() => void walletIdentity.connectVerifiedWallet()}>
                 Reconnect verified wallet

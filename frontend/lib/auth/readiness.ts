@@ -78,7 +78,7 @@ export function checkFinancialWalletLink(
       message: "Resolve the account credential conflict before linking a wallet.",
     };
   }
-  if (!identity.authenticated || !identity.emailVerified || !identity.username) {
+  if (!identity.authenticated || !identity.providerUserId || !identity.emailVerified || !identity.username) {
     return {
       allowed: false,
       code: "FINANCIAL_IDENTITY_REQUIRED",

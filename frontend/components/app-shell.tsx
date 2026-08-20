@@ -92,6 +92,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             Link financial wallet
           </button>
         );
+      case "CONFIRM_FINANCIAL_WALLET":
+        return (
+          <button className="button secondary" onClick={() => void auth.confirmCurrentWalletAsFinancial()}>
+            Confirm financial wallet
+          </button>
+        );
       case "CONNECT_VERIFIED_WALLET":
         return (
           <button className="button secondary" onClick={() => void walletIdentity.connectVerifiedWallet()}>

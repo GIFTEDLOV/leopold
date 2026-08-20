@@ -11,6 +11,7 @@ export type WalletGateMode =
 
 export type LeopoldRecoveryAction =
   | "LINK_FINANCIAL_WALLET"
+  | "CONFIRM_FINANCIAL_WALLET"
   | "CONNECT_VERIFIED_WALLET"
   | "CONFIRM_ACCOUNT_SELECTION"
   | "CANCEL_CONNECTION"
@@ -45,6 +46,8 @@ export type RecoveryInputs = {
   walletSessionStatus: WalletSessionState;
   walletSessionReason: WalletSessionReason;
   networkHealth: WalletRpcHealthState;
+  canConfirmFinancialWallet?: boolean;
+  financialWalletIntegrity?: "LOADING" | "READY" | "ERROR";
 };
 
 const hiddenRecovery: LeopoldRecovery = { visible: false, action: "NONE", message: "", detail: "" };
@@ -67,6 +70,24 @@ export function deriveLeopoldRecovery(inputs: RecoveryInputs): LeopoldRecovery {
     };
   }
   if (inputs.financialMetadataStatus === "NONE") {
+    if (inputs.financialWalletIntegrity === "LOADING") return hiddenRecovery;
+    if (inputs.financialWalletIntegrity === "ERROR") {
+      return {
+        visible: true,
+        action: "ERROR",
+        message: "Financial-wallet linking is temporarily unavailable.",
+        detail: "Leopold could not verify that unique wallet ownership is enforced. No account data was changed.",
+      };
+    }
+    if (inputs.canConfirmFinancialWallet) {
+      return {
+        visible: true,
+        action: "CONFIRM_FINANCIAL_WALLET",
+        message: "Confirm your authenticated wallet for Leopold financial actions.",
+        detail:
+          "This wallet is already verified on your current Leopold account. Confirmation will not merge accounts.",
+      };
+    }
     return {
       visible: true,
       action: "LINK_FINANCIAL_WALLET",

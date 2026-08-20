@@ -56,4 +56,31 @@ describe("wallet-session architecture boundaries", () => {
     expect(appShell).not.toContain("WALLET_MISMATCH");
     expect(sessionProvider).not.toContain("WALLET_MISMATCH");
   });
+
+  it("keeps wallet disconnect and account signout as separate commands", () => {
+    const disconnect = sessionProvider.slice(
+      sessionProvider.indexOf("const disconnectLeopoldWallet"),
+      sessionProvider.indexOf("const runNetworkHealthProbe"),
+    );
+    const signoutStart = authProvider.indexOf("signOut: async () =>");
+    const signout = authProvider.slice(signoutStart, authProvider.indexOf("clearAuthError: ()", signoutStart));
+    expect(disconnect).toContain('invalidateSession("USER_DISCONNECTED")');
+    expect(disconnect).not.toContain("handleLogOut");
+    expect(disconnect).not.toContain("updateUser");
+    expect(signout).toContain("handleLogOut");
+  });
+
+  it("keeps email, X, and provider events away from financial-wallet metadata writes", () => {
+    const providerEvents = authProvider.slice(
+      authProvider.indexOf('useDynamicEvents("primaryWalletNetworkChanged"'),
+      authProvider.indexOf("const withBusy"),
+    );
+    const socialActions = authProvider.slice(
+      authProvider.indexOf("linkX: async"),
+      authProvider.indexOf("signOut: async"),
+    );
+    expect(providerEvents).not.toContain("updateUser");
+    expect(socialActions).not.toContain("updateUser");
+    expect(socialActions).not.toContain("leopoldFinancialWallet");
+  });
 });

@@ -94,4 +94,25 @@ describe("exhaustive account and wallet recovery routing", () => {
       action: "ERROR",
     });
   });
+
+  it("confirms an already authenticated current-account wallet instead of reopening linking", () => {
+    expect(
+      deriveLeopoldRecovery({
+        ...readyDisconnected,
+        financialMetadataStatus: "NONE",
+        canConfirmFinancialWallet: true,
+        financialWalletIntegrity: "READY",
+      }).action,
+    ).toBe("CONFIRM_FINANCIAL_WALLET");
+  });
+
+  it("fails closed when unique financial-wallet ownership is not configured", () => {
+    expect(
+      deriveLeopoldRecovery({
+        ...readyDisconnected,
+        financialMetadataStatus: "NONE",
+        financialWalletIntegrity: "ERROR",
+      }),
+    ).toMatchObject({ visible: true, action: "ERROR" });
+  });
 });
