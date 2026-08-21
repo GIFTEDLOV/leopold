@@ -1,0 +1,25 @@
+{
+  "name": "bigint-buffer",
+  "version": "1.1.6-leopold.0",
+  "description": "Leopold-maintained pure JavaScript compatibility implementation for bigint-buffer",
+  "private": true,
+  "license": "BSD-3-Clause-Clear",
+  "main": "index.cjs",
+  "module": "index.mjs",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs",
+      "require": "./index.cjs",
+      "default": "./index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "node --test test.cjs"
+  },
+  "dependencies": {
+    "buffer": "6.0.3"
+  }
+}
