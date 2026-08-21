@@ -6,6 +6,7 @@ import { formatUsdcAmount } from "./amounts";
 import { confidentialUsdcAbi } from "./abis";
 import { LEOPOLD_CHAIN_ID, leopoldConfig, requireConfiguredAddress } from "./config";
 import { decryptPrivateValue } from "./zama";
+import { withReadReliability } from "@/lib/ops/reliability";
 
 export type PrivateBalanceClients = {
   publicClient: PublicClient;
@@ -116,12 +117,16 @@ export async function readCurrentPrivateBalanceHandle(
 ): Promise<PrivateBalanceIdentity> {
   const officialToken = assertConfiguredIdentity(clients, token);
   const chainId = await assertSepoliaClients(clients);
-  const handle = await clients.publicClient.readContract({
-    address: officialToken,
-    abi: confidentialUsdcAbi,
-    functionName: "confidentialBalanceOf",
-    args: [clients.account],
-  });
+  const handle = await withReadReliability(
+    () =>
+      clients.publicClient.readContract({
+        address: officialToken,
+        abi: confidentialUsdcAbi,
+        functionName: "confidentialBalanceOf",
+        args: [clients.account],
+      }),
+    { operation: "PRIVATE_HANDLE_READ" },
+  );
   return { chainId, account: clients.account, token: officialToken, handle };
 }
 

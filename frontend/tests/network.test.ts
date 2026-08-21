@@ -173,11 +173,12 @@ describe("financial wallet network authority", () => {
     const probe = makePreflight({ walletRequest: () => new Promise<never>(() => undefined) });
     probe.input.timeoutMs = 25;
     const pending = runFinancialNetworkPreflight(probe.input);
-    await vi.advanceTimersByTimeAsync(25);
+    await vi.advanceTimersByTimeAsync(500);
     await expect(pending).resolves.toMatchObject({
       state: "WALLET_RPC_UNAVAILABLE",
-      technicalDetail: expect.stringContaining("RPC_TIMEOUT:eth_chainId"),
+      technicalDetail: expect.stringContaining("READ_TIMEOUT:25"),
     });
+    expect(probe.walletRequest).toHaveBeenCalledTimes(3);
     vi.useRealTimers();
   });
 

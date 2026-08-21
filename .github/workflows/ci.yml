@@ -39,8 +39,23 @@ jobs:
       - name: Install exact dependency graph
         run: pnpm install --frozen-lockfile
 
-      - name: Run foundation gates
-        run: pnpm check:all
+      - name: Validate production manifest and release baseline
+        run: pnpm release:validate
+
+      - name: Validate frozen bytecode and EIP-170 headroom
+        run: pnpm closure:validate
+
+      - name: Run P-01 arithmetic invariant regression
+        run: pnpm exec hardhat test test/LeopoldVaultFoundation.ts --grep "preserves exact cap|rejects the high-width wrap vector"
+
+      - name: Run contract gates
+        run: pnpm check:contracts
+
+      - name: Run frontend typecheck, lint, tests, and build
+        run: pnpm check:frontend
+
+      - name: Run keeper gates
+        run: pnpm check:keeper
 
       - name: Audit production dependencies
         run: pnpm audit:prod

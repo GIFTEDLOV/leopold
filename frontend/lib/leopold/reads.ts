@@ -3,6 +3,7 @@ import type { Address, PublicClient } from "viem";
 import { adapterAbi, bondEscrowAbi, confidentialUsdcAbi, erc20Abi, registryAbi, vaultAbi } from "./abis";
 import type { LeopoldConfig, LeopoldVaultConfig } from "./config";
 import { CANONICAL_USDC, LEOPOLD_CHAIN_ID, requireConfiguredAddress } from "./config";
+import { withReadReliability } from "@/lib/ops/reliability";
 
 export const ROUND_STATE_LABELS = [
   "Unavailable",
@@ -80,10 +81,19 @@ export function canPrepareVaultWithdrawal(
 }
 
 export async function readUsdcBalance(client: PublicClient, token: Address, account: Address): Promise<bigint> {
-  return client.readContract({ address: token, abi: erc20Abi, functionName: "balanceOf", args: [account] });
+  return withReadReliability(
+    () => client.readContract({ address: token, abi: erc20Abi, functionName: "balanceOf", args: [account] }),
+    { operation: "PUBLIC_BALANCE_READ" },
+  );
 }
 
 export async function validateConfiguredDeployment(client: PublicClient, config: LeopoldConfig): Promise<void> {
+  return withReadReliability(() => validateConfiguredDeploymentOnce(client, config), {
+    operation: "DEPLOYMENT_READ",
+  });
+}
+
+async function validateConfiguredDeploymentOnce(client: PublicClient, config: LeopoldConfig): Promise<void> {
   if (!config.ready) throw new Error("CONFIGURATION_MISSING:manifest");
   if ((await client.getChainId()) !== LEOPOLD_CHAIN_ID) throw new Error("WRONG_NETWORK:rpc");
   const registry = requireConfiguredAddress(config.registry, "Registry");
@@ -174,6 +184,17 @@ export async function readVaultPublicState(
   account: Address,
   blockNumber?: bigint,
 ): Promise<VaultPublicState> {
+  return withReadReliability(() => readVaultPublicStateOnce(client, vaultConfig, account, blockNumber), {
+    operation: "VAULT_READ",
+  });
+}
+
+async function readVaultPublicStateOnce(
+  client: PublicClient,
+  vaultConfig: LeopoldVaultConfig,
+  account: Address,
+  blockNumber?: bigint,
+): Promise<VaultPublicState> {
   const vault = requireConfiguredAddress(vaultConfig.vault, `${vaultConfig.name} vault`);
   const escrow = requireConfiguredAddress(vaultConfig.bondEscrow, `${vaultConfig.name} bond escrow`);
   const blockTag = blockNumber === undefined ? {} : { blockNumber };
@@ -248,10 +269,18 @@ export async function readPrivateHandle(
   account: Address,
   kind: "principal" | "winnings",
 ): Promise<`0x${string}`> {
-  return client.readContract({
-    address: vault,
-    abi: vaultAbi,
-    functionName: kind === "principal" ? "principalOf" : "winningsOf",
-    args: [account],
-  });
+  return withReadReliability(
+    () =>
+      client.readContract({
+        address: vault,
+        abi: vaultAbi,
+        functionName: kind === "principal" ? "principalOf" : "winningsOf",
+        args: [account],
+      }),
+    { operation: "PRIVATE_HANDLE_READ" },
+  );
+}
+
+export async function readLatestBlock(client: PublicClient) {
+  return withReadReliability(() => client.getBlock(), { operation: "VAULT_READ" });
 }

@@ -22,14 +22,25 @@ const wagmiConfig = createConfig({
   chains: [sepolia],
   connectors: [injected()],
   transports: {
-    [sepolia.id]: http(LEOPOLD_SEPOLIA_RPC_URL),
+    [sepolia.id]: http(LEOPOLD_SEPOLIA_RPC_URL, { timeout: 8_000, retryCount: 0 }),
   },
   multiInjectedProviderDiscovery: false,
   ssr: true,
 });
 
 export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: 2,
+            retryDelay: (attempt) => Math.min(2_000, 200 * 2 ** attempt),
+          },
+          mutations: { retry: false },
+        },
+      }),
+  );
   const app = (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>

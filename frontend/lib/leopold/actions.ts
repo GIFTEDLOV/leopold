@@ -6,6 +6,7 @@ import { bondEscrowAbi, confidentialUsdcAbi, erc20Abi, vaultAbi } from "./abis";
 import { CANONICAL_USDC, leopoldConfig } from "./config";
 import { decryptPublicValue, encryptPrivateAmount } from "./zama";
 import type { TransactionStage } from "./transactions";
+import { submitFinancialWriteOnce } from "@/lib/ops/reliability";
 
 const COMPOUND_FAUCET = "0x68793eA49297eB75DFB4610B68e076D2A5c7646C" as Address;
 const PROVEN_FAUCET_TRANSACTION = "0x63829c8633304e200a62bdd0af068374687b8163afc6673988fbe8f4426357da" as const;
@@ -94,10 +95,12 @@ async function writeAndConfirm(
   await assertWalletClient(clients, stage);
   notifyActionStage(clients, stage, "signature");
   try {
-    hash = await clients.walletClient.writeContract({
-      ...request,
-      ...(gas === undefined ? {} : { gas }),
-    } as never);
+    hash = await submitFinancialWriteOnce(() =>
+      clients.walletClient.writeContract({
+        ...request,
+        ...(gas === undefined ? {} : { gas }),
+      } as never),
+    );
   } catch (error) {
     throw actionError(actionFailurePrefix(stage, "WALLET_SIGNATURE"), error);
   }
@@ -153,12 +156,14 @@ export async function getTestUsdc(clients: ActionClients): Promise<`0x${string}`
     data: proven.input,
   });
 
-  const hash = await clients.walletClient.sendTransaction({
-    account: clients.account,
-    chain: undefined,
-    to: COMPOUND_FAUCET,
-    data: proven.input,
-  });
+  const hash = await submitFinancialWriteOnce(() =>
+    clients.walletClient.sendTransaction({
+      account: clients.account,
+      chain: undefined,
+      to: COMPOUND_FAUCET,
+      data: proven.input,
+    }),
+  );
   clients.onHash?.(hash);
   const receipt = await clients.publicClient.waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") throw new Error("CANONICAL_FAUCET_TRANSACTION_FAILED");

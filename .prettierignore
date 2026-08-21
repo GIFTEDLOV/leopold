@@ -28,6 +28,7 @@ yarn.lock
 
 # Canonical, digest-bound evidence. These exact files are validator inputs and
 # must not be rewritten by a formatter after their authoritative capture.
+audit/leopold-core-security-audit-pass1.md
 scripts/sg4-hcu-authority-binding.json
 evidence/cp0/SG3_WEIGHT_DOMAIN_DERIVATION.json
 evidence/cp0/SG5_BROWSER_CAPABILITY.json

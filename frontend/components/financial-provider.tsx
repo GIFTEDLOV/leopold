@@ -31,6 +31,7 @@ import { classifyLeopoldError, sanitizeTechnicalDetail, type LeopoldError } from
 import {
   readPrivateHandle,
   readUsdcBalance,
+  readLatestBlock,
   getEffectiveVaultRoundStatus,
   canPrepareVaultWithdrawal,
   readVaultPublicState,
@@ -212,7 +213,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const readLiveVaultRound = useCallback(async (vaultSlug: VaultId, liveClients: ActionClients) => {
     const vault = getVaultConfig(vaultSlug);
     if (!vault) throw new Error("CONFIGURATION_MISSING:vault");
-    const latestBlock = await liveClients.publicClient.getBlock();
+    const latestBlock = await readLatestBlock(liveClients.publicClient);
     const liveState = await readVaultPublicState(
       liveClients.publicClient,
       vault,
@@ -399,7 +400,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (fixtureEnabled) return;
     if (!publicClient) return;
     try {
-      const latestBlock = await publicClient.getBlock();
+      const latestBlock = await readLatestBlock(publicClient);
       setUsdcBalance(await readUsdcBalance(publicClient, CANONICAL_USDC, publicReadAccount));
       if (leopoldConfig.ready) {
         await validateConfiguredDeployment(publicClient, leopoldConfig);

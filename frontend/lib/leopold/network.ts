@@ -1,6 +1,7 @@
 import type { Address } from "viem";
 import { LEOPOLD_CHAIN_ID } from "./config";
 import { sanitizeTechnicalDetail } from "./errors";
+import { withReadReliability } from "@/lib/ops/reliability";
 
 export const LEOPOLD_SEPOLIA_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
 export const FINANCIAL_NETWORK_HEALTH_CACHE_TTL_MS = 5_000;
@@ -121,17 +122,11 @@ async function request(
   params?: readonly unknown[],
   timeoutMs = FINANCIAL_NETWORK_PROBE_TIMEOUT_MS,
 ): Promise<unknown> {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      client.request({ method, params }),
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => reject(new Error(`RPC_TIMEOUT:${method}`)), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeout !== undefined) clearTimeout(timeout);
-  }
+  return withReadReliability(() => client.request({ method, params }), {
+    operation: "NETWORK_PREFLIGHT",
+    timeoutMs,
+    baseDelayMs: 100,
+  });
 }
 
 /**
