@@ -35,6 +35,8 @@
     "scripts/sg5-protocol.ts",
     "scripts/validate-sg4-randomness-evidence.ts",
     "scripts/verify-sg4-randomness-receipts.ts",
-    "scripts/deploy-leopold-official.ts"
+    "scripts/deploy-leopold-official.ts",
+    "scripts/verify-leopold-p01-redeployment-preflight.ts",
+    "scripts/leopold-p01-redeployment-smoke.ts"
   ]
 }

@@ -1,0 +1,65 @@
+{
+  "schema": "leopold.p01-bounded-deposit-withdraw-smoke.v1",
+  "capturedUtc": "2026-08-20T23:15:18.877Z",
+  "chain": {
+    "name": "ethereum-sepolia",
+    "chainId": "11155111"
+  },
+  "operator": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+  "manifestSha256": "438ea670c13e888db81eef5c7a64ea2943aa6d9f2c4faac604fe09850964d5aa",
+  "contracts": {
+    "canonicalCircleUsdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "lcUsdc": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
+    "registry": "0x64e106b0015028451065901854b343fF1639962C",
+    "dailyVault": "0xfC681256b9dE61aB0F4dB397463aC55Ede8bDd64",
+    "dailyAdapter": "0x93bd7b8eB095eF1e59D48BC193289A0b6cdEa743",
+    "dailyEscrow": "0x6e2c004529Ade16b5eEeCe62063D1C0ec2712dAf"
+  },
+  "amountBaseUnits": "1",
+  "round": {
+    "id": "1",
+    "stateBefore": "1",
+    "forcedClosePerformed": false
+  },
+  "relationships": {
+    "registryDiscovery": true,
+    "wrapperUnderlying": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "wrapperRate": "1",
+    "wrapperDecimals": "6"
+  },
+  "checks": {
+    "principalAfterDeposit": "1",
+    "principalAfterWithdrawal": "0",
+    "depositRecorded": true,
+    "samePrincipalWithdrawn": true,
+    "adapterOrStrategyOperationPerformed": false,
+    "bondRegistrationPerformed": false,
+    "roundClosePerformed": false
+  },
+  "transactions": {
+    "approve": {
+      "hash": "0xf31d290c2124f9a7f8c32787cc1e0b7ed98e77d6fa296a704d01a22660fd87d0",
+      "block": 11532154,
+      "gasUsed": "55413",
+      "status": 1
+    },
+    "wrap": {
+      "hash": "0x54917cac147d9bdfd5fa05867f6dbfa6d7f9884187ca846566fb22c6e4069adf",
+      "block": 11532155,
+      "gasUsed": "338860",
+      "status": 1
+    },
+    "deposit": {
+      "hash": "0x79e406ce47bb450bdbe337bf4119b5916c7d73ad711b5e39eefa3e47688c733b",
+      "block": 11532158,
+      "gasUsed": "1307807",
+      "status": 1
+    },
+    "withdrawal": {
+      "hash": "0x1e20b719550826569f079bfbfa2778c0654650814385100d45a5139dde2cd9e2",
+      "block": 11532162,
+      "gasUsed": "942120",
+      "status": 1
+    }
+  }
+}

@@ -20,7 +20,7 @@
   "contracts": {
     "canonicalCircleUsdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
     "lcUsdc": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8",
-    "registry": "0x08560A59A28B9e3b7F5fe7C3cce17ddD9F115530",
+    "registry": "0x64e106b0015028451065901854b343fF1639962C",
     "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e"
   },
   "officialVaults": [
@@ -29,36 +29,36 @@
       "type": "DAILY",
       "name": "Daily",
       "roundDurationSeconds": 86400,
-      "vault": "0xa84C40BBeD3010D0D4CD44465920d5156fa5E6c4",
-      "adapter": "0x99dAdA9526A58f3BDdd44171441980e3A61E4c2F",
-      "bondEscrow": "0x3c80D1Db7718c787BCfb9be6A16dB4b4AdcB5755"
+      "vault": "0xfC681256b9dE61aB0F4dB397463aC55Ede8bDd64",
+      "adapter": "0x93bd7b8eB095eF1e59D48BC193289A0b6cdEa743",
+      "bondEscrow": "0x6e2c004529Ade16b5eEeCe62063D1C0ec2712dAf"
     },
     {
       "id": 2,
       "type": "WEEKLY",
       "name": "Weekly",
       "roundDurationSeconds": 604800,
-      "vault": "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
-      "adapter": "0xE88712Affce2CDe86dEBcb78A6bd985c4ad5A3aA",
-      "bondEscrow": "0xfa8718a6a238749c35eE9D2daBFF87E65253fd10"
+      "vault": "0xaaBC43dfc64eC400461e05AFC539bdD6b8Efa761",
+      "adapter": "0xF5ba3F2df06A689C1E8409c1EC59B9FdF114A1b0",
+      "bondEscrow": "0x05e91Fd944d0161Fad213169B62b06b4B327fE10"
     },
     {
       "id": 3,
       "type": "MONTHLY",
       "name": "Monthly",
       "roundDurationSeconds": 2592000,
-      "vault": "0x1136D6c399d09Fa66474582DE6E4941bA3303ad6",
-      "adapter": "0x7d457e52195c4ab18f3Fc1Bc5b3B908D035fC996",
-      "bondEscrow": "0x21088B76dD21AF354E74f0e9848346b7780D70db"
+      "vault": "0x02a202b57f3A787c87f3Cc46C12C7c90f580a7cC",
+      "adapter": "0x9C61B40D3FdE4B9BAb740cBfeB1ad5Ad39a88779",
+      "bondEscrow": "0xCF3b8E37bc74D203003Df9B09B6B73f34B15C6B5"
     },
     {
       "id": 4,
       "type": "BOOST",
       "name": "Boost",
       "roundDurationSeconds": 604800,
-      "vault": "0x98D971557843CE17dc1387d2256Ab3dbAaC204f9",
-      "adapter": "0x0dB787ae292C880ABBB6F733ad3d4d5A7098ECf1",
-      "bondEscrow": "0x6E78CA9E693c4ad73c40AA967aab25C3Fd772c9a"
+      "vault": "0xDd0888d150a673f34Bcbf258dc138ADB17B62165",
+      "adapter": "0x98F665db7698e01423118450B32984ca70e80381",
+      "bondEscrow": "0x3ee5DB68F7e3689B4639B97e9C423de7d69f6D9F"
     }
   ],
   "reads": [
@@ -275,7 +275,9 @@
     "rewardPerParticipantPassWei": "1250000000000000",
     "refundAfterTwoPassesWei": "2500000000000000",
     "strategyEpochAgeSeconds": 60,
-    "freezeCommit": "182787317e5b1f024d8f7f28b8bd3bef495224c1",
-    "frontendCommit": "3f396e080e70d130be58107128a1acac3c44f60d"
+    "freezeCommit": "0cea34f33009a1d5052a554e687ee3605a2aaf11",
+    "frontendCommit": "0cea34f33009a1d5052a554e687ee3605a2aaf11",
+    "p01Status": "CLOSED",
+    "supersedesRegistry": "0x08560A59A28B9e3b7F5fe7C3cce17ddD9F115530"
   }
 }

@@ -3,6 +3,9 @@
 Date: 2026-08-12 Scope: CP1 contract core, round-scoped settlement bonds, Compound integration, ABI/state machines, and
 application transaction flows. This is an internal security closure, not a formal external audit.
 
+P-01 corrected-runtime refreeze: 2026-08-21 at contract commit `0cea34f33009a1d5052a554e687ee3605a2aaf11`. The public
+ABI, state machines, privacy model, four-vault topology, and immutable bond profile are unchanged.
+
 ## Decision
 
 Leopold uses **round-scoped public settlement-bond eligibility**. Private saving and prize eligibility are separate.
@@ -193,7 +196,8 @@ Save/Withdraw use the same single add/accrual shapes already present in the form
 logic performs no FHE operation.
 
 Fresh worst-case production-path selection is 13,089,448/2,786,064 and allocation with uniform Auto-Save is
-12,371,544/2,309,032. Both remain below 15M/3.75M.
+12,491,672/2,374,032 after the overflow-safe capacity predicate. The corrected predicate adds exactly 30,032 HCU where
+used. Both remain below 15M/3.75M.
 
 ## Bytecode
 
@@ -202,15 +206,16 @@ unchanged. Final deterministic measurements are:
 
 | Production contract           | Creation bytes | Runtime bytes | EIP-170 headroom |
 | ----------------------------- | -------------: | ------------: | ---------------: |
-| `LeopoldVault`                |         36,147 |        23,539 |            1,037 |
+| `LeopoldVault`                |         36,139 |        23,531 |            1,045 |
 | `LeopoldSettlementBondEscrow` |          4,741 |         4,270 |           20,306 |
 | `LeopoldConfidentialUSDC`     |         12,510 |        10,565 |           14,011 |
 | `LeopoldCompoundAdapter`      |          6,381 |         5,535 |           19,041 |
 | `LeopoldVaultRegistry`        |          4,744 |         1,334 |           23,242 |
 
-The fail-closed vault ceiling is 23,552 bytes, preserving the mandatory 1,024-byte margin. The final implementation has
-1,037 bytes. Size savings removed diagnostic getters only; proof validation, ACLs, access control, replay,
-reconciliation, TWAB, emergency, principal, and prize checks remain.
+The fail-closed vault ceiling is 23,552 bytes, preserving the mandatory 1,024-byte margin. The corrected implementation
+has 1,045 bytes. Its pool-cap predicate compares the incoming amount to remaining capacity before addition, closing P-01
+without changing the ABI or state machine. Proof validation, ACLs, access control, replay, reconciliation, TWAB,
+emergency, principal, and prize checks remain.
 
 The official registry constructor binds the reviewed bond and per-pass reward values across all four vault escrows; an
 interface-compatible deployment with weaker economics is rejected. Freeze validation force-compiles current source
@@ -240,13 +245,13 @@ New bond residuals are:
 
 ## Verification and live-smoke status
 
-The final production test command completed **562 passing, 1 intentionally Sepolia-only pending, 0 failing**. It
-includes exact/fuzz TWAB, settlement, bond, solvency, 100-historical-Sybil, four-vault, Compound, Auto-Save,
-pause/emergency, reentrancy, forced-ETH, selector-HCU, and the exhaustive SG-4/SG-5 protocol suites. Frontend and keeper
-typecheck/lint/tests/build passed; the keeper runtime fixture also passed. CP0, selector HCU, Compound historical live
-evidence, SG-4 randomness, SG-5 evidence/structural, lint, formatting, bytecode, and freeze validators passed. The SG-4
-authority preparation command remains intentionally fail-closed because its separate two-commit binding record is
-absent; its exhaustive protocol tests and immutable benchmark evidence pass.
+The corrected-runtime production test command completed **563 passing, 1 intentionally Sepolia-only pending, 0
+failing**. It includes exact/fuzz TWAB, settlement, bond, solvency, 100-historical-Sybil, four-vault, Compound,
+Auto-Save, pause/emergency, reentrancy, forced-ETH, selector-HCU, and the exhaustive SG-4/SG-5 protocol suites. Frontend
+and keeper typecheck/lint/tests/build passed; the keeper runtime fixture also passed. CP0, selector HCU, Compound
+historical live evidence, SG-4 randomness, SG-5 evidence/structural, lint, formatting, bytecode, and freeze validators
+passed. The SG-4 authority preparation command remains intentionally fail-closed because its separate two-commit binding
+record is absent; its exhaustive protocol tests and immutable benchmark evidence pass.
 
 A genuinely fresh-context reviewer found one High release-integrity gap and three Medium issues in the first candidate:
 stale freeze output, unrecoverable authenticated false reconciliation, registry-unbound bond pricing, and stale-artifact
@@ -260,6 +265,12 @@ registration. No contract revert occurred and no complete-live PASS artifact was
 are preserved in `evidence/closure/LEOPOLD_BOND_SEPOLIA_SMOKE_ATTEMPTS.md`. The complete bonded live lifecycle must be
 repeated when relayer availability returns; historical source-bound evidence still proves lcUSDC, deposit/withdrawal,
 Compound supply/yield/replenishment/pause/emergency but is not relabeled as proof of the new bond code.
+
+The P-01 corrected official suite subsequently completed a bounded live smoke against the corrected Daily vault: one
+canonical-USDC base unit was wrapped, confidentially deposited, observed as private principal `1`, withdrawn, and
+observed as private principal `0`. No bond, strategy, settlement, or round-close operation was performed. The new proof
+is recorded separately in `evidence/deployment/LEOPOLD_P01_BOUNDED_SMOKE.json`; none of the earlier historical evidence
+was rewritten.
 
 The comprehensive security review due no later than **2026-08-26** remains mandatory and is not superseded. It must
 include recovered Stage-0 source text if available and an external review before production-value deployment.
@@ -281,8 +292,9 @@ collateral is refundable; a fixed portion compensates permissionless private dra
 cursors, chunks, FHE handles, public proof plumbing, Compound, and lcUSDC jargon.
 
 The canonical machine-readable interface is `evidence/closure/LEOPOLD_CONTRACT_FREEZE.json`; application configuration
-is `config/leopold-frontend-contracts.json`. Final official Sepolia addresses remain null until reviewed deployment and
-must not be confused with disposable smoke evidence.
+is `config/leopold-frontend-contracts.json`. That manifest now names the verified P-01 corrected official Sepolia
+registry and four-vault suite. Superseded official and disposable smoke addresses remain historical evidence and are not
+current frontend discovery targets.
 
 ## Freeze-breaking triggers
 

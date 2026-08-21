@@ -1,0 +1,90 @@
+{
+  "schema": "leopold.p01-corrected-sepolia-refreeze.v1",
+  "refrozenDate": "2026-08-21",
+  "chain": {
+    "name": "ethereum-sepolia",
+    "chainId": 11155111
+  },
+  "source": {
+    "contractCommit": "0cea34f33009a1d5052a554e687ee3605a2aaf11",
+    "contractCommitSubject": "fix(security): close confidential pool cap arithmetic invariant",
+    "auditPass1Sha256": "c8716fca9f0f2fd4f231069f630670e6771214575a3a94ae51993a67103672b7",
+    "p01ClosureSha256": "edd7b39500df3d8a0ccff7b0389f7fe7f9c5c74194a538065a3b1a0574138838"
+  },
+  "external": {
+    "canonicalCircleUsdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+    "reusedLeopoldConfidentialUsdc": "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8"
+  },
+  "currentSuite": {
+    "registry": "0x64e106b0015028451065901854b343fF1639962C",
+    "vaults": [
+      {
+        "name": "Daily",
+        "vault": "0xfC681256b9dE61aB0F4dB397463aC55Ede8bDd64",
+        "adapter": "0x93bd7b8eB095eF1e59D48BC193289A0b6cdEa743",
+        "escrow": "0x6e2c004529Ade16b5eEeCe62063D1C0ec2712dAf"
+      },
+      {
+        "name": "Weekly",
+        "vault": "0xaaBC43dfc64eC400461e05AFC539bdD6b8Efa761",
+        "adapter": "0xF5ba3F2df06A689C1E8409c1EC59B9FdF114A1b0",
+        "escrow": "0x05e91Fd944d0161Fad213169B62b06b4B327fE10"
+      },
+      {
+        "name": "Monthly",
+        "vault": "0x02a202b57f3A787c87f3Cc46C12C7c90f580a7cC",
+        "adapter": "0x9C61B40D3FdE4B9BAb740cBfeB1ad5Ad39a88779",
+        "escrow": "0xCF3b8E37bc74D203003Df9B09B6B73f34B15C6B5"
+      },
+      {
+        "name": "Boost",
+        "vault": "0xDd0888d150a673f34Bcbf258dc138ADB17B62165",
+        "adapter": "0x98F665db7698e01423118450B32984ca70e80381",
+        "escrow": "0x3ee5DB68F7e3689B4639B97e9C423de7d69f6D9F"
+      }
+    ]
+  },
+  "digests": {
+    "manifestSha256": "438ea670c13e888db81eef5c7a64ea2943aa6d9f2c4faac604fe09850964d5aa",
+    "deploymentEvidenceSha256": "12a118e665b3885fd919d67b5efe028884d3eb61bd4d3194ec189e35cffa781c",
+    "boundedSmokeEvidenceSha256": "a6f8362c0d5a693b4ef602998ceb14603ae4afcaf93bb1ec39f31dbfb9767d9a",
+    "contractFreezeSha256": "38f11661d7871f3aeb253564f6ca7ec24d1eaded54bf2ac64be3cd7f839995c7"
+  },
+  "runtime": {
+    "leopoldVaultBytes": 23531,
+    "eip170Headroom": 1045,
+    "normalizedRuntimeSha256": "96020d75ea78c1adb8c80f56544e7ab381934f3563242946825fe343e3ddf301"
+  },
+  "verification": {
+    "contractTestsPassing": 563,
+    "contractTestsPendingSepoliaOnly": 1,
+    "frontendTestsPassing": 183,
+    "frontendTestFilesPassing": 21,
+    "frontendTypecheck": "PASS",
+    "frontendLint": "PASS",
+    "frontendFormat": "PASS",
+    "frontendProductionBuild": "PASS",
+    "selectorHcuEvidence": "PASS",
+    "compoundEvidence": "PASS",
+    "boundedDeposit": "PASS",
+    "boundedWithdrawal": "PASS",
+    "forcedRoundClosePerformed": false
+  },
+  "security": {
+    "p01Status": "CLOSED",
+    "unresolvedCritical": 0,
+    "unresolvedHigh": 0,
+    "unresolvedMedium": 0,
+    "abiChanged": false,
+    "stateMachineChanged": false,
+    "privacyChanged": false,
+    "fourVaultModelChanged": false,
+    "wrapperRedeployed": false
+  },
+  "historicalEvidence": {
+    "preserved": true,
+    "liveBrowserE2eSha256": "40fb32bb06cc676498c3eea402e3aed6376aedf909522747a71e78ea0c33a1fc",
+    "liveE2eClosureSha256": "e9fc38dafe685cf6fe9ed68120cb0cfbd50a4d4d82b333cecdc788ab8247fc9f"
+  }
+}

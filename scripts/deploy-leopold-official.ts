@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { getCreateAddress, keccak256 } from "ethers";
+import { format } from "prettier";
 import type { Contract as EthersContract, ContractTransactionResponse, InterfaceAbi, JsonRpcProvider } from "ethers";
 import { ethers, network } from "hardhat";
 import { vars } from "hardhat/config";
@@ -12,11 +13,23 @@ const EVIDENCE_DIR = path.join(ROOT, "evidence/deployment");
 const DOCS_DIR = path.join(ROOT, "docs/deployment");
 const EVIDENCE_PATH = path.join(EVIDENCE_DIR, "LEOPOLD_OFFICIAL_SEPOLIA_DEPLOYMENT.json");
 const DOC_PATH = path.join(DOCS_DIR, "LEOPOLD_OFFICIAL_SEPOLIA_DEPLOYMENT.md");
-const FREEZE_COMMIT = "182787317e5b1f024d8f7f28b8bd3bef495224c1";
-const FRONTEND_COMMIT = "3f396e080e70d130be58107128a1acac3c44f60d";
+const P01_EVIDENCE_PATH = path.join(EVIDENCE_DIR, "LEOPOLD_P01_REDEPLOYMENT.json");
+const P01_DOC_PATH = path.join(DOCS_DIR, "LEOPOLD_P01_REDEPLOYMENT.md");
+const FREEZE_COMMIT = "0cea34f33009a1d5052a554e687ee3605a2aaf11";
+const FRONTEND_COMMIT = "0cea34f33009a1d5052a554e687ee3605a2aaf11";
 const CHAIN_ID = 11_155_111n;
+const EXPECTED_DEPLOYER = "0x57357D26D1f56eca4556d271078A0239a7696Bbf";
 const USDC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
 const COMET = "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e";
+const REUSED_WRAPPER = "0xf2B3DeC378a2e23361b9112C5A2cEDc4C666b6e8";
+const REUSED_WRAPPER_TX = "0x58e763e8cd41087880a6a57c98621a39c03f182963ab827ccc1780eb29678058";
+const OLD_REGISTRY = "0x08560A59A28B9e3b7F5fe7C3cce17ddD9F115530";
+const OLD_VAULTS = [
+  "0xa84C40BBeD3010D0D4CD44465920d5156fa5E6c4",
+  "0xf3c842CdF26E960b63B67e392136D6B0D3ab2244",
+  "0x1136D6c399d09Fa66474582DE6E4941bA3303ad6",
+  "0x98D971557843CE17dc1387d2256Ab3dbAaC204f9",
+] as const;
 const FAUCET = "0x68793eA49297eB75DFB4610B68e076D2A5c7646C";
 const FAUCET_TX = "0x63829c8633304e200a62bdd0af068374687b8163afc6673988fbe8f4426357da";
 const BOND = ethers.parseEther("0.005");
@@ -200,17 +213,15 @@ async function preflight(
   firstRoundOpensAt: number,
 ): Promise<{ estimates: bigint[]; requiredWei: bigint; balanceWei: bigint; nonce: number; predictedVaults: string[] }> {
   const nonce = await ethers.provider.getTransactionCount(deployer, "pending");
-  const predictedWrapper = getCreateAddress({ from: deployer, nonce });
   const predictedVaults = vaultDefinitions.map((_, index) =>
-    getCreateAddress({ from: deployer, nonce: nonce + 1 + index }),
+    getCreateAddress({ from: deployer, nonce: nonce + index }),
   );
   void firstRoundOpensAt;
-  void predictedWrapper;
   // A pre-broadcast eth_estimateGas call cannot simulate the vault constructor against the
   // not-yet-created wrapper, nor the registry against not-yet-created vaults. These reserves
   // are deliberately above the reviewed Sepolia receipts and are replaced by actual receipts
   // in the evidence after deployment.
-  const estimates = [3_000_000n, 10_000_000n, 10_000_000n, 10_000_000n, 10_000_000n, 2_000_000n];
+  const estimates = [10_000_000n, 10_000_000n, 10_000_000n, 10_000_000n, 2_000_000n];
   const feeData = await ethers.provider.getFeeData();
   const feePerGas = feeData.maxFeePerGas ?? feeData.gasPrice;
   if (feePerGas === null) throw new Error("SEPOLIA_FEE_DATA_UNAVAILABLE");
@@ -251,6 +262,9 @@ async function main(): Promise<void> {
   const [signer] = await ethers.getSigners();
   if (signer === undefined) throw new Error("DEPLOYER_SIGNER_UNAVAILABLE");
   const deployer = await signer.getAddress();
+  if (deployer.toLowerCase() !== EXPECTED_DEPLOYER.toLowerCase()) {
+    throw new Error(`UNEXPECTED_DEPLOYER:${deployer}`);
+  }
   // Hardhat's ethers adapter does not implement ENS resolution for some read calls.
   // Use the same protected Sepolia URL through a plain ethers provider for validation reads.
   const readProvider = new ethers.JsonRpcProvider(vars.get("SEPOLIA_RPC_URL"));
@@ -260,6 +274,13 @@ async function main(): Promise<void> {
     contracts: { lcUsdc: string | null; registry: string | null };
   };
   const existingDeploymentMode = process.env.LEOPOLD_EXISTING_DEPLOYMENT === "1";
+  const p01RedeploymentMode = process.env.LEOPOLD_P01_REDEPLOYMENT === "1";
+  if (
+    p01RedeploymentMode &&
+    process.env.LEOPOLD_P01_REDEPLOY_ACK !== "I ACKNOWLEDGE THE CORRECTED LEOPOLD SEPOLIA REDEPLOYMENT"
+  ) {
+    throw new Error("P01_REDEPLOYMENT_ACKNOWLEDGEMENT_REQUIRED");
+  }
   const manifestIsPreDeployment =
     existingManifest.deploymentStatus === "FINAL_CLOSURE_BYTECODE_NOT_YET_OFFICIALLY_DEPLOYED" &&
     existingManifest.contracts.lcUsdc === null &&
@@ -268,7 +289,10 @@ async function main(): Promise<void> {
     existingManifest.deploymentStatus === "OFFICIAL_SEPOLIA_DEPLOYED" &&
     existingManifest.contracts.lcUsdc !== null &&
     existingManifest.contracts.registry !== null;
-  if ((!manifestIsPreDeployment && !existingDeploymentMode) || (existingDeploymentMode && !manifestIsOfficial)) {
+  if (
+    (!manifestIsPreDeployment && !existingDeploymentMode && !p01RedeploymentMode) ||
+    ((existingDeploymentMode || p01RedeploymentMode) && !manifestIsOfficial)
+  ) {
     throw new Error("OFFICIAL_MANIFEST_ALREADY_POPULATED_OR_DRIFTED");
   }
   const latest = await ethers.provider.getBlock("latest");
@@ -330,10 +354,15 @@ async function main(): Promise<void> {
     registryTx = await recordKnownDeployment(existingAddresses.transactions[5]);
     registry = readContract("LeopoldVaultRegistry", registryAddress, readProvider);
   } else {
-    const wrapper = await wrapperFactory.deploy();
-    await wrapper.waitForDeployment();
-    wrapperAddress = await wrapper.getAddress();
-    wrapperTx = await recordDeployment(wrapper);
+    if (p01RedeploymentMode) {
+      wrapperAddress = REUSED_WRAPPER;
+      wrapperTx = await recordKnownDeployment(REUSED_WRAPPER_TX);
+    } else {
+      const wrapper = await wrapperFactory.deploy();
+      await wrapper.waitForDeployment();
+      wrapperAddress = await wrapper.getAddress();
+      wrapperTx = await recordDeployment(wrapper);
+    }
     vaults = [];
     for (const definition of vaultDefinitions) {
       const vault = await vaultFactory.deploy(
@@ -512,6 +541,11 @@ async function main(): Promise<void> {
   }
   runtime.registry = await runtimeRecord("LeopoldVaultRegistry", registryAddress);
   if (!runtime.registry.matchesFrozenArtifact) throw new Error("REGISTRY_RUNTIME_FREEZE_MISMATCH");
+  if (p01RedeploymentMode) {
+    for (const oldVault of OLD_VAULTS) {
+      if (await registry.isOfficialVault(oldVault)) throw new Error(`OLD_VAULT_REGISTERED:${oldVault}`);
+    }
+  }
 
   if (process.env.LEOPOLD_VALIDATE_EXISTING === "1") {
     console.log(`LEOPOLD_EXISTING_DEPLOYMENT_VALID ${registryAddress}`);
@@ -540,8 +574,10 @@ async function main(): Promise<void> {
     strategyEpochAgeSeconds: DEMO_STRATEGY_EPOCH_AGE,
     freezeCommit: FREEZE_COMMIT,
     frontendCommit: FRONTEND_COMMIT,
+    p01Status: p01RedeploymentMode ? "CLOSED" : undefined,
+    supersedesRegistry: p01RedeploymentMode ? OLD_REGISTRY : undefined,
   };
-  const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;
+  const manifestText = await format(JSON.stringify(manifest, null, 2), { parser: "json" });
   mkdirSync(EVIDENCE_DIR, { recursive: true });
   mkdirSync(DOCS_DIR, { recursive: true });
   writeFileSync(MANIFEST_PATH, manifestText, { encoding: "utf8", mode: 0o644 });
@@ -611,11 +647,35 @@ async function main(): Promise<void> {
       proxyContractsUsed: false,
       historicalOrDisposableAddressesInManifest: false,
     },
+    p01Closure: p01RedeploymentMode
+      ? {
+          status: "CLOSED",
+          correctedRuntimeBytes: 23_531,
+          eip170Headroom: 1_045,
+          correctedPredicate: "amount <= MAX_POOL_BASE_UNITS - totalPrincipal",
+          abiChanged: false,
+          stateMachineChanged: false,
+          privacyChanged: false,
+          wrapperReused: true,
+          supersededRegistry: OLD_REGISTRY,
+          supersededVaults: OLD_VAULTS,
+          oldVaultsRegisteredInCorrectedRegistry: false,
+        }
+      : undefined,
     manifestSha256: manifestDigest,
   };
-  const evidenceText = `${JSON.stringify(evidence, jsonReplacer, 2)}\n`;
+  const evidenceText = await format(JSON.stringify(evidence, jsonReplacer, 2), { parser: "json" });
   writeFileSync(EVIDENCE_PATH, evidenceText, { encoding: "utf8", mode: 0o644 });
   const evidenceDigest = sha256(evidenceText);
+  let p01EvidenceDigest: string | null = null;
+  if (p01RedeploymentMode) {
+    const p01EvidenceText = await format(
+      JSON.stringify({ ...evidence, schema: "leopold.p01-corrected-sepolia-redeployment.v1" }, jsonReplacer, 2),
+      { parser: "json" },
+    );
+    writeFileSync(P01_EVIDENCE_PATH, p01EvidenceText, { encoding: "utf8", mode: 0o644 });
+    p01EvidenceDigest = sha256(p01EvidenceText);
+  }
   const docs =
     `# Leopold official Sepolia deployment\n\n` +
     `Status: official four-vault Sepolia deployment populated and validated.\n\n` +
@@ -653,14 +713,35 @@ async function main(): Promise<void> {
     `| Registry | ${registryAddress} | ${registryTx.hash} | ${registryTx.block} |\n\n` +
     `Each adapter and bond escrow is created inside its corresponding vault deployment transaction by the frozen constructor; it is not a shared or proxy deployment.\n\n` +
     `## Integrity\n\n` +
-    `The deployment script checked canonical USDC, six decimals, wrapper rate 1, direct Comet base token/scale, per-vault adapter and escrow backpointers, exact durations, registry topology, immutable bond economics, active round initialization, and normalized runtime bytecode against the frozen artifacts. The largest runtime remains 23,539 bytes with 1,037 bytes EIP-170 headroom.\n\n` +
+    `The deployment script checked canonical USDC, six decimals, wrapper rate 1, direct Comet base token/scale, per-vault adapter and escrow backpointers, exact durations, registry topology, immutable bond economics, active round initialization, and normalized runtime bytecode against the frozen artifacts. The largest runtime is 23,531 bytes with 1,045 bytes EIP-170 headroom.\n\n` +
     `Manifest SHA-256: \`${manifestDigest}\`\n\n` +
     `Deployment evidence SHA-256: \`${evidenceDigest}\`\n\n` +
     `Evidence JSON: [LEOPOLD_OFFICIAL_SEPOLIA_DEPLOYMENT.json](../../evidence/deployment/LEOPOLD_OFFICIAL_SEPOLIA_DEPLOYMENT.json)\n`;
-  writeFileSync(DOC_PATH, docs, { encoding: "utf8", mode: 0o644 });
+  writeFileSync(DOC_PATH, await format(docs, { parser: "markdown" }), { encoding: "utf8", mode: 0o644 });
+  if (p01RedeploymentMode && p01EvidenceDigest !== null) {
+    const p01Docs =
+      `# Leopold P-01 corrected Sepolia redeployment\n\n` +
+      `Status: corrected official four-vault suite deployed and validated; P-01 is closed.\n\n` +
+      `The existing non-upgradeable lcUSDC wrapper at \`${wrapperAddress}\` was reused. Four corrected ` +
+      `\`LeopoldVault\` instances were deployed; each constructor created a new immutable per-vault Compound adapter ` +
+      `and settlement-bond escrow. A new registry at \`${registryAddress}\` contains only the corrected vaults. ` +
+      `The prior registry \`${OLD_REGISTRY}\` and its four vaults remain historical deployments and are not current ` +
+      `frontend discovery targets. Historical transaction evidence was not rewritten.\n\n` +
+      `- Corrected contract commit: \`${FREEZE_COMMIT}\`\n` +
+      `- LeopoldVault runtime: 23,531 bytes\n` +
+      `- EIP-170 headroom: 1,045 bytes\n` +
+      `- ABI changed: no\n` +
+      `- State machine changed: no\n` +
+      `- Privacy changed: no\n` +
+      `- Current manifest SHA-256: \`${manifestDigest}\`\n` +
+      `- P-01 deployment evidence SHA-256: \`${p01EvidenceDigest}\`\n\n` +
+      `Evidence JSON: [LEOPOLD_P01_REDEPLOYMENT.json](../../evidence/deployment/LEOPOLD_P01_REDEPLOYMENT.json)\n`;
+    writeFileSync(P01_DOC_PATH, await format(p01Docs, { parser: "markdown" }), { encoding: "utf8", mode: 0o644 });
+  }
   console.log(`LEOPOLD_OFFICIAL_DEPLOYMENT_PASS ${registryAddress}`);
   console.log(`MANIFEST_SHA256 ${manifestDigest}`);
   console.log(`EVIDENCE_SHA256 ${evidenceDigest}`);
+  if (p01EvidenceDigest !== null) console.log(`P01_EVIDENCE_SHA256 ${p01EvidenceDigest}`);
 }
 
 main().catch((error: unknown) => {

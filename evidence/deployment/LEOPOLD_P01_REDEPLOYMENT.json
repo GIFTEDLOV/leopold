@@ -1,5 +1,5 @@
 {
-  "schema": "leopold.official-sepolia-deployment.v1",
+  "schema": "leopold.p01-corrected-sepolia-redeployment.v1",
   "capturedUtc": "2026-08-20T23:10:12.408Z",
   "chain": {
     "name": "ethereum-sepolia",
