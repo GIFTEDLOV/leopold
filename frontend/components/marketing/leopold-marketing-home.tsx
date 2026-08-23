@@ -289,7 +289,7 @@ export function LeopoldMarketingHome() {
       <header className={styles["site-header"]}>
         <a className={styles.brand} href="#top" aria-label="Leopold home">
           <BrandMark />
-          <span>Leopold</span>
+          <span>Leop<span className={styles["brand-word-accent"]}>old</span></span>
         </a>
         <nav className={styles["desktop-nav"]} aria-label="Primary navigation">
           {navigationLinks.map(([label, href]) => <Link className={classes("nav-link", ...(label === "Open App" ? ["nav-link--open-app"] : []))} href={href} key={label}>{label}</Link>)}

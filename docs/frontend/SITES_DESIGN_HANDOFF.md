@@ -69,7 +69,7 @@ The visual direction is an editorial financial-data publication rather than a co
 - square corners, thin rules, generous whitespace, and oversized type;
 - small, deliberate motion rather than continuous decorative animation.
 
-The interlocking Leopold monogram is intentionally different from the striped American Spend mark. It is shown as a white mark on the black/navy header and footer through a CSS filter.
+The interlocking Leopold monogram is intentionally different from the striped American Spend mark. It is shown as a white mark on the black/navy header through a CSS filter. In the header wordmark, `Leop` stays white and `old` uses the muted gold accent.
 
 ## Exact color palette
 
@@ -132,7 +132,8 @@ Major vertical spacing:
 | Hero | `min(100svh, 940px)`, min 720px | 760px fixed visual height |
 | Gateway | 118px top / 138px bottom | 80px top / 92px bottom |
 | Protocol | min 790px; 140px vertical | 92px vertical |
-| Built sections | 104px top / 150px bottom | 78px top / 92px bottom |
+| Built-by section | 104px top / 48px bottom | 78px top / 36px bottom |
+| Built-for-saving section | 48px top / 150px bottom | 36px top / 92px bottom |
 | Process | 126px top / 68px bottom | 78px top / 62px bottom |
 | Principle | min 650px; 72px vertical | min 600px; 64px vertical |
 | Footer | 78px top / 30px bottom | 58px top / 26px bottom |
