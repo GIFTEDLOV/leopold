@@ -190,29 +190,12 @@ function OnboardingWalkthrough() {
         <Brand />
         <div className={styles["header-links"]}>
           <span>PRIVATE PRIZE SAVINGS</span>
-          <Link className={styles["skip-onboarding"]} href="/login">Skip onboarding to sign in <span aria-hidden="true">↗</span></Link>
+          <Link className={styles["skip-onboarding"]} href="/login">Jump to sign in <span aria-hidden="true">↗</span></Link>
         </div>
       </header>
 
       <main>
-        <section className={styles.intro} aria-labelledby="onboarding-title">
-          <p>LEOPOLD ORIENTATION</p>
-          <h1 id="onboarding-title">From sign in to <span>private saving.</span></h1>
-          <div className={styles["intro-meta"]}>
-            <p>Ten short steps explain how your account, wallet, savings, and prize results remain deliberately separated.</p>
-            <span>SWIPE OR USE THE ARROWS</span>
-          </div>
-        </section>
-
         <section className={styles.carousel} aria-label="How Leopold works">
-          <div className={styles["carousel-controls"]}>
-            <p><span>{String(activeIndex + 1).padStart(2, "0")}</span> / {String(onboardingSlides.length).padStart(2, "0")}</p>
-            <div>
-              <button type="button" onClick={() => goTo(activeIndex - 1)} disabled={activeIndex === 0} aria-label="Previous onboarding step">←</button>
-              <button type="button" onClick={() => goTo(activeIndex + 1)} disabled={activeIndex === onboardingSlides.length - 1} aria-label="Next onboarding step">→</button>
-            </div>
-          </div>
-
           <div
             className={styles.track}
             id="onboarding-track"
@@ -232,6 +215,13 @@ function OnboardingWalkthrough() {
                   <span className={styles["image-index"]} aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                 </div>
                 <div className={styles["slide-copy"]}>
+                  <div className={styles["board-intro"]}>
+                    <p>LEOPOLD ORIENTATION</p>
+                    <div>
+                      <span>From sign in to <strong>private saving.</strong></span>
+                      <small>{String(index + 1).padStart(2, "0")} / {String(onboardingSlides.length).padStart(2, "0")}</small>
+                    </div>
+                  </div>
                   <p className={styles.label}>{slide.label}</p>
                   <h2><AccentTitle accentWords={slide.accentWords}>{slide.title}</AccentTitle></h2>
                   <p className={styles.copy}>{slide.copy}</p>
