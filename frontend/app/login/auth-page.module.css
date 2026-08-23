@@ -1,392 +1,352 @@
-.scope {
-  --auth-ink: #0a0a0a;
-  --auth-navy: #102540;
-  --auth-navy-soft: #30435f;
-  --auth-paper: #fffef9;
-  --auth-paper-deep: #f2f0e9;
-  --auth-mist: #aeb5bd;
-  --auth-gold: #c0a464;
-  --auth-line: rgba(16, 37, 64, 0.2);
-  --auth-serif: Georgia, "Times New Roman", serif;
-  --auth-sans: Arial, Helvetica, sans-serif;
-  --auth-mono: "Courier New", Courier, monospace;
-  min-height: 100svh;
-  background: var(--auth-paper);
-  color: var(--auth-navy);
-  font-family: var(--auth-sans);
-}
+.scope { min-height: 100svh; }
 
-.scope :global(.landing) {
+.login {
+  --ink: #0a0a0a;
+  --navy: #102540;
+  --paper: #fffef9;
+  --paper-deep: #f2f0e9;
+  --gold: #c0a464;
+  --line: rgba(16, 37, 64, 0.2);
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: Arial, Helvetica, sans-serif;
+  --mono: "Courier New", Courier, monospace;
   position: relative;
-  min-height: 100svh;
-  display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(440px, 0.92fr);
-  overflow: hidden;
-  background: var(--auth-paper);
-}
-
-.scope :global(.landing)::before {
-  content: "";
-  position: relative;
-  min-height: 100svh;
-  grid-column: 1;
-  grid-row: 1;
-  background-image:
-    linear-gradient(180deg, rgba(10, 10, 10, 0.08), rgba(10, 10, 10, 0.66)),
-    url("/marketing/leopold/leopold-secure-savings.webp");
-  background-size: cover;
-  background-position: 52% center;
-  filter: grayscale(1) sepia(.14) hue-rotate(165deg) saturate(.62) brightness(.74) contrast(1.12);
-}
-
-.scope :global(.landing)::after {
-  content: "PRIVATE BY DEFAULT  /  SAVINGS WITHOUT PUBLIC BALANCE EXPOSURE";
-  position: absolute;
-  left: 4.2vw;
-  bottom: 42px;
-  z-index: 2;
-  max-width: 520px;
-  color: rgba(255, 254, 249, .8);
-  font-family: var(--auth-mono);
-  font-size: 10px;
-  line-height: 1.6;
-  letter-spacing: .18em;
-}
-
-.scope :global(.auth-card) {
-  grid-column: 2;
-  grid-row: 1;
-  position: relative;
-  z-index: 3;
+  isolation: isolate;
   width: 100%;
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 88px clamp(48px, 6vw, 96px) 64px;
-  background-color: var(--auth-paper);
-  background-image: radial-gradient(rgba(16,37,64,.07) .55px, transparent .55px);
-  background-size: 4px 4px;
-  border-left: 1px solid rgba(255,255,255,.08);
-}
-
-.scope :global(.auth-card)::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 50px;
-  background: var(--auth-ink);
-}
-
-.scope :global(.brand) {
-  position: absolute;
-  top: 0;
-  left: clamp(48px, 6vw, 96px);
-  z-index: 2;
-  height: 50px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--auth-paper);
-  text-decoration: none;
-  font-family: var(--auth-sans);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -.04em;
-}
-
-.scope :global(.brand)::after {
-  content: "";
-  position: absolute;
-  left: 32px;
-  right: 0;
-  bottom: 8px;
-  height: 1px;
-  background: currentColor;
-  transform: scaleX(0);
-  transform-origin: right center;
-  transition: transform 180ms ease;
-}
-
-.scope :global(.brand):hover::after,
-.scope :global(.brand):focus-visible::after {
-  transform: scaleX(1);
-  transform-origin: left center;
-}
-
-.scope :global(.brand-mark) {
-  width: 24px;
-  height: 24px;
-  display: block;
-  overflow: hidden;
-  color: transparent;
-  font-size: 0;
-  background: url("/marketing/leopold/leopold-monogram.png") center / contain no-repeat;
-  filter: brightness(0) invert(1);
-}
-
-.scope :global(.eyebrow) {
-  display: block;
-  margin: 0 0 18px;
-  color: var(--auth-gold);
-  font-family: var(--auth-mono);
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-}
-
-.scope :global(.auth-card) > h1 {
-  max-width: 620px;
-  margin: 0 0 24px;
-  color: var(--auth-navy);
-  font-family: var(--auth-serif);
-  font-size: clamp(44px, 4.3vw, 68px);
-  font-weight: 400;
-  line-height: .98;
-  letter-spacing: -.035em;
-}
-
-.scope :global(.subtle) {
-  max-width: 620px;
-  margin: 0;
-  color: rgba(16, 37, 64, .68);
-  font-size: 14px;
-  line-height: 1.65;
-}
-
-.scope :global(.auth-card) > :global(.subtle) {
-  margin-bottom: 30px;
-}
-
-.scope :global(.auth-form) {
-  display: grid;
-  gap: 12px;
-  width: 100%;
-  margin-top: 4px;
-}
-
-.scope :global(.card-label) {
-  color: var(--auth-navy);
-  font-family: var(--auth-mono);
-  font-size: 10px;
-  letter-spacing: .16em;
-  text-transform: uppercase;
-}
-
-.scope :global(.input) {
-  width: 100%;
-  min-height: 54px;
-  padding: 0 16px;
-  border: 1px solid var(--auth-line);
-  border-radius: 0;
-  outline: none;
-  background: rgba(255, 254, 249, .9);
-  color: var(--auth-navy);
-  font: 15px var(--auth-sans);
-  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
-}
-
-.scope :global(.input)::placeholder {
-  color: rgba(16, 37, 64, .38);
-}
-
-.scope :global(.input):focus {
-  border-color: rgba(16, 37, 64, .62);
-  background: var(--auth-paper);
-  box-shadow: 0 0 0 3px rgba(159, 196, 226, .22);
-}
-
-.scope :global(.button) {
-  min-height: 52px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  width: 100%;
-  margin-top: 2px;
-  padding: 0 18px;
-  border: 1px solid var(--auth-navy);
-  border-radius: 0;
-  background: var(--auth-navy);
-  color: var(--auth-paper);
-  cursor: pointer;
-  text-decoration: none;
-  font-family: var(--auth-serif);
-  font-size: 16px;
-  line-height: 1;
-  transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
-}
-
-.scope :global(.button)::after {
-  content: "↗";
-  font-family: var(--auth-sans);
-  font-size: 15px;
-}
-
-.scope :global(.button):hover:not(:disabled),
-.scope :global(.button):focus-visible:not(:disabled) {
-  background: var(--auth-ink);
-  border-color: var(--auth-ink);
-}
-
-.scope :global(.button):active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.scope :global(.button):disabled {
-  cursor: not-allowed;
-  opacity: .46;
-}
-
-.scope :global(.button.secondary) {
-  background: transparent;
-  color: var(--auth-navy);
-  border-color: var(--auth-line);
-}
-
-.scope :global(.button.secondary):hover:not(:disabled),
-.scope :global(.button.secondary):focus-visible:not(:disabled) {
-  background: var(--auth-navy);
-  color: var(--auth-paper);
-  border-color: var(--auth-navy);
-}
-
-.scope :global(.auth-divider) {
-  position: relative;
+  min-width: 320px;
+  height: 100svh;
   display: grid;
   place-items: center;
-  margin: 22px 0 18px;
-  color: rgba(16, 37, 64, .42);
-  font-family: var(--auth-mono);
-  font-size: 9px;
-  letter-spacing: .16em;
-  text-transform: uppercase;
+  overflow: hidden;
+  padding: 36px;
+  background: #cfd4da;
+  color: var(--navy);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
 }
 
-.scope :global(.auth-divider)::before,
-.scope :global(.auth-divider)::after {
+.login::before {
   content: "";
-  position: absolute;
-  top: 50%;
-  width: calc(50% - 24px);
-  height: 1px;
-  background: var(--auth-line);
+  position: fixed;
+  z-index: -2;
+  inset: 0;
+  background-image:
+    linear-gradient(90deg, rgba(255, 254, 249, 0.26), rgba(255, 254, 249, 0.08) 47%, rgba(16, 37, 64, 0.14)),
+    url("/marketing/leopold/leopold-onboarding-mist.webp");
+  background-position: center;
+  background-size: cover;
+  filter: grayscale(1) sepia(0.08) hue-rotate(165deg) saturate(0.5) contrast(0.9);
+  opacity: 0.98;
+  pointer-events: none;
 }
 
-.scope :global(.auth-divider)::before { left: 0; }
-.scope :global(.auth-divider)::after { right: 0; }
+.login::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  background-image:
+    linear-gradient(180deg, rgba(255, 254, 249, 0.08), rgba(16, 37, 64, 0.18)),
+    radial-gradient(rgba(16, 37, 64, 0.1) 0.55px, transparent 0.55px);
+  background-size: auto, 4px 4px;
+  opacity: 0.58;
+  pointer-events: none;
+}
 
-.scope :global(.card) {
+.login *, .login *::before, .login *::after { box-sizing: border-box; }
+.login a { color: inherit; text-decoration: none; }
+.login button, .login input { font: inherit; }
+.login a:focus-visible, .login button:focus-visible, .login input:focus-visible {
+  outline: 2px solid #9fc4e2;
+  outline-offset: 3px;
+}
+
+.board {
+  width: min(1180px, 92vw);
+  height: min(720px, calc(100svh - 72px));
+  min-height: 580px;
   display: grid;
-  gap: 12px;
-  margin: 0 0 22px;
-  padding: 18px;
-  border: 1px solid var(--auth-line);
-  border-radius: 0;
-  background: rgba(242, 240, 233, .66);
-  box-shadow: none;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  background: rgba(255, 254, 249, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.84);
+  border-radius: 18px;
+  box-shadow:
+    0 2px 5px rgba(10, 25, 43, 0.07),
+    0 12px 30px rgba(10, 25, 43, 0.13),
+    0 30px 72px rgba(10, 25, 43, 0.12);
 }
 
-.scope :global(.card) > h2 {
+.formPanel {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 42px clamp(34px, 4.2vw, 68px) 28px;
+}
+
+.brand {
+  width: max-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink) !important;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.brand img { width: 27px; height: 27px; object-fit: contain; filter: brightness(0); }
+.brand > span > span { color: var(--gold); }
+.formContent { width: 100%; max-width: 440px; align-self: center; }
+.eyebrow { margin: 0 0 15px; font: 700 9px var(--mono); letter-spacing: 0.18em; }
+
+.formContent h1 {
   margin: 0;
-  color: var(--auth-navy);
-  font-family: var(--auth-serif);
-  font-size: 26px;
-  font-weight: 400;
-  line-height: 1.05;
+  color: var(--navy);
+  font: 400 clamp(45px, 4.2vw, 64px) / 0.94 var(--serif);
+  letter-spacing: -0.045em;
 }
 
-.scope :global(.badge) {
-  width: fit-content;
-  padding: 5px 7px;
-  border: 1px solid rgba(192, 164, 100, .45);
+.formContent h1 span { color: var(--gold); }
+.formContent :global(.subtle) { margin: 0; color: #586579; font-size: 13px; line-height: 1.52; }
+.formContent > :global(.subtle):first-of-type { max-width: 430px; margin: 19px 0 23px; }
+.formContent :global(.auth-form) { display: grid; gap: 0; width: 100%; }
+
+.formContent :global(.card-label) {
+  margin-bottom: 7px;
+  color: #4f5d70;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.formContent :global(.input) {
+  width: 100%;
+  height: 48px;
+  padding: 0 15px;
+  border: 1px solid var(--line);
   border-radius: 0;
-  background: transparent;
-  color: #8c733b;
-  font-family: var(--auth-mono);
-  font-size: 9px;
-  letter-spacing: .14em;
+  outline: none;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--navy);
+  font-size: 14px;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.formContent :global(.input)::placeholder { color: #89919c; }
+.formContent :global(.input):hover, .formContent :global(.input):focus {
+  border-color: rgba(16, 37, 64, 0.55);
+  background: #fff;
+}
+
+.formContent :global(.button) {
+  width: 100%;
+  height: 46px;
+  margin-top: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+  font: 700 9px var(--mono);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.formContent :global(.button)::after { content: "↗"; }
+.formContent :global(.button):hover:not(:disabled) { border-color: var(--gold); background: var(--gold); color: var(--ink); }
+.formContent :global(.button):disabled { cursor: not-allowed; opacity: 0.46; }
+
+.formContent :global(.auth-divider) {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 13px;
+  margin: 18px 0 0;
+  color: #7b8592;
+  font: 8px var(--mono);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-.scope :global(.error) {
-  margin-top: 16px;
-  padding: 12px 14px;
+.formContent :global(.auth-divider)::before, .formContent :global(.auth-divider)::after {
+  content: "";
+  height: 1px;
+  background: var(--line);
+}
+
+.formContent > :global(.button.secondary) {
+  margin-top: 14px;
+  border-color: var(--line);
+  background: transparent;
+  color: var(--navy);
+}
+
+.formContent > :global(.button.secondary):hover:not(:disabled) {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: var(--paper);
+}
+
+.formContent :global(.auth-footnote) {
+  margin: 15px 0 0 !important;
+  padding: 0;
+  border: 0;
+  color: #737e8d;
+  font: 8px / 1.45 var(--mono);
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.formContent :global(.card) {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: rgba(242, 240, 233, 0.66);
+}
+
+.formContent :global(.card) :global(.subtle) { font-size: 11px; }
+.formContent :global(.error) {
+  margin-top: 10px;
+  padding: 9px 11px;
   border-left: 2px solid #a0443c;
-  background: rgba(160, 68, 60, .08);
+  background: rgba(160, 68, 60, 0.08);
   color: #7d332d;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
-.scope :global(.auth-footnote) {
-  margin-top: 22px !important;
+.footer {
+  display: flex;
+  gap: 22px;
   padding-top: 18px;
-  border-top: 1px solid var(--auth-line);
-  font-size: 12px;
+  color: #737e8d;
+  font: 8px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.scope :global(.auth-card) > :global(.button) + :global(.button),
-.scope :global(.auth-card) > :global(.card) + :global(.button),
-.scope :global(.auth-card) > :global(.auth-form) + :global(.button) {
-  margin-top: 12px;
+.footer a:hover { color: var(--navy); }
+.mosaic {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  gap: 4px;
+  overflow: hidden;
+  background: var(--ink);
 }
 
-.scope :global(.auth-card) > :global(.button) {
-  margin-top: 12px;
+.tile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  background-size: 800% 800%;
+  filter: grayscale(1) sepia(0.15) hue-rotate(165deg) saturate(0.6) brightness(0.76) contrast(1.13);
 }
 
-@media (max-width: 900px) {
-  .scope :global(.landing) {
+.tile i {
+  --tile-from: 104%;
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-repeat: no-repeat;
+  background-size: 800% 800%;
+  background-position: inherit;
+  will-change: transform;
+  animation: tile-slide-in 0.68s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: calc(var(--stagger) * 9ms);
+}
+
+.tile:nth-child(even) i { --tile-from: -104%; }
+@keyframes tile-slide-in { from { transform: translateY(var(--tile-from)); } to { transform: translateY(0); } }
+.mosaicScreen {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(16, 37, 64, 0.02), rgba(4, 9, 15, 0.68));
+  pointer-events: none;
+}
+
+.mosaicCopy {
+  position: absolute;
+  z-index: 3;
+  left: 36px;
+  right: 36px;
+  bottom: 34px;
+  margin: 0;
+  color: var(--paper);
+}
+
+.mosaicCopy span {
+  display: block;
+  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font: 8px var(--mono);
+  letter-spacing: 0.18em;
+}
+
+.mosaicCopy strong {
+  display: block;
+  font: 400 clamp(31px, 3.1vw, 47px) / 0.98 var(--serif);
+  letter-spacing: -0.035em;
+}
+
+@media (max-width: 760px) {
+  .login { padding: 14px; }
+  .board {
+    width: 100%;
+    height: calc(100svh - 28px);
+    min-height: 0;
     grid-template-columns: 1fr;
-    background: var(--auth-paper);
+    grid-template-rows: 31% 69%;
+    border-radius: 14px;
   }
-
-  .scope :global(.landing)::before,
-  .scope :global(.landing)::after {
-    display: none;
-  }
-
-  .scope :global(.auth-card) {
-    grid-column: 1;
-    min-height: 100svh;
-    padding: 92px max(24px, 6vw) 48px;
-    border-left: 0;
-  }
-
-  .scope :global(.brand) {
-    left: max(24px, 6vw);
-  }
-
-  .scope :global(.auth-card) > h1 {
-    font-size: clamp(42px, 11vw, 62px);
-  }
+  .formPanel { grid-row: 2; padding: 18px 22px 15px; }
+  .brand { font-size: 17px; }
+  .brand img { width: 22px; height: 22px; }
+  .formContent { max-width: none; }
+  .eyebrow { margin-bottom: 7px; font-size: 7px; }
+  .formContent h1 { font-size: clamp(34px, 10vw, 46px); }
+  .formContent > :global(.subtle):first-of-type { margin: 9px 0 11px; font-size: 11px; line-height: 1.35; }
+  .formContent :global(.input) { height: 40px; }
+  .formContent :global(.button) { height: 39px; }
+  .formContent :global(.auth-divider) { margin-top: 10px; }
+  .formContent > :global(.button.secondary) { margin-top: 9px; }
+  .formContent :global(.auth-footnote) { margin-top: 9px !important; font-size: 7px; }
+  .footer { display: none; }
+  .mosaic { grid-row: 1; }
+  .mosaicCopy { left: 20px; bottom: 17px; }
+  .mosaicCopy span { margin-bottom: 6px; font-size: 7px; }
+  .mosaicCopy strong { font-size: 27px; }
 }
 
-@media (max-width: 520px) {
-  .scope :global(.auth-card) {
-    justify-content: flex-start;
-    padding-top: 98px;
-  }
-
-  .scope :global(.auth-card) > h1 {
-    margin-bottom: 20px;
-  }
-
-  .scope :global(.button),
-  .scope :global(.input) {
-    min-height: 50px;
-  }
+@media (max-height: 680px) and (min-width: 761px) {
+  .board { min-height: 0; }
+  .formPanel { padding-top: 26px; padding-bottom: 20px; }
+  .brand { font-size: 18px; }
+  .formContent h1 { font-size: 43px; }
+  .formContent > :global(.subtle):first-of-type { margin: 11px 0 13px; }
+  .formContent :global(.auth-footnote) { display: none; }
+  .footer { padding-top: 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scope *,
-  .scope *::before,
-  .scope *::after {
+  .login *, .login *::before, .login *::after {
     scroll-behavior: auto !important;
-    transition-duration: .01ms !important;
-    animation-duration: .01ms !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
 }

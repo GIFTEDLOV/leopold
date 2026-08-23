@@ -6,6 +6,7 @@ import { useEffect, type FormEvent, type ReactNode, useState } from "react";
 import { useAuth } from "./auth-provider";
 import { useWalletIdentity } from "./wallet-identity-provider";
 import { normalizeEmail } from "@/lib/auth/email";
+import { LoginShell } from "./login/login-shell";
 
 function AuthFrame({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
   return (
@@ -62,10 +63,9 @@ export function LoginClient() {
   }
 
   return (
-    <AuthFrame eyebrow="Private prize savings" title="Your Leopold account, your wallet">
+    <LoginShell>
       <p className="subtle">
-        Use email to create your Leopold identity. When you choose to save, you will explicitly verify the external
-        wallet that controls your funds.
+        Sign in with email or prove ownership with your external wallet. No funds move until you choose to save.
       </p>
       {!auth.configured ? (
         <div className="card" role="status">
@@ -138,7 +138,7 @@ export function LoginClient() {
         Wallet authentication proves ownership; it does not create an embedded wallet or sign financial transactions for
         you.
       </p>
-    </AuthFrame>
+    </LoginShell>
   );
 }
 
