@@ -261,8 +261,19 @@ A bottom shade overlays the mosaic: transparent through 45%, fading to `rgba(3, 
 | SCROLL cue pulse | 1700ms ease-in-out, infinite |
 | Header underline | 180ms ease |
 | Feature-card hover | 180ms ease |
+| “Public” / “Publicly” strike-through | 220ms, `cubic-bezier(.22, .61, .36, 1)` |
 
 Feature cards move upward 4px and increase contrast slightly on hover/focus. Principle actions invert from transparent/light-on-dark to warm-white/navy. Footer links brighten from muted white to warm white.
+
+## Editorial word effects
+
+`StyledWords` is the reusable inline-text renderer for the marketing page. It preserves the original sentence for assistive technology while wrapping only authored keywords:
+
+- Every case-insensitive whole-word occurrence of `public` or `publicly` receives the `public-word` class. Hovering the word draws a muted-gold line from left to right across its center in 220ms. The line is implemented with a pseudo-element, so the word is not semantically presented as deleted text when it is idle.
+- Selected product-truth words receive `accent-word`: Private, Deposit, Winner, Yield, Encrypted, Withdraw, Compound, Zama, Verifiable, Provable, and Yours where explicitly passed by the surrounding section.
+- The accent token is `--accent-yellow: #c0a464`. It is intentionally a desaturated parchment gold rather than a saturated brand yellow, so it remains compatible with the blue-gray photographic grade.
+- Body paragraphs are not highlighted by default. Keyword lists are authored per heading or feature card to keep emphasis selective.
+- The strike animation inherits the global reduced-motion override and therefore resolves in `.01ms` for reduced-motion users.
 
 ## Principle headline transition
 

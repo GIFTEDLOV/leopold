@@ -35,12 +35,12 @@ const menuGroups = {
 } as const;
 
 const featureCards = [
-  { label: "PRIVATE BY DEFAULT", copy: "Your savings position stays encrypted, not displayed to the pool.", size: "feature-card--wide", image: "feature-card--photo-a" },
-  { label: "PRIZE YIELD", copy: "One collective yield stream. One verifiable winner. Principal stays yours.", size: "feature-card--tall", image: "feature-card--ink" },
-  { label: "WITHDRAW ANYTIME", copy: "Leave the pool without waiting for a draw to finish.", size: "feature-card--mid", image: "feature-card--photo-b" },
-  { label: "ENCRYPTED DRAW", copy: "The accepted random ticket never becomes visible to an admin, keeper, or participant.", size: "feature-card--tall", image: "feature-card--photo-c" },
-  { label: "COMPOUND III", copy: "USDC is supplied directly to the protocol yield source.", size: "feature-card--short", image: "feature-card--linework" },
-  { label: "BUILT ON ZAMA", copy: "Encrypted state can still drive public, composable onchain outcomes.", size: "feature-card--mid", image: "feature-card--photo-d" },
+  { label: "PRIVATE BY DEFAULT", copy: "Your savings position stays encrypted, not displayed to the pool.", accentWords: ["private"], size: "feature-card--wide", image: "feature-card--photo-a" },
+  { label: "PRIZE YIELD", copy: "One collective yield stream. One verifiable winner. Principal stays yours.", accentWords: ["yield"], size: "feature-card--tall", image: "feature-card--ink" },
+  { label: "WITHDRAW ANYTIME", copy: "Leave the pool without waiting for a draw to finish.", accentWords: ["withdraw"], size: "feature-card--mid", image: "feature-card--photo-b" },
+  { label: "ENCRYPTED DRAW", copy: "The accepted random ticket never becomes visible to an admin, keeper, or participant.", accentWords: ["encrypted"], size: "feature-card--tall", image: "feature-card--photo-c" },
+  { label: "COMPOUND III", copy: "USDC is supplied directly to the protocol yield source.", accentWords: ["compound"], size: "feature-card--short", image: "feature-card--linework" },
+  { label: "BUILT ON ZAMA", copy: "Encrypted state can still drive public, composable onchain outcomes.", accentWords: ["zama"], size: "feature-card--mid", image: "feature-card--photo-d" },
 ] as const;
 
 const savingCadences = [
@@ -121,6 +121,24 @@ function Arrow() {
   return <span aria-hidden="true">↗</span>;
 }
 
+function StyledWords({ children, accentWords = [] }: { children: string; accentWords?: readonly string[] }) {
+  const accents = new Set(accentWords.map((word) => word.toLowerCase()));
+
+  return children.split(/(\b[\p{L}]+\b)/gu).map((part, index) => {
+    const word = part.toLowerCase();
+
+    if (word === "public" || word === "publicly") {
+      return <span className={styles["public-word"]} key={`${part}-${index}`}>{part}</span>;
+    }
+
+    if (accents.has(word)) {
+      return <span className={styles["accent-word"]} key={`${part}-${index}`}>{part}</span>;
+    }
+
+    return part;
+  });
+}
+
 export function LeopoldMarketingHome() {
   const [openMenu, setOpenMenu] = useState<keyof typeof menuGroups | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -197,7 +215,7 @@ export function LeopoldMarketingHome() {
             <div className={styles["menu-grid"]}>
               {menuGroups[openMenu].map(([title, copy, href]) => (
                 <Link key={title} href={href} onClick={() => setOpenMenu(null)}>
-                  <strong>{title}</strong>
+                  <strong><StyledWords accentWords={["yield"]}>{title}</StyledWords></strong>
                   <span>{copy}</span>
                   <Arrow />
                 </Link>
@@ -242,7 +260,7 @@ export function LeopoldMarketingHome() {
           <div className={styles["hero-shade"]} />
           <div className={styles["hero-copy"]}>
             <p className={styles.eyebrow}>PRIVATE PRIZE SAVINGS</p>
-            <h1>Private savings.<br />Publicly provable.</h1>
+            <h1>Private savings.<br /><StyledWords accentWords={["provable"]}>Publicly provable.</StyledWords></h1>
           </div>
           <button
             className={styles["scroll-cue"]}
@@ -255,12 +273,12 @@ export function LeopoldMarketingHome() {
         </section>
 
         <section className={styles.gateway} id="explore" aria-labelledby="gateway-title">
-          <h2 id="gateway-title">Leopold is building private, prize-linked savings for the onchain economy.</h2>
+          <h2 id="gateway-title"><StyledWords accentWords={["private"]}>Leopold is building private, prize-linked savings for the onchain economy.</StyledWords></h2>
           <div className={styles["feature-masonry"]} id="product">
             {featureCards.map((card) => (
               <a className={classes("feature-card", card.size, card.image)} href="#protocol" key={card.label}>
-                <span className={styles["card-label"]}>{card.label}</span>
-                <p>{card.copy}</p>
+                <span className={styles["card-label"]}><StyledWords accentWords={card.accentWords}>{card.label}</StyledWords></span>
+                <p><StyledWords accentWords={card.accentWords}>{card.copy}</StyledWords></p>
                 <Arrow />
               </a>
             ))}
@@ -274,14 +292,14 @@ export function LeopoldMarketingHome() {
             <div className={classes("map-axis", "map-axis--x")} />
             <div className={classes("map-axis", "map-axis--y")} />
             {Array.from({ length: 12 }).map((_, index) => <i key={index} />)}
-            <span className={classes("map-note", "map-note--a")}>ENCRYPTED DEPOSIT</span>
+            <span className={classes("map-note", "map-note--a")}><StyledWords accentWords={["deposit"]}>ENCRYPTED DEPOSIT</StyledWords></span>
             <span className={classes("map-note", "map-note--b")}>FHE TICKET</span>
             <span className={classes("map-note", "map-note--c")}>COMPOUND III</span>
-            <span className={classes("map-note", "map-note--d")}>PUBLIC SETTLEMENT</span>
+            <span className={classes("map-note", "map-note--d")}><StyledWords>PUBLIC SETTLEMENT</StyledWords></span>
           </div>
           <div className={styles["stats-copy"]}>
             <p className={styles["section-label"]}>THE LEOPOLD PROTOCOL</p>
-            <h2 id="stats-title">A private savings pool with a publicly verifiable outcome.</h2>
+            <h2 id="stats-title"><StyledWords accentWords={["private", "verifiable"]}>A private savings pool with a publicly verifiable outcome.</StyledWords></h2>
             <div className={styles["number-stack"]} aria-label="Leopold protocol facts">
               <div><strong>0</strong><span>privileged ticket decryptors</span></div>
               <div><strong>1</strong><span>shared prize pool</span></div>
@@ -297,7 +315,7 @@ export function LeopoldMarketingHome() {
             <div className={classes("product-image", "product-image--vault")} role="img" aria-label="A secure glass savings vessel in archival monochrome" />
             <div className={styles["product-copy"]}>
               <p className={styles["section-label"]}>CONFIDENTIAL SAVINGS</p>
-              <h3>Deposit without publishing your position.</h3>
+              <h3><StyledWords accentWords={["deposit"]}>Deposit without publishing your position.</StyledWords></h3>
               <p>Leopold keeps a participant’s savings balance encrypted while preserving the onchain state needed for deposits, prize accounting, and withdrawals.</p>
               <Link href="/app">Explore savings <Arrow /></Link>
             </div>
@@ -305,7 +323,7 @@ export function LeopoldMarketingHome() {
           <article className={classes("product-row", "product-row--image-right")}>
             <div className={styles["product-copy"]}>
               <p className={styles["section-label"]}>VERIFIABLE PRIZE DRAW</p>
-              <h3>A winner without a visible ticket.</h3>
+              <h3><StyledWords accentWords={["winner"]}>A winner without a visible ticket.</StyledWords></h3>
               <p>Zama-native encrypted randomness selects the draw outcome. The accepted ticket remains encrypted throughout selection and is never authorized for administrative decryption.</p>
               <Link href="/transparency">See the draw model <Arrow /></Link>
             </div>
@@ -314,8 +332,8 @@ export function LeopoldMarketingHome() {
           <article className={classes("product-row", "product-row--image-left")}>
             <div className={classes("product-image", "product-image--yield")} role="img" aria-label="Coins and a secure savings vessel rendered in cool monochrome" />
             <div className={styles["product-copy"]}>
-              <p className={styles["section-label"]}>USDC YIELD</p>
-              <h3>Yield becomes the prize.</h3>
+              <p className={styles["section-label"]}><StyledWords accentWords={["yield"]}>USDC YIELD</StyledWords></p>
+              <h3><StyledWords accentWords={["yield"]}>Yield becomes the prize.</StyledWords></h3>
               <p>Canonical Circle Sepolia USDC is supplied directly to Compound III. Genuine yield, sponsors, and rollover fund the prize reserve while participants retain withdrawal access to their principal.</p>
               <Link href="/transparency">Read the architecture <Arrow /></Link>
             </div>
@@ -346,13 +364,13 @@ export function LeopoldMarketingHome() {
         <section className={styles["saving-process"]} aria-labelledby="saving-process-title">
           <div className={styles["saving-process-heading"]}>
             <p className={styles["section-label"]}>HOW LEOPOLD WORKS</p>
-            <h2 id="saving-process-title">From public money to private saving.</h2>
+            <h2 id="saving-process-title"><StyledWords accentWords={["private"]}>From public money to private saving.</StyledWords></h2>
           </div>
           <ol className={styles["saving-steps"]}>
             {savingSteps.map(([title, copy], index) => (
               <li key={title}>
                 <span>{String(index + 1).padStart(2, "0")}</span>
-                <div><h3>{title}</h3><p>{copy}</p></div>
+                <div><h3><StyledWords accentWords={["private"]}>{title}</StyledWords></h3><p><StyledWords>{copy}</StyledWords></p></div>
               </li>
             ))}
           </ol>
@@ -369,7 +387,7 @@ export function LeopoldMarketingHome() {
                   aria-hidden="true"
                   key={headline}
                 >
-                  {headline}
+                  <StyledWords accentWords={["private", "provable", "yield", "yours"]}>{headline}</StyledWords>
                 </span>
               ))}
             </h2>
@@ -388,7 +406,7 @@ export function LeopoldMarketingHome() {
           <h2>Private prize savings, built to be verified.</h2>
         </div>
         <div className={styles["footer-grid"]}>
-          <nav aria-label="Product links"><h3>PRODUCT</h3><a href="#product">Prize Savings</a><a href="#protocol">Encrypted Draws</a><a href="#product">Yield Engine</a></nav>
+          <nav aria-label="Product links"><h3>PRODUCT</h3><a href="#product">Prize Savings</a><a href="#protocol">Encrypted Draws</a><a href="#product"><StyledWords accentWords={["yield"]}>Yield Engine</StyledWords></a></nav>
           <nav aria-label="Protocol links"><h3>PROTOCOL</h3><Link href="/transparency">Architecture</Link><Link href="/transparency">Security</Link><Link href="/transparency">Contracts</Link></nav>
           <nav aria-label="Company links"><h3>COMPANY</h3><a href="#principle">Mission</a><a href="#principle">About</a><a href="#notes">Contact</a></nav>
           <div className={styles.newsletter} id="notes">

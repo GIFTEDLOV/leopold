@@ -5,6 +5,7 @@
   --paper: #fffef9;
   --paper-deep: #f2f0e9;
   --mist: #aeb5bd;
+  --accent-yellow: #c0a464;
   --line: rgba(16, 37, 64, 0.22);
   --serif: Georgia, "Times New Roman", serif;
   --sans: Arial, Helvetica, sans-serif;
@@ -26,6 +27,23 @@
 .marketing button:focus-visible,
 .marketing a:focus-visible,
 .marketing input:focus-visible { outline: 2px solid #9fc4e2; outline-offset: 3px; }
+.accent-word { color: var(--accent-yellow); }
+.public-word { position: relative; display: inline-block; }
+.public-word::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: -.03em;
+  right: -.03em;
+  top: 52%;
+  height: max(1px, .065em);
+  background: var(--accent-yellow);
+  pointer-events: none;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 220ms cubic-bezier(.22, .61, .36, 1);
+}
+.public-word:hover::after { transform: scaleX(1); transform-origin: left center; }
 .skip-link { position: fixed; left: 16px; top: -60px; z-index: 200; padding: 12px 16px; background: var(--paper); color: var(--ink); }
 .skip-link:focus { top: 12px; }
 
