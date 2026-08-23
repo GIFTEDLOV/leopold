@@ -63,6 +63,28 @@ The walkthrough order is fixed: Sign in; Verify your wallet; Get USDC; Make your
 
 Each slide uses the same square editorial split as the landing-page product rows: a locally stored, cool navy monochrome image on the left and restrained instructional copy on the right. The final slide links to `/login` and offers a secondary return to `/`. Explanations are deliberately short and must not expand into documentation or introduce unsupported financial claims.
 
+The unauthenticated walkthrough is intentionally locked to one browser viewport with `height: 100svh` and page-level overflow hidden. At a 1366×768-class desktop viewport, the fixed 50px header, compact introduction, controls, slide, and progress rail are all visible together. The carousel owns the remaining flexible height through `minmax(0, 1fr)` rather than imposing a tall slide minimum. At 720px and below, each slide becomes a constrained image-over-copy split inside the same viewport; short-height rules hide supporting notes before allowing the page itself to scroll.
+
+The header’s gold **Skip onboarding to sign in** control always routes directly to `/login`. It does not alter authentication state or trigger wallet behavior.
+
+`leopold-onboarding-clouds.png` is the user-supplied 354×326 halftone cloud study. It is deliberately used as a full-page atmospheric texture rather than a slide photograph: a paper-to-navy linear wash, cool monochrome filter, 54% layer opacity, and the existing 4px dotted-paper screen prevent the small source from appearing as a low-resolution content image.
+
+Step photographs remain the landing page’s local high-resolution assets. Each is rendered with `next/image` in unoptimized mode so the authored local pixels are used directly, and with a specific `object-position` crop. The image filter is `grayscale(1) sepia(.16) hue-rotate(165deg) saturate(.68) brightness(.86) contrast(1.06)`; the grid overlay opacity is `.16`, and no scale transform is applied. These choices are intentional: the photographs remain in Leopold’s archival blue-gray family but retain cleaner facial, object, and edge detail than the darker landing-page treatment.
+
+| Step | Asset | Object position |
+| --- | --- | --- |
+| Sign in | `leopold-daily.webp` | `center 38%` |
+| Verify your wallet | `leopold-boost.webp` | `center 42%` |
+| Get USDC | `leopold-savings-ledger.webp` | `center 55%` |
+| Make your savings private | `leopold-secure-savings.webp` | `center 48%` |
+| Choose a vault | `leopold-weekly.webp` | `center 48%` |
+| Save and enter | `leopold-investment-growth.webp` | `center 48%` |
+| Prize draw | `leopold-fair-draw.webp` | `57% center` |
+| Check your result | `leopold-investment-review.webp` | `center 48%` |
+| Win or keep saving | `leopold-monthly.webp` | `center 44%` |
+| Withdraw anytime | `leopold-hero.webp` | `center 52%` |
+| Completion | `leopold-principle.webp` | `center 48%` |
+
 ## Design philosophy and visual direction
 
 The visual direction is an editorial financial-data publication rather than a conventional rounded-card fintech dashboard. It combines:
@@ -351,7 +373,8 @@ All runtime images are local. No image is loaded from the Sites host, Pexels, Un
 | `leopold-boost.webp` | 1800×1200 | Boost vault row |
 | `leopold-monogram.png` | 512×512 | Header/footer brand mark and page icon |
 | `leopold-og.png` | 1200×630 | Open Graph image |
-| `leopold-principle.webp` | 2200×1650 | Preserved source asset from the current Sites project; intentionally not rendered in this snapshot |
+| `leopold-principle.webp` | 2200×1650 | Onboarding completion slide |
+| `leopold-onboarding-clouds.png` | 354×326 | Halftone cloud texture behind the full onboarding viewport |
 
 `frontend/app/icon.png` is an exact copy of `frontend/public/marketing/leopold/leopold-monogram.png`. The duplicate is intentional: Next.js file-based metadata gives the app icon a stable route while the public copy remains available to header and footer components.
 
@@ -390,7 +413,7 @@ It also uses a navy gradient and a 4px dotted overlay.
 
 ## Asset provenance and replacement policy
 
-The six 1536×1024 hero/feature photographs, monogram, and Open Graph image are project-local assets transferred directly from the user’s current Sites project. They have no runtime dependence on Sites. The original Sites checkout did not include separate third-party URLs for those project-generated assets.
+The six 1536×1024 hero/feature photographs, monogram, Open Graph image, and user-provided onboarding cloud texture are project-local assets. They have no runtime dependence on Sites. The original Sites checkout did not include separate third-party URLs for those project-generated assets.
 
 The cadence and archived principle stock-photo sources recorded by the Sites project are:
 
@@ -432,7 +455,7 @@ At 820px and below:
 
 The page has a 320px minimum width and uses fluid type between mobile and large desktop sizes.
 
-The onboarding route changes its 55/45 split slides to image-first vertical stacks at 900px. At 620px the header, gutters, image height, copy padding, and type scale reduce again. The track remains native horizontal overflow with CSS scroll snapping, so mobile users swipe without a custom gesture library.
+The onboarding route keeps its approximately 54/46 image/copy split down to 721px so tablet-height viewports remain compact. At 720px and below, each slide becomes a constrained 38/62 image-first vertical stack inside the remaining viewport height. The header becomes 48px, introduction and controls compress, and progress numbers become an unlabelled visual rail. At 700px viewport height and below, the secondary note is hidden; at extremely short desktop heights the introduction metadata is also hidden. The page itself remains fixed to `100svh` without vertical scrolling. The track remains native horizontal overflow with CSS scroll snapping, so mobile users swipe without a custom gesture library.
 
 ## Hover, focus, and accessible interaction states
 
@@ -444,6 +467,7 @@ The onboarding route changes its 55/45 split slides to image-first vertical stac
 - Photographic content uses either meaningful `alt` text or `role="img"` plus `aria-label`.
 - The rotating principle uses a polite live region and hides the overlapping visual copies from accessibility APIs.
 - The onboarding track accepts Left/Right Arrow, Home, and End keys. Previous/next controls expose descriptive labels, the current progress item uses `aria-current="step"`, and every slide has a positional accessible label.
+- The gold onboarding skip control is always visible in the fixed header and routes to `/login`; keyboard focus uses the same blue ring as the rest of the Site.
 
 ## Reduced-motion behavior
 
