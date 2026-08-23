@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import styles from "./leopold-marketing-home.module.css";
 
 const assetRoot = "/marketing/leopold";
@@ -41,6 +41,12 @@ const featureCards = [
   { label: "ENCRYPTED DRAW", copy: "The accepted random ticket never becomes visible to an admin, keeper, or participant.", accentWords: ["encrypted"], size: "feature-card--tall", image: "feature-card--photo-c" },
   { label: "COMPOUND III", copy: "USDC is supplied directly to the protocol yield source.", accentWords: ["compound"], size: "feature-card--short", image: "feature-card--linework" },
   { label: "BUILT ON ZAMA", copy: "Encrypted state can still drive public, composable onchain outcomes.", accentWords: ["zama"], size: "feature-card--mid", image: "feature-card--photo-d" },
+] as const;
+
+const protocolFacts = [
+  { target: 0, sequence: [8, 3, 7, 2, 9, 4, 6, 0], label: "privileged ticket decryptors" },
+  { target: 1, sequence: [7, 0, 8, 4, 2, 9, 5, 1], label: "shared prize pool" },
+  { target: 64, sequence: [18, 72, 46, 91, 27, 83, 55, 64], label: "encrypted random bits" },
 ] as const;
 
 const savingCadences = [
@@ -139,12 +145,30 @@ function StyledWords({ children, accentWords = [] }: { children: string; accentW
   });
 }
 
+function ProtocolCounter({ active, delay, sequence, target }: { active: boolean; delay: number; sequence: readonly number[]; target: number }) {
+  const [frame, setFrame] = useState({ reading: target, revision: 0 });
+
+  useEffect(() => {
+    if (!active || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const timers = sequence.map((reading, index) => window.setTimeout(() => {
+      setFrame({ reading, revision: index + 1 });
+    }, delay + index * 105));
+
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [active, delay, sequence, target]);
+
+  return <span className={styles["protocol-counter-tick"]} key={`${frame.revision}-${frame.reading}`}>{frame.reading}</span>;
+}
+
 export function LeopoldMarketingHome() {
   const [openMenu, setOpenMenu] = useState<keyof typeof menuGroups | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [heroFrame, setHeroFrame] = useState({ previous: 0, current: 0, revision: 0 });
   const [principleHeadline, setPrincipleHeadline] = useState(0);
+  const [protocolEntered, setProtocolEntered] = useState(false);
+  const protocolRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     heroImages.forEach((source) => {
@@ -173,6 +197,22 @@ export function LeopoldMarketingHome() {
     }, 5000);
 
     return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const protocol = protocolRef.current;
+    if (!protocol) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting) return;
+      setProtocolEntered(true);
+      observer.disconnect();
+    }, { threshold: 0.35 });
+
+    observer.observe(protocol);
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -285,13 +325,14 @@ export function LeopoldMarketingHome() {
           </div>
         </section>
 
-        <section className={styles.stats} id="protocol" aria-labelledby="stats-title">
+        <section className={styles.stats} id="protocol" aria-labelledby="stats-title" ref={protocolRef}>
           <div className={styles["protocol-map"]} aria-hidden="true">
+            <div className={styles["map-scan"]} />
             <div className={classes("map-ring", "map-ring--one")} />
             <div className={classes("map-ring", "map-ring--two")} />
             <div className={classes("map-axis", "map-axis--x")} />
             <div className={classes("map-axis", "map-axis--y")} />
-            {Array.from({ length: 12 }).map((_, index) => <i key={index} />)}
+            {Array.from({ length: 12 }).map((_, index) => <i key={index} style={{ "--point": index } as CSSProperties} />)}
             <span className={classes("map-note", "map-note--a")}><StyledWords accentWords={["deposit"]}>ENCRYPTED DEPOSIT</StyledWords></span>
             <span className={classes("map-note", "map-note--b")}>FHE TICKET</span>
             <span className={classes("map-note", "map-note--c")}>COMPOUND III</span>
@@ -301,9 +342,12 @@ export function LeopoldMarketingHome() {
             <p className={styles["section-label"]}>THE LEOPOLD PROTOCOL</p>
             <h2 id="stats-title"><StyledWords accentWords={["private", "verifiable"]}>A private savings pool with a publicly verifiable outcome.</StyledWords></h2>
             <div className={styles["number-stack"]} aria-label="Leopold protocol facts">
-              <div><strong>0</strong><span>privileged ticket decryptors</span></div>
-              <div><strong>1</strong><span>shared prize pool</span></div>
-              <div><strong>64</strong><span>encrypted random bits</span></div>
+              {protocolFacts.map((fact, index) => (
+                <div key={fact.label} role="group" aria-label={`${fact.target} ${fact.label}`}>
+                  <strong className={styles["protocol-counter"]} aria-hidden="true"><ProtocolCounter active={protocolEntered} delay={index * 160} sequence={fact.sequence} target={fact.target} /></strong>
+                  <span aria-hidden="true">{fact.label}</span>
+                </div>
+              ))}
             </div>
             <p className={styles["fine-print"]}>PROTOCOL PARAMETERS SHOWN FOR THE CURRENT SEPOLIA IMPLEMENTATION. ONCHAIN STATE REMAINS THE SOURCE OF TRUTH.</p>
           </div>
