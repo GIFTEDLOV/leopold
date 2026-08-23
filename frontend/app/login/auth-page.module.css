@@ -1,0 +1,392 @@
+.scope {
+  --auth-ink: #0a0a0a;
+  --auth-navy: #102540;
+  --auth-navy-soft: #30435f;
+  --auth-paper: #fffef9;
+  --auth-paper-deep: #f2f0e9;
+  --auth-mist: #aeb5bd;
+  --auth-gold: #c0a464;
+  --auth-line: rgba(16, 37, 64, 0.2);
+  --auth-serif: Georgia, "Times New Roman", serif;
+  --auth-sans: Arial, Helvetica, sans-serif;
+  --auth-mono: "Courier New", Courier, monospace;
+  min-height: 100svh;
+  background: var(--auth-paper);
+  color: var(--auth-navy);
+  font-family: var(--auth-sans);
+}
+
+.scope :global(.landing) {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(440px, 0.92fr);
+  overflow: hidden;
+  background: var(--auth-paper);
+}
+
+.scope :global(.landing)::before {
+  content: "";
+  position: relative;
+  min-height: 100svh;
+  grid-column: 1;
+  grid-row: 1;
+  background-image:
+    linear-gradient(180deg, rgba(10, 10, 10, 0.08), rgba(10, 10, 10, 0.66)),
+    url("/marketing/leopold/leopold-secure-savings.webp");
+  background-size: cover;
+  background-position: 52% center;
+  filter: grayscale(1) sepia(.14) hue-rotate(165deg) saturate(.62) brightness(.74) contrast(1.12);
+}
+
+.scope :global(.landing)::after {
+  content: "PRIVATE BY DEFAULT  /  SAVINGS WITHOUT PUBLIC BALANCE EXPOSURE";
+  position: absolute;
+  left: 4.2vw;
+  bottom: 42px;
+  z-index: 2;
+  max-width: 520px;
+  color: rgba(255, 254, 249, .8);
+  font-family: var(--auth-mono);
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: .18em;
+}
+
+.scope :global(.auth-card) {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 88px clamp(48px, 6vw, 96px) 64px;
+  background-color: var(--auth-paper);
+  background-image: radial-gradient(rgba(16,37,64,.07) .55px, transparent .55px);
+  background-size: 4px 4px;
+  border-left: 1px solid rgba(255,255,255,.08);
+}
+
+.scope :global(.auth-card)::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 50px;
+  background: var(--auth-ink);
+}
+
+.scope :global(.brand) {
+  position: absolute;
+  top: 0;
+  left: clamp(48px, 6vw, 96px);
+  z-index: 2;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--auth-paper);
+  text-decoration: none;
+  font-family: var(--auth-sans);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.04em;
+}
+
+.scope :global(.brand)::after {
+  content: "";
+  position: absolute;
+  left: 32px;
+  right: 0;
+  bottom: 8px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 180ms ease;
+}
+
+.scope :global(.brand):hover::after,
+.scope :global(.brand):focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+.scope :global(.brand-mark) {
+  width: 24px;
+  height: 24px;
+  display: block;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+  background: url("/marketing/leopold/leopold-monogram.png") center / contain no-repeat;
+  filter: brightness(0) invert(1);
+}
+
+.scope :global(.eyebrow) {
+  display: block;
+  margin: 0 0 18px;
+  color: var(--auth-gold);
+  font-family: var(--auth-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.scope :global(.auth-card) > h1 {
+  max-width: 620px;
+  margin: 0 0 24px;
+  color: var(--auth-navy);
+  font-family: var(--auth-serif);
+  font-size: clamp(44px, 4.3vw, 68px);
+  font-weight: 400;
+  line-height: .98;
+  letter-spacing: -.035em;
+}
+
+.scope :global(.subtle) {
+  max-width: 620px;
+  margin: 0;
+  color: rgba(16, 37, 64, .68);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.scope :global(.auth-card) > :global(.subtle) {
+  margin-bottom: 30px;
+}
+
+.scope :global(.auth-form) {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.scope :global(.card-label) {
+  color: var(--auth-navy);
+  font-family: var(--auth-mono);
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.scope :global(.input) {
+  width: 100%;
+  min-height: 54px;
+  padding: 0 16px;
+  border: 1px solid var(--auth-line);
+  border-radius: 0;
+  outline: none;
+  background: rgba(255, 254, 249, .9);
+  color: var(--auth-navy);
+  font: 15px var(--auth-sans);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.scope :global(.input)::placeholder {
+  color: rgba(16, 37, 64, .38);
+}
+
+.scope :global(.input):focus {
+  border-color: rgba(16, 37, 64, .62);
+  background: var(--auth-paper);
+  box-shadow: 0 0 0 3px rgba(159, 196, 226, .22);
+}
+
+.scope :global(.button) {
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  margin-top: 2px;
+  padding: 0 18px;
+  border: 1px solid var(--auth-navy);
+  border-radius: 0;
+  background: var(--auth-navy);
+  color: var(--auth-paper);
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--auth-serif);
+  font-size: 16px;
+  line-height: 1;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.scope :global(.button)::after {
+  content: "↗";
+  font-family: var(--auth-sans);
+  font-size: 15px;
+}
+
+.scope :global(.button):hover:not(:disabled),
+.scope :global(.button):focus-visible:not(:disabled) {
+  background: var(--auth-ink);
+  border-color: var(--auth-ink);
+}
+
+.scope :global(.button):active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.scope :global(.button):disabled {
+  cursor: not-allowed;
+  opacity: .46;
+}
+
+.scope :global(.button.secondary) {
+  background: transparent;
+  color: var(--auth-navy);
+  border-color: var(--auth-line);
+}
+
+.scope :global(.button.secondary):hover:not(:disabled),
+.scope :global(.button.secondary):focus-visible:not(:disabled) {
+  background: var(--auth-navy);
+  color: var(--auth-paper);
+  border-color: var(--auth-navy);
+}
+
+.scope :global(.auth-divider) {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 22px 0 18px;
+  color: rgba(16, 37, 64, .42);
+  font-family: var(--auth-mono);
+  font-size: 9px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.scope :global(.auth-divider)::before,
+.scope :global(.auth-divider)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: calc(50% - 24px);
+  height: 1px;
+  background: var(--auth-line);
+}
+
+.scope :global(.auth-divider)::before { left: 0; }
+.scope :global(.auth-divider)::after { right: 0; }
+
+.scope :global(.card) {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 22px;
+  padding: 18px;
+  border: 1px solid var(--auth-line);
+  border-radius: 0;
+  background: rgba(242, 240, 233, .66);
+  box-shadow: none;
+}
+
+.scope :global(.card) > h2 {
+  margin: 0;
+  color: var(--auth-navy);
+  font-family: var(--auth-serif);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.05;
+}
+
+.scope :global(.badge) {
+  width: fit-content;
+  padding: 5px 7px;
+  border: 1px solid rgba(192, 164, 100, .45);
+  border-radius: 0;
+  background: transparent;
+  color: #8c733b;
+  font-family: var(--auth-mono);
+  font-size: 9px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.scope :global(.error) {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-left: 2px solid #a0443c;
+  background: rgba(160, 68, 60, .08);
+  color: #7d332d;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.scope :global(.auth-footnote) {
+  margin-top: 22px !important;
+  padding-top: 18px;
+  border-top: 1px solid var(--auth-line);
+  font-size: 12px;
+}
+
+.scope :global(.auth-card) > :global(.button) + :global(.button),
+.scope :global(.auth-card) > :global(.card) + :global(.button),
+.scope :global(.auth-card) > :global(.auth-form) + :global(.button) {
+  margin-top: 12px;
+}
+
+.scope :global(.auth-card) > :global(.button) {
+  margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .scope :global(.landing) {
+    grid-template-columns: 1fr;
+    background: var(--auth-paper);
+  }
+
+  .scope :global(.landing)::before,
+  .scope :global(.landing)::after {
+    display: none;
+  }
+
+  .scope :global(.auth-card) {
+    grid-column: 1;
+    min-height: 100svh;
+    padding: 92px max(24px, 6vw) 48px;
+    border-left: 0;
+  }
+
+  .scope :global(.brand) {
+    left: max(24px, 6vw);
+  }
+
+  .scope :global(.auth-card) > h1 {
+    font-size: clamp(42px, 11vw, 62px);
+  }
+}
+
+@media (max-width: 520px) {
+  .scope :global(.auth-card) {
+    justify-content: flex-start;
+    padding-top: 98px;
+  }
+
+  .scope :global(.auth-card) > h1 {
+    margin-bottom: 20px;
+  }
+
+  .scope :global(.button),
+  .scope :global(.input) {
+    min-height: 50px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scope *,
+  .scope *::before,
+  .scope *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
