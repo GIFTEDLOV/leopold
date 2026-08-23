@@ -22,7 +22,7 @@ const navigationLinks = [
   ["Privacy", "#protocol"],
   ["How it Works", "#how-it-works"],
   ["Company", "#principle"],
-  ["Open App", "/app"],
+  ["Open App", "/onboarding"],
 ] as const;
 
 const featureCards = [

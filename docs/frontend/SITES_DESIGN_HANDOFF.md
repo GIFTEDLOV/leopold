@@ -55,6 +55,14 @@ The DOM and visual order is fixed as follows:
 
 There is intentionally no separate closing-image panel after the principle section. Two earlier principle statements were combined into one panel and now rotate in place.
 
+## Onboarding route
+
+`/onboarding` is the pre-sign-in orientation experience and is visually continuous with the landing page. Unauthenticated visitors receive an 11-slide horizontal walkthrough: ten product steps followed by the completion slide. Authenticated visitors still receive the existing account/profile-completion experience through `OnboardingClient`; the new presentation does not replace or bypass that logic.
+
+The walkthrough order is fixed: Sign in; Verify your wallet; Get USDC; Make your savings private; Choose a vault; Save and enter; Prize draw; Check your result; Win or keep saving; Withdraw anytime; You’re ready for Leopold.
+
+Each slide uses the same square editorial split as the landing-page product rows: a locally stored, cool navy monochrome image on the left and restrained instructional copy on the right. The final slide links to `/login` and offers a secondary return to `/`. Explanations are deliberately short and must not expand into documentation or introduce unsupported financial claims.
+
 ## Design philosophy and visual direction
 
 The visual direction is an editorial financial-data publication rather than a conventional rounded-card fintech dashboard. It combines:
@@ -168,6 +176,17 @@ HomePage
    │  ├─ saving process
    │  └─ rotating principle panel
    └─ footer / route directory / gold monogram
+
+OnboardingPage
+└─ LeopoldOnboardingRoute (client gate)
+   ├─ authenticated → existing OnboardingClient
+   └─ unauthenticated → OnboardingWalkthrough
+      ├─ compact Leopold header
+      ├─ editorial introduction
+      ├─ horizontal scroll-snap track
+      │  └─ 11 split image/copy slides
+      ├─ previous/next controls
+      └─ numbered progress rail
 ```
 
 Reusable code elements:
@@ -182,7 +201,7 @@ If the marketing page grows, extract whole sections into the same `frontend/comp
 
 ## Navigation and CTA behavior
 
-The header is fixed and always 50px/48px tall. Desktop navigation is a direct-link row containing Products, Vaults, Privacy, How it Works, Company, and Open App. The first five links target their corresponding marketing sections; Open App routes to `/app`.
+The header is fixed and always 50px/48px tall. Desktop navigation is a direct-link row containing Products, Vaults, Privacy, How it Works, Company, and Open App. The first five links target their corresponding marketing sections; Open App routes to `/onboarding` so new users receive the orientation before sign-in.
 
 At `820px` and below, desktop navigation is hidden and a two-line menu button reveals a stacked menu below the header.
 
@@ -191,7 +210,7 @@ Implemented route mapping:
 | UI | Destination |
 | --- | --- |
 | Launch app | `/app` |
-| Open App | `/app` |
+| Open App | `/onboarding` |
 | Start saving | `/app` |
 | Explore savings | `/app` |
 | Explore vault (all four vault rows) | `/app` |
@@ -202,7 +221,7 @@ Implemented route mapping:
 | Editorial feature cards | In-page `#protocol` |
 | Product/mission navigation | In-page section anchors |
 
-Any future CTA whose intent is to begin using Leopold—especially “Launch App,” “Start Saving,” or “Open Leopold”—must link to `/app`, not to an in-page placeholder.
+Operational CTAs continue to target `/app`; the header’s Open App entry is the deliberate onboarding exception. The onboarding completion CTA targets `/login`.
 
 The SCROLL control uses `scrollIntoView({ behavior: "smooth" })` and moves to `#explore`. Under reduced motion the CSS animation is disabled; future changes should also avoid forcing smooth programmatic scrolling for reduced-motion users.
 
@@ -413,6 +432,8 @@ At 820px and below:
 
 The page has a 320px minimum width and uses fluid type between mobile and large desktop sizes.
 
+The onboarding route changes its 55/45 split slides to image-first vertical stacks at 900px. At 620px the header, gutters, image height, copy padding, and type scale reduce again. The track remains native horizontal overflow with CSS scroll snapping, so mobile users swipe without a custom gesture library.
+
 ## Hover, focus, and accessible interaction states
 
 - A “Skip to content” link moves onscreen when focused and targets `#marketing-main`.
@@ -422,7 +443,7 @@ The page has a 320px minimum width and uses fluid type between mobile and large 
 - Decorative hero tiles, protocol map, and arrow glyphs are hidden from assistive technology.
 - Photographic content uses either meaningful `alt` text or `role="img"` plus `aria-label`.
 - The rotating principle uses a polite live region and hides the overlapping visual copies from accessibility APIs.
-- Newsletter submission is deliberately local presentation state. It does not send or persist the entered email. Success copy is a status message.
+- The onboarding track accepts Left/Right Arrow, Home, and End keys. Previous/next controls expose descriptive labels, the current progress item uses `aria-current="step"`, and every slide has a positional accessible label.
 
 ## Reduced-motion behavior
 
@@ -432,6 +453,8 @@ Two layers enforce reduced motion:
 2. The CSS media query reduces animation and transition duration to `.01ms` and limits animations to one iteration throughout the marketing scope.
 
 Any new carousel, parallax, smooth-scroll, or autoplay behavior must use the same preference. Do not rely only on shortened CSS animation if JavaScript continues changing content.
+
+The onboarding carousel never autoplays. Button navigation uses smooth scrolling only when reduced motion is not requested; reduced-motion users move between slides immediately.
 
 ## Intentional visual decisions that are easy to miss
 
