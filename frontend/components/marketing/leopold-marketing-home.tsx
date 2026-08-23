@@ -16,23 +16,14 @@ const heroImages = [
   `${assetRoot}/leopold-fair-draw.webp`,
 ] as const;
 
-const menuGroups = {
-  Product: [
-    ["Prize Savings", "Save privately. Keep your principal withdrawable.", "#product"],
-    ["Encrypted Draws", "A winner selected without revealing the ticket.", "#protocol"],
-    ["Yield Engine", "USDC yield funds one shared prize.", "#product"],
-  ],
-  Protocol: [
-    ["Confidential balances", "Deposits and prize positions remain encrypted.", "#protocol"],
-    ["Onchain randomness", "Zama-native FHE randomness, generated in the draw.", "/transparency"],
-    ["Compound III", "Direct supply into the canonical Sepolia USDC market.", "/transparency"],
-  ],
-  Company: [
-    ["Mission", "Make prize savings private, fair, and verifiable.", "#principle"],
-    ["Security", "No privileged party can decrypt the accepted ticket.", "/transparency"],
-    ["Documentation", "Explore the architecture and protocol lifecycle.", "/transparency"],
-  ],
-} as const;
+const navigationLinks = [
+  ["Products", "#product"],
+  ["Vaults", "#vaults"],
+  ["Privacy", "#protocol"],
+  ["How it Works", "#how-it-works"],
+  ["Company", "#principle"],
+  ["Open App", "/app"],
+] as const;
 
 const featureCards = [
   { label: "PRIVATE BY DEFAULT", copy: "Your savings position stays encrypted, not displayed to the pool.", accentWords: ["private"], size: "feature-card--wide", image: "feature-card--photo-a" },
@@ -136,6 +127,55 @@ function Arrow() {
   return <span aria-hidden="true">↗</span>;
 }
 
+type PixelTile = { blink: boolean; cell: number; delay: number };
+
+function createPixelTiles(): PixelTile[] {
+  const cells = Array.from({ length: 60 }, (_, index) => index);
+
+  for (let index = cells.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [cells[index], cells[swapIndex]] = [cells[swapIndex], cells[index]];
+  }
+
+  return cells.slice(0, 8).map((cell, index) => ({
+    blink: index === 1 || index === 6,
+    cell,
+    delay: 30 + Math.floor(Math.random() * 552),
+  }));
+}
+
+function PixelCutouts() {
+  const [active, setActive] = useState(false);
+  const [revision, setRevision] = useState(0);
+  const [tiles, setTiles] = useState<PixelTile[]>([]);
+
+  const enter = () => {
+    setActive(true);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setTiles(createPixelTiles());
+    setRevision((current) => current + 1);
+  };
+
+  return (
+    <span className={classes("pixel-cutouts", ...(active ? ["is-active"] : []))} aria-hidden="true" onMouseEnter={enter} onMouseLeave={() => setActive(false)}>
+      <span className={styles["pixel-cutouts__tint"]} />
+      <span className={styles["pixel-cutouts__tiles"]}>
+        {tiles.map((tile) => (
+          <span
+            className={classes("pixel-cutouts__tile", ...(tile.blink ? ["pixel-cutouts__tile--blink"] : []))}
+            key={`${revision}-${tile.cell}`}
+            style={{
+              "--pixel-delay": `${tile.delay}ms`,
+              left: `${(tile.cell % 10) * 10}%`,
+              top: `${Math.floor(tile.cell / 10) * 16.6667}%`,
+            } as CSSProperties}
+          />
+        ))}
+      </span>
+    </span>
+  );
+}
+
 function StyledWords({ children, accentWords = [] }: { children: string; accentWords?: readonly string[] }) {
   const accents = new Set(accentWords.map((word) => word.toLowerCase()));
 
@@ -171,7 +211,6 @@ function AnimatedCounter({ active, delay, format = String, sequence, target }: {
 }
 
 export function LeopoldMarketingHome() {
-  const [openMenu, setOpenMenu] = useState<keyof typeof menuGroups | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [heroFrame, setHeroFrame] = useState({ previous: 0, current: 0, revision: 0 });
@@ -252,18 +291,7 @@ export function LeopoldMarketingHome() {
           <span>Leopold</span>
         </a>
         <nav className={styles["desktop-nav"]} aria-label="Primary navigation">
-          {(Object.keys(menuGroups) as Array<keyof typeof menuGroups>).map((group) => (
-            <button
-              key={group}
-              type="button"
-              className={classes("nav-link", ...(openMenu === group ? ["is-active"] : []))}
-              onClick={() => setOpenMenu(openMenu === group ? null : group)}
-              onMouseEnter={() => setOpenMenu(group)}
-              aria-expanded={openMenu === group}
-            >
-              {group}
-            </button>
-          ))}
+          {navigationLinks.map(([label, href]) => <Link className={styles["nav-link"]} href={href} key={label}>{label}</Link>)}
         </nav>
         <button
           className={styles["mobile-toggle"]}
@@ -276,30 +304,9 @@ export function LeopoldMarketingHome() {
           <span />
         </button>
 
-        {openMenu && (
-          <div className={styles["mega-menu"]} onMouseLeave={() => setOpenMenu(null)}>
-            <p className={styles["menu-kicker"]}>{openMenu}</p>
-            <div className={styles["menu-grid"]}>
-              {menuGroups[openMenu].map(([title, copy, href]) => (
-                <Link key={title} href={href} onClick={() => setOpenMenu(null)}>
-                  <strong><StyledWords accentWords={["yield"]}>{title}</StyledWords></strong>
-                  <span>{copy}</span>
-                  <Arrow />
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
         {mobileOpen && (
           <div className={styles["mobile-menu"]}>
-            {(Object.keys(menuGroups) as Array<keyof typeof menuGroups>).map((group) => (
-              <a key={group} href={group === "Protocol" ? "#protocol" : "#product"} onClick={() => setMobileOpen(false)}>
-                {group}
-                <Arrow />
-              </a>
-            ))}
-            <Link className={styles["mobile-launch"]} href="/app" onClick={() => setMobileOpen(false)}>Launch app</Link>
+            {navigationLinks.map(([label, href]) => <Link className={label === "Open App" ? styles["mobile-launch"] : undefined} key={label} href={href} onClick={() => setMobileOpen(false)}>{label}<Arrow /></Link>)}
           </div>
         )}
       </header>
@@ -383,7 +390,7 @@ export function LeopoldMarketingHome() {
         <section className={styles.built} aria-labelledby="built-title">
           <h2 id="built-title">Built by Leopold.</h2>
           <article className={classes("product-row", "product-row--image-left")}>
-            <div className={classes("product-image", "product-image--vault")} role="img" aria-label="A secure glass savings vessel in archival monochrome" />
+            <div className={classes("product-image", "product-image--vault")} role="img" aria-label="A secure glass savings vessel in archival monochrome"><PixelCutouts /></div>
             <div className={styles["product-copy"]}>
               <p className={styles["section-label"]}>CONFIDENTIAL SAVINGS</p>
               <h3><StyledWords accentWords={["deposit"]}>Deposit without publishing your position.</StyledWords></h3>
@@ -398,10 +405,10 @@ export function LeopoldMarketingHome() {
               <p>Zama-native encrypted randomness selects the draw outcome. The accepted ticket remains encrypted throughout selection and is never authorized for administrative decryption.</p>
               <Link href="/transparency">See the draw model <Arrow /></Link>
             </div>
-            <div className={classes("product-image", "product-image--draw")} role="img" aria-label="Encrypted lines converging on a private prize draw" />
+            <div className={classes("product-image", "product-image--draw")} role="img" aria-label="Encrypted lines converging on a private prize draw"><PixelCutouts /></div>
           </article>
           <article className={classes("product-row", "product-row--image-left")}>
-            <div className={classes("product-image", "product-image--yield")} role="img" aria-label="Coins and a secure savings vessel rendered in cool monochrome" />
+            <div className={classes("product-image", "product-image--yield")} role="img" aria-label="Coins and a secure savings vessel rendered in cool monochrome"><PixelCutouts /></div>
             <div className={styles["product-copy"]}>
               <p className={styles["section-label"]}><StyledWords accentWords={["yield"]}>USDC YIELD</StyledWords></p>
               <h3><StyledWords accentWords={["yield"]}>Yield becomes the prize.</StyledWords></h3>
@@ -411,7 +418,7 @@ export function LeopoldMarketingHome() {
           </article>
         </section>
 
-        <section className={classes("built", "cadences")} aria-labelledby="cadences-title">
+        <section className={classes("built", "cadences")} id="vaults" aria-labelledby="cadences-title">
           <h2 id="cadences-title">Built for saving.</h2>
           <div className={styles["cadence-list"]}>
             {savingCadences.map((cadence, index) => (
@@ -432,7 +439,7 @@ export function LeopoldMarketingHome() {
           </div>
         </section>
 
-        <section className={styles["saving-process"]} aria-labelledby="saving-process-title" ref={savingProcessRef}>
+        <section className={styles["saving-process"]} id="how-it-works" aria-labelledby="saving-process-title" ref={savingProcessRef}>
           <div className={styles["saving-process-heading"]}>
             <p className={styles["section-label"]}>HOW LEOPOLD WORKS</p>
             <h2 id="saving-process-title"><StyledWords accentWords={["private"]}>From public money to private saving.</StyledWords></h2>
@@ -523,6 +530,7 @@ function CadenceImage({ cadence }: { cadence: Cadence }) {
         height={cadence.height}
         sizes="(max-width: 820px) 100vw, 50vw"
       />
+      <PixelCutouts />
     </figure>
   );
 }

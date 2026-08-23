@@ -181,7 +181,7 @@ If the marketing page grows, extract whole sections into the same `frontend/comp
 
 ## Navigation and CTA behavior
 
-The header is fixed and always 50px/48px tall. Desktop navigation uses three buttons—Product, Protocol, Company—that reveal a full-width black mega menu. A menu opens on hover or click, remains keyboard-focusable, and closes when the pointer leaves the menu or when a destination is selected.
+The header is fixed and always 50px/48px tall. Desktop navigation is a direct-link row containing Products, Vaults, Privacy, How it Works, Company, and Open App. The first five links target their corresponding marketing sections; Open App routes to `/app`.
 
 At `820px` and below, desktop navigation is hidden and a two-line menu button reveals a stacked menu below the header.
 
@@ -190,6 +190,7 @@ Implemented route mapping:
 | UI | Destination |
 | --- | --- |
 | Launch app | `/app` |
+| Open App | `/app` |
 | Start saving | `/app` |
 | Explore savings | `/app` |
 | Explore vault (all four vault rows) | `/app` |
@@ -267,8 +268,17 @@ A bottom shade overlays the mosaic: transparent through 45%, fading to `rgba(3, 
 | Protocol point drift | 4800ms ease-in-out, staggered by `index * -310ms` |
 | Protocol counter tick | 105ms per reading; columns begin 160ms apart |
 | Saving-step counter tick | 105ms per reading; steps begin 110ms apart |
+| Editorial image tint | 200ms ease on enter and leave |
+| Pixel cutout entry | 300ms ease; two cells blink for 750ms |
+| Pixel cutout exit | 250ms ease |
 
 Feature cards move upward 4px and increase contrast slightly on hover/focus. Principle actions invert from transparent/light-on-dark to warm-white/navy. Footer links brighten from muted white to warm white.
+
+## Editorial image hover treatment
+
+All seven image panels in “Built by Leopold” and “Built for saving” use the reusable `PixelCutouts` overlay. Fine-pointer hover applies a slightly cooler, darker grade and generates eight unique cells from a 10-column × 6-row grid. Every cell is 10% wide and 16.6667% high; a Fisher–Yates shuffle selects the cells without duplicates on each entry. Delays are randomized from 30ms through 581ms. Six cells fade in over 300ms, two use a 750ms blink sequence, and all cells fade out over 250ms when the pointer leaves.
+
+The cutouts reveal the page's warm paper and dotted texture, creating the large disappearing-pixel effect without altering the source image. The tint layer uses Leopold navy with `mix-blend-mode: color` at `.28` opacity. Reduced-motion users retain the static hover tint but do not generate transient cutout tiles.
 
 ## Protocol panel motion
 
