@@ -290,7 +290,7 @@ Reduced-motion users receive the final values immediately. The IntersectionObser
 
 ## Saving-process counter motion
 
-The six process numbers are large Georgia numerals (`clamp(38px, 3.2vw, 52px)`, 46px on mobile) with tabular figures. When 30% of the saving-process section enters the viewport, each number runs once through an authored eight-reading, two-digit sequence at 105ms per reading. Step starts are staggered by 110ms and settle permanently at `01` through `06`. The shared `AnimatedCounter` component also drives the protocol facts, so both effects use the same blur/fade/rise tick treatment.
+The six process numbers are large Georgia numerals (`clamp(38px, 3.2vw, 52px)`, 46px on mobile) with tabular figures. When 30% of the saving-process section enters the viewport, each number runs once through an authored eight-reading, two-digit sequence at 105ms per reading. Step starts are staggered by 110ms and settle permanently at `01` through `06`. Hovering an individual saving-step or protocol number immediately replays only that number's sequence. The shared `AnimatedCounter` component drives both counter groups, so every replay uses the same blur/fade/rise tick treatment.
 
 The transient process readings are hidden from assistive technology. Each item includes a stable visually hidden “Step N” label, and reduced-motion users receive the final zero-padded values immediately without an observer or transient updates.
 

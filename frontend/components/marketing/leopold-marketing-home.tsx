@@ -196,18 +196,20 @@ function StyledWords({ children, accentWords = [] }: { children: string; accentW
 
 function AnimatedCounter({ active, delay, format = String, sequence, target }: { active: boolean; delay: number; format?: (value: number) => string; sequence: readonly number[]; target: number }) {
   const [frame, setFrame] = useState({ reading: target, revision: 0 });
+  const [hoverRevision, setHoverRevision] = useState(0);
 
   useEffect(() => {
     if (!active || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
+    const startDelay = hoverRevision > 0 ? 0 : delay;
     const timers = sequence.map((reading, index) => window.setTimeout(() => {
-      setFrame({ reading, revision: index + 1 });
-    }, delay + index * 105));
+      setFrame({ reading, revision: hoverRevision * sequence.length + index + 1 });
+    }, startDelay + index * 105));
 
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [active, delay, sequence, target]);
+  }, [active, delay, hoverRevision, sequence, target]);
 
-  return <span className={styles["counter-tick"]} key={`${frame.revision}-${frame.reading}`}>{format(frame.reading)}</span>;
+  return <span onMouseEnter={() => setHoverRevision((revision) => revision + 1)}><span className={styles["counter-tick"]} key={`${frame.revision}-${frame.reading}`}>{format(frame.reading)}</span></span>;
 }
 
 export function LeopoldMarketingHome() {
