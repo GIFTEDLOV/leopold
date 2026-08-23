@@ -6,6 +6,14 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Leopold — Private Prize Savings",
   description: "Save privately. Win privately. Withdraw anytime.",
+  icons: {
+    icon: "/marketing/leopold/leopold-monogram.png",
+  },
+  openGraph: {
+    title: "Leopold — Private Prize Savings",
+    description: "Save privately. Win privately. Withdraw anytime.",
+    images: ["/marketing/leopold/leopold-og.png"],
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
