@@ -51,7 +51,7 @@ The DOM and visual order is fixed as follows:
 7. “Built for saving” with four alternating vault-cadence rows.
 8. “How Leopold works” six-step process grid.
 9. Single merged principle panel with two interchanging headlines.
-10. Dark footer with navigation, local newsletter interaction, and legal line.
+10. Dark footer with Product, Account, Trust, and Privacy columns, a large gold monogram, and legal line.
 
 There is intentionally no separate closing-image panel after the principle section. Two earlier principle statements were combined into one panel and now rotate in place.
 
@@ -166,7 +166,7 @@ HomePage
    │  │  └─ CadenceImage
    │  ├─ saving process
    │  └─ rotating principle panel
-   └─ footer / newsletter
+   └─ footer / route directory / gold monogram
 ```
 
 Reusable code elements:
@@ -408,7 +408,7 @@ At 820px and below:
 - Product image areas are at least 340px tall and copy areas at least 430px.
 - The six-step process becomes six full-width divided rows.
 - Principle buttons become a vertical stack.
-- Footer becomes a two-column link grid; newsletter spans both columns; brand line and legal line stack.
+- Footer becomes a two-column information grid; the gold monogram spans both columns; brand line and legal line stack.
 
 The page has a 320px minimum width and uses fluid type between mobile and large desktop sizes.
 
@@ -446,7 +446,7 @@ Any new carousel, parallax, smooth-scroll, or autoplay behavior must use the sam
 - Prize Yield and Compound III cards deliberately retain image backgrounds after the later design correction.
 - The principle section intentionally reuses `leopold-investment-review.webp`, which was the selected image from the removed neighboring panel.
 - The two principle statements rotate inside one panel to avoid duplicate adjacent sections.
-- The newsletter is a visual interaction only; connecting a service is a separate product/security decision.
+- The footer monogram is an exact `--accent-yellow` mask of the local Leopold mark; it intentionally contains no adjacent copy or form controls.
 - The marketing component runs inside the existing root `Providers` wrapper. The provider hierarchy was not rewritten or bypassed.
 
 ## Safe editing checklist

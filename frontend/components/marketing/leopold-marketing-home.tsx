@@ -212,7 +212,6 @@ function AnimatedCounter({ active, delay, format = String, sequence, target }: {
 
 export function LeopoldMarketingHome() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [subscribed, setSubscribed] = useState(false);
   const [heroFrame, setHeroFrame] = useState({ previous: 0, current: 0, revision: 0 });
   const [principleHeadline, setPrincipleHeadline] = useState(0);
   const [protocolEntered, setProtocolEntered] = useState(false);
@@ -291,7 +290,7 @@ export function LeopoldMarketingHome() {
           <span>Leopold</span>
         </a>
         <nav className={styles["desktop-nav"]} aria-label="Primary navigation">
-          {navigationLinks.map(([label, href]) => <Link className={styles["nav-link"]} href={href} key={label}>{label}</Link>)}
+          {navigationLinks.map(([label, href]) => <Link className={classes("nav-link", ...(label === "Open App" ? ["nav-link--open-app"] : []))} href={href} key={label}>{label}</Link>)}
         </nav>
         <button
           className={styles["mobile-toggle"]}
@@ -484,21 +483,11 @@ export function LeopoldMarketingHome() {
           <h2>Private prize savings, built to be verified.</h2>
         </div>
         <div className={styles["footer-grid"]}>
-          <nav aria-label="Product links"><h3>PRODUCT</h3><a href="#product">Prize Savings</a><a href="#protocol">Encrypted Draws</a><a href="#product"><StyledWords accentWords={["yield"]}>Yield Engine</StyledWords></a></nav>
-          <nav aria-label="Protocol links"><h3>PROTOCOL</h3><Link href="/transparency">Architecture</Link><Link href="/transparency">Security</Link><Link href="/transparency">Contracts</Link></nav>
-          <nav aria-label="Company links"><h3>COMPANY</h3><a href="#principle">Mission</a><a href="#principle">About</a><a href="#notes">Contact</a></nav>
-          <div className={styles.newsletter} id="notes">
-            <h3>GET LEOPOLD NOTES</h3>
-            {subscribed ? (
-              <p className={styles["success-note"]} role="status">You’re on the private-beta list.</p>
-            ) : (
-              <form onSubmit={(event) => { event.preventDefault(); setSubscribed(true); }}>
-                <label className={styles["sr-only"]} htmlFor="marketing-email">Email address</label>
-                <input id="marketing-email" type="email" required placeholder="you@company.com" />
-                <button type="submit" aria-label="Subscribe">↗</button>
-              </form>
-            )}
-          </div>
+          <nav aria-label="Product links"><h3>PRODUCT</h3><Link href="/app">Dashboard</Link><Link href="/app/vaults">Vaults</Link><Link href="/app/prizes">Prizes</Link><Link href="/app/rewards">Rewards</Link></nav>
+          <nav aria-label="Account links"><h3>ACCOUNT</h3><Link href="/login">Sign in</Link><Link href="/onboarding">Onboarding</Link><Link href="/app/profile">Profile</Link></nav>
+          <nav aria-label="Trust links"><h3>TRUST</h3><Link href="/transparency">Transparency</Link><Link href="/ops">Status</Link><Link href="/app/help">Help</Link></nav>
+          <div className={styles["footer-privacy"]}><h3>PRIVACY</h3><p>Confidential, not anonymous.</p><p>Private values reveal only on explicit user action.</p></div>
+          <a className={styles["footer-monogram"]} href="#top" aria-label="Leopold home"><span aria-hidden="true" /></a>
         </div>
         <div className={styles["footer-legal"]}><span>© 2026 LEOPOLD</span><span>SEPOLIA PROTOTYPE · NOT AN OFFER OF FINANCIAL SERVICES</span></div>
       </footer>
