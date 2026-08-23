@@ -19,6 +19,7 @@ The implementation files are:
 - `frontend/components/marketing/leopold-marketing-home.module.css` — scoped visual system, responsive rules, and motion.
 - `frontend/public/marketing/leopold/` — local imagery, monogram, and social image.
 - `frontend/app/layout.tsx` — existing root layout with marketing icon and Open Graph metadata added; the existing `Providers` hierarchy is unchanged.
+- `frontend/app/icon.png` — file-based Next.js app icon using the current interlocking monogram.
 
 ## Product and content guardrails
 
@@ -291,6 +292,8 @@ All runtime images are local. No image is loaded from the Sites host, Pexels, Un
 | `leopold-monogram.png` | 512×512 | Header/footer brand mark and page icon |
 | `leopold-og.png` | 1200×630 | Open Graph image |
 | `leopold-principle.webp` | 2200×1650 | Preserved source asset from the current Sites project; intentionally not rendered in this snapshot |
+
+`frontend/app/icon.png` is an exact copy of `frontend/public/marketing/leopold/leopold-monogram.png`. The duplicate is intentional: Next.js file-based metadata gives the app icon a stable route while the public copy remains available to header and footer components.
 
 Feature-card treatment:
 
