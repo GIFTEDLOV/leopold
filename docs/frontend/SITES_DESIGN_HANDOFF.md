@@ -266,6 +266,7 @@ A bottom shade overlays the mosaic: transparent through 45%, fading to `rgba(3, 
 | Protocol ring breathing | 7000ms and 5400ms ease-in-out, infinite |
 | Protocol point drift | 4800ms ease-in-out, staggered by `index * -310ms` |
 | Protocol counter tick | 105ms per reading; columns begin 160ms apart |
+| Saving-step counter tick | 105ms per reading; steps begin 110ms apart |
 
 Feature cards move upward 4px and increase contrast slightly on hover/focus. Principle actions invert from transparent/light-on-dark to warm-white/navy. Footer links brighten from muted white to warm white.
 
@@ -276,6 +277,12 @@ The left protocol diagram stays visually quiet but alive: a low-opacity blue-gra
 The facts strip animates once when 35% of the protocol section enters the viewport. Each column runs through an authored eight-reading sequence at 105ms per reading, with 160ms between column starts, then settles permanently at the truthful values `0`, `1`, and `64`. The transient readings are hidden from assistive technology; the strip retains its stable descriptive label. The effect does not replay when the user scrolls away and back.
 
 Reduced-motion users receive the final values immediately. The IntersectionObserver is not started and the global motion override suppresses all map animation.
+
+## Saving-process counter motion
+
+The six process numbers are large Georgia numerals (`clamp(38px, 3.2vw, 52px)`, 46px on mobile) with tabular figures. When 30% of the saving-process section enters the viewport, each number runs once through an authored eight-reading, two-digit sequence at 105ms per reading. Step starts are staggered by 110ms and settle permanently at `01` through `06`. The shared `AnimatedCounter` component also drives the protocol facts, so both effects use the same blur/fade/rise tick treatment.
+
+The transient process readings are hidden from assistive technology. Each item includes a stable visually hidden “Step N” label, and reduced-motion users receive the final zero-padded values immediately without an observer or transient updates.
 
 ## Editorial word effects
 

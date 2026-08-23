@@ -148,8 +148,8 @@
 .number-stack div:last-child { border-right:0; }
 .number-stack strong { display:block; font:400 clamp(48px,5vw,76px)/1 var(--serif); }
 .protocol-counter { min-width:2ch; font-variant-numeric:tabular-nums; }
-.protocol-counter-tick { display:inline-block; animation:protocol-counter-tick 105ms ease-out both; }
-.number-stack span { display:block; margin-top:8px; color:rgba(255,255,255,.58); font:10px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+.counter-tick { display:inline-block; animation:protocol-counter-tick 105ms ease-out both; }
+.number-stack > div > span { display:block; margin-top:8px; color:rgba(255,255,255,.58); font:10px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase; }
 .fine-print { max-width:520px; margin:auto 0 0; color:rgba(255,255,255,.38); font:10px/1.7 var(--mono); letter-spacing:.08em; }
 
 @keyframes map-scan { 0%,18% { transform:translateX(0) skewX(-10deg); opacity:0; } 42% { opacity:1; } 68%,100% { transform:translateX(610%) skewX(-10deg); opacity:0; } }
@@ -194,7 +194,7 @@
 .saving-steps li { display:flex; flex-direction:column; justify-content:space-between; min-width:0; padding:28px 26px 32px 0; border-right:1px solid var(--line); }
 .saving-steps li + li { padding-left:26px; }
 .saving-steps li:last-child { border-right:0; }
-.saving-steps li > span { font:9px var(--mono); letter-spacing:.12em; }
+.saving-step-number { font:400 clamp(38px,3.2vw,52px)/1 var(--serif); font-variant-numeric:tabular-nums; letter-spacing:-.035em; }
 .saving-steps h3 { margin:0 0 7px; font:400 clamp(26px,2vw,34px)/.96 var(--serif); letter-spacing:-.02em; }
 .saving-steps p { margin:0; color:#5e6a7c; font-size:14px; line-height:1.55; }
 
@@ -282,6 +282,7 @@
   .saving-steps { grid-template-columns:1fr; min-height:0; }
   .saving-steps li, .saving-steps li + li { min-height:180px; padding:22px 0; border-right:0; border-bottom:1px solid var(--line); }
   .saving-steps li:last-child { border-bottom:0; }
+  .saving-step-number { font-size:46px; }
   .saving-steps h3 { font-size:34px; }
   .principle { min-height:600px; padding:64px 20px; }
   .principle h2 { font-size:50px; }

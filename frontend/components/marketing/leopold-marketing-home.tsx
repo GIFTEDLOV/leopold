@@ -101,6 +101,15 @@ const savingSteps = [
   ["Withdraw", "Take principal out independently of the prize outcome."],
 ] as const;
 
+const savingStepSequences = [
+  [84, 27, 63, 19, 72, 45, 88, 1],
+  [51, 96, 34, 78, 13, 67, 40, 2],
+  [73, 18, 92, 46, 25, 81, 59, 3],
+  [29, 65, 10, 87, 43, 76, 31, 4],
+  [68, 24, 90, 37, 82, 16, 54, 5],
+  [42, 85, 21, 69, 14, 93, 57, 6],
+] as const;
+
 const principleHeadlines = [
   "Saving should be\nprivate by default.",
   "Saving should be private.\nWinning should be provable.\nYield should stay yours.",
@@ -145,7 +154,7 @@ function StyledWords({ children, accentWords = [] }: { children: string; accentW
   });
 }
 
-function ProtocolCounter({ active, delay, sequence, target }: { active: boolean; delay: number; sequence: readonly number[]; target: number }) {
+function AnimatedCounter({ active, delay, format = String, sequence, target }: { active: boolean; delay: number; format?: (value: number) => string; sequence: readonly number[]; target: number }) {
   const [frame, setFrame] = useState({ reading: target, revision: 0 });
 
   useEffect(() => {
@@ -158,7 +167,7 @@ function ProtocolCounter({ active, delay, sequence, target }: { active: boolean;
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [active, delay, sequence, target]);
 
-  return <span className={styles["protocol-counter-tick"]} key={`${frame.revision}-${frame.reading}`}>{frame.reading}</span>;
+  return <span className={styles["counter-tick"]} key={`${frame.revision}-${frame.reading}`}>{format(frame.reading)}</span>;
 }
 
 export function LeopoldMarketingHome() {
@@ -168,7 +177,9 @@ export function LeopoldMarketingHome() {
   const [heroFrame, setHeroFrame] = useState({ previous: 0, current: 0, revision: 0 });
   const [principleHeadline, setPrincipleHeadline] = useState(0);
   const [protocolEntered, setProtocolEntered] = useState(false);
+  const [savingProcessEntered, setSavingProcessEntered] = useState(false);
   const protocolRef = useRef<HTMLElement>(null);
+  const savingProcessRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     heroImages.forEach((source) => {
@@ -212,6 +223,22 @@ export function LeopoldMarketingHome() {
     }, { threshold: 0.35 });
 
     observer.observe(protocol);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const savingProcess = savingProcessRef.current;
+    if (!savingProcess) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting) return;
+      setSavingProcessEntered(true);
+      observer.disconnect();
+    }, { threshold: 0.3 });
+
+    observer.observe(savingProcess);
     return () => observer.disconnect();
   }, []);
 
@@ -344,7 +371,7 @@ export function LeopoldMarketingHome() {
             <div className={styles["number-stack"]} aria-label="Leopold protocol facts">
               {protocolFacts.map((fact, index) => (
                 <div key={fact.label} role="group" aria-label={`${fact.target} ${fact.label}`}>
-                  <strong className={styles["protocol-counter"]} aria-hidden="true"><ProtocolCounter active={protocolEntered} delay={index * 160} sequence={fact.sequence} target={fact.target} /></strong>
+                  <strong className={styles["protocol-counter"]} aria-hidden="true"><AnimatedCounter active={protocolEntered} delay={index * 160} sequence={fact.sequence} target={fact.target} /></strong>
                   <span aria-hidden="true">{fact.label}</span>
                 </div>
               ))}
@@ -405,7 +432,7 @@ export function LeopoldMarketingHome() {
           </div>
         </section>
 
-        <section className={styles["saving-process"]} aria-labelledby="saving-process-title">
+        <section className={styles["saving-process"]} aria-labelledby="saving-process-title" ref={savingProcessRef}>
           <div className={styles["saving-process-heading"]}>
             <p className={styles["section-label"]}>HOW LEOPOLD WORKS</p>
             <h2 id="saving-process-title"><StyledWords accentWords={["private"]}>From public money to private saving.</StyledWords></h2>
@@ -413,8 +440,8 @@ export function LeopoldMarketingHome() {
           <ol className={styles["saving-steps"]}>
             {savingSteps.map(([title, copy], index) => (
               <li key={title}>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <div><h3><StyledWords accentWords={["private"]}>{title}</StyledWords></h3><p><StyledWords>{copy}</StyledWords></p></div>
+                <span className={styles["saving-step-number"]} aria-hidden="true"><AnimatedCounter active={savingProcessEntered} delay={index * 110} format={(value) => String(value).padStart(2, "0")} sequence={savingStepSequences[index] ?? [index + 1]} target={index + 1} /></span>
+                <div><span className={styles["sr-only"]}>Step {index + 1}. </span><h3><StyledWords accentWords={["private"]}>{title}</StyledWords></h3><p><StyledWords>{copy}</StyledWords></p></div>
               </li>
             ))}
           </ol>
