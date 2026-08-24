@@ -96,6 +96,15 @@ export function LoginShell({
 }: LoginShellProps) {
   return (
     <main className={styles.login}>
+      <style jsx global>{`
+        .profile-primary,
+        .profile-primary:hover,
+        .profile-primary:focus-visible {
+          color: #fffef9 !important;
+          font-size: 11px !important;
+          font-weight: 800 !important;
+        }
+      `}</style>
       <section className={styles.board} aria-labelledby="login-title">
         <div className={styles.formPanel}>
           <Link className={styles.brand} href="/" aria-label="Leopold home">
