@@ -852,3 +852,301 @@ input:focus-visible {
     flex-direction: column;
   }
 }
+
+/* Approved Leopold application system. Scoped so the landing page is untouched. */
+.app-frame {
+  --app-ink: #07101d;
+  --app-navy: #102540;
+  --app-blue: #30435f;
+  --app-paper: #f7f4eb;
+  --app-white: #fffef9;
+  --app-gold: #c9ab60;
+  --app-line: rgba(16, 37, 64, 0.17);
+  display: block;
+  min-height: 100svh;
+  background-color: var(--app-paper);
+  background-image: radial-gradient(rgba(16, 37, 64, 0.07) 0.55px, transparent 0.55px);
+  background-size: 4px 4px;
+  color: var(--app-navy);
+}
+.app-frame .sidebar {
+  position: fixed;
+  z-index: 30;
+  inset: 0 auto 0 0;
+  width: 56px;
+  min-height: 100svh;
+  height: 100svh;
+  overflow: hidden;
+  padding: 26px 8px;
+  background: var(--app-ink);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  transition: width 0.26s cubic-bezier(.22,.61,.36,1), padding 0.26s cubic-bezier(.22,.61,.36,1), box-shadow 0.26s ease;
+}
+.app-frame .sidebar:hover,
+.app-frame .sidebar:focus-within {
+  width: 218px;
+  padding-inline: 16px;
+  box-shadow: 18px 0 45px rgba(3, 9, 16, 0.28);
+}
+.app-frame .sidebar .brand {
+  width: 40px;
+  min-width: 0;
+  justify-content: center;
+  overflow: visible;
+  padding: 0;
+  gap: 10px;
+  color: var(--app-white);
+  font: 700 19px Georgia, serif;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+.app-frame .sidebar:hover .brand,
+.app-frame .sidebar:focus-within .brand {
+  width: 185px;
+  min-width: 185px;
+  justify-content: flex-start;
+}
+.app-frame .sidebar .brand img,
+.app-frame .topbar-brand img {
+  flex: 0 0 auto;
+  object-fit: contain;
+  background: transparent;
+  filter: brightness(0) saturate(100%) invert(76%) sepia(35%) saturate(706%) hue-rotate(4deg) brightness(90%) contrast(86%);
+}
+.app-frame .sidebar .brand > span > span,
+.app-frame .topbar-brand > span > span { color: var(--app-gold); }
+.app-frame .nav-label {
+  height: 14px;
+  margin: 60px 10px 15px;
+  color: rgba(255, 255, 255, 0.35);
+  font: 10px/1.35 "Courier New", monospace;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.app-frame .nav-list { min-width: 185px; gap: 3px; }
+.app-frame .nav-link {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px 1fr 16px;
+  width: 40px;
+  min-height: 44px;
+  gap: 10px;
+  padding: 0 8px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: rgba(255, 255, 255, 0.62);
+  font: 14px Georgia, serif;
+  transition: width .18s ease, background .18s ease, color .18s ease, border .18s ease;
+}
+.app-frame .sidebar:hover .nav-link,
+.app-frame .sidebar:focus-within .nav-link { width: auto; padding-inline: 10px; }
+.app-frame .nav-link:hover,
+.app-frame .nav-link.active {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--app-white);
+}
+.app-frame .nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--app-gold);
+}
+.app-frame .nav-icon { display: grid; place-items: center; width: 20px; color: var(--app-gold); }
+.app-frame .nav-icon svg { width: 18px; height: 18px; display: block; }
+.app-frame .nav-arrow { opacity: 0.6; }
+.app-frame .sidebar .brand > span,
+.app-frame .nav-label,
+.app-frame .nav-text,
+.app-frame .nav-arrow,
+.app-frame .sidebar-foot {
+  opacity: 0;
+  transform: translateX(-5px);
+  transition: opacity .12s ease, transform .2s ease;
+}
+.app-frame .sidebar:hover .brand > span,
+.app-frame .sidebar:hover .nav-label,
+.app-frame .sidebar:hover .nav-text,
+.app-frame .sidebar:hover .nav-arrow,
+.app-frame .sidebar:hover .sidebar-foot,
+.app-frame .sidebar:focus-within .brand > span,
+.app-frame .sidebar:focus-within .nav-label,
+.app-frame .sidebar:focus-within .nav-text,
+.app-frame .sidebar:focus-within .nav-arrow,
+.app-frame .sidebar:focus-within .sidebar-foot { opacity: 1; transform: none; transition-delay: .08s; }
+.app-frame .sidebar-foot {
+  width: 100%;
+  min-width: 0;
+  visibility: hidden;
+  display: grid;
+  gap: 10px;
+  margin-top: auto;
+  padding: 20px 12px 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.app-frame .sidebar-foot p { margin: 0 0 6px; }
+.app-frame .sidebar-foot a { color: rgba(255, 255, 255, 0.72); }
+.app-frame .sidebar:hover .sidebar-foot,
+.app-frame .sidebar:focus-within .sidebar-foot { visibility: visible; }
+.app-frame .app-main { min-height: 100svh; margin-left: 56px; transition: margin-left .26s cubic-bezier(.22,.61,.36,1); }
+.app-frame .topbar {
+  height: 54px;
+  min-height: 54px;
+  padding: 0 2.7vw;
+  gap: 10px;
+  background: rgba(247, 244, 235, 0.94);
+  border-color: var(--app-line);
+  box-shadow: 0 5px 18px rgba(16, 37, 64, 0.045);
+  backdrop-filter: blur(18px);
+}
+.app-frame .topbar-brand {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--app-navy);
+  font: 700 17px Georgia, serif;
+  letter-spacing: -0.025em;
+}
+.app-frame .account-pill,
+.app-frame .button {
+  min-height: 39px;
+  padding: 0 17px;
+  border: 1px solid rgba(16, 37, 64, 0.34);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #fffef9 0%, #eeebe2 100%);
+  color: var(--app-navy);
+  font: 700 10px/1 "Courier New", monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px rgba(255,255,255,.75), 0 6px 15px rgba(16,37,64,.1);
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.app-frame .topbar > .button,
+.app-frame .button:not(.secondary) {
+  background: linear-gradient(180deg, #d8bd78 0%, var(--app-gold) 100%);
+  border-color: var(--app-gold);
+  color: var(--app-ink);
+}
+.app-frame .button:hover:not(:disabled),
+.app-frame .account-pill:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px rgba(255,255,255,.8), 0 10px 22px rgba(16,37,64,.15);
+}
+.app-frame .button:disabled,
+.app-frame button:disabled {
+  opacity: .68;
+  cursor: not-allowed;
+  transform: none;
+  background: #e7e3d9;
+  color: #657083;
+}
+.app-frame .account-popover,
+.app-frame .modal,
+.app-frame .wallet-gate,
+.app-frame .card {
+  border-color: var(--app-line);
+  border-radius: 14px;
+  background: var(--app-white);
+  box-shadow: inset 0 1px rgba(255,255,255,.92), 0 13px 32px rgba(16,37,64,.08), 0 3px 10px rgba(16,37,64,.05);
+}
+.app-frame .content { max-width: 1500px; padding: 38px 3.5vw 80px; }
+.app-frame .page-heading { margin-bottom: 36px; }
+.app-frame .page-heading h1 {
+  color: var(--app-navy);
+  font: 400 clamp(42px, 4.25vw, 68px)/.99 Georgia, serif;
+  letter-spacing: -.04em;
+}
+.app-frame .page-heading p { max-width: 700px; color: #637083; font-size: 14px; line-height: 1.65; }
+.app-frame .grid { gap: 18px; }
+.app-frame .card { padding: 25px; }
+.app-frame .card h2 { color: var(--app-navy); font: 400 30px/1 Georgia, serif; letter-spacing: -.03em; }
+.app-frame .section { margin-top: 30px; }
+.app-frame .list-row { border-color: var(--app-line); }
+.app-frame .input { border-color: rgba(16,37,64,.28); border-radius: 10px; background: var(--app-white); }
+.app-frame .inline-notice {
+  background: #eee5cf;
+  border-color: rgba(152,120,50,.28);
+  color: #6f5c2d;
+  padding-inline: 3.5vw;
+}
+.app-frame .modal-backdrop { background: rgba(3,9,16,.7); backdrop-filter: blur(6px); }
+.app-frame .modal { border-radius: 18px; box-shadow: 0 35px 100px rgba(0,0,0,.42); }
+
+@media (max-width: 760px) {
+  .app-frame .app-main { margin-left: 0; }
+  .app-frame .sidebar { position: static; width: 100%; height: auto; min-height: 0; padding: 9px 14px; overflow-x: auto; }
+  .app-frame .sidebar:hover,
+  .app-frame .sidebar:focus-within { width: 100%; padding-inline: 14px; box-shadow: none; }
+  .app-frame .sidebar .brand,
+  .app-frame .sidebar-foot,
+  .app-frame .nav-label { display: none; }
+  .app-frame .nav-list { min-width: max-content; flex-direction: row; }
+  .app-frame .nav-link,
+  .app-frame .sidebar:hover .nav-link,
+  .app-frame .sidebar:focus-within .nav-link { width: auto; grid-template-columns: 22px auto; padding-inline: 10px; }
+  .app-frame .nav-text { opacity: 1; transform: none; }
+  .app-frame .nav-arrow { display: none; }
+  .app-frame .topbar { padding-inline: 14px; }
+  .app-frame .topbar-brand > span { display: none; }
+  .app-frame .account-pill { max-width: 135px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app-frame .topbar > .button { padding-inline: 12px; }
+  .app-frame .content { padding: 30px 16px 60px; }
+  .app-frame .page-heading { align-items: flex-start; flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-frame .sidebar,
+  .app-frame .app-main,
+  .app-frame .sidebar *,
+  .app-frame .button,
+  .app-frame .account-pill { transition: none !important; }
+}
+
+.app-frame .vault-grid { gap: 18px; }
+.app-frame .vault-card {
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border-color: var(--app-line);
+  border-radius: 14px;
+  background: var(--app-white);
+  box-shadow: inset 0 1px rgba(255,255,255,.92), 0 13px 32px rgba(16,37,64,.08), 0 3px 10px rgba(16,37,64,.05);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.app-frame .vault-card.recommended { border-color: var(--app-line); box-shadow: inset 0 3px var(--app-gold), 0 13px 32px rgba(16,37,64,.08), 0 3px 10px rgba(16,37,64,.05); }
+.app-frame .vault-card:hover { transform: translateY(-4px); box-shadow: inset 0 1px rgba(255,255,255,.92), 0 18px 38px rgba(16,37,64,.13), 0 4px 12px rgba(16,37,64,.06); }
+.app-frame .vault-image { position: relative; height: 225px; margin: 0; overflow: hidden; background: var(--app-blue); }
+.app-frame .vault-image img { object-fit: cover; filter: grayscale(1) sepia(.24) hue-rotate(168deg) saturate(.47) contrast(.98); }
+.app-frame .vault-image::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg,rgba(16,37,64,.05),rgba(16,37,64,.48)); }
+.app-frame .vault-image > span { position: absolute; z-index: 2; left: 16px; top: 14px; color: var(--app-ink); font: 22px Georgia,serif; text-shadow: -.5px -.5px 0 rgba(255,255,255,.95),.5px -.5px 0 rgba(255,255,255,.95),-.5px .5px 0 rgba(255,255,255,.95),.5px .5px 0 rgba(255,255,255,.95); }
+.app-frame .vault-card-body { display: flex; flex: 1; flex-direction: column; padding: 18px; }
+.app-frame .vault-head > div { display: flex; align-items: baseline; justify-content: space-between; width: 100%; gap: 12px; }
+.app-frame .vault-card h3 { color: var(--app-navy); font: 400 29px/1 Georgia,serif; letter-spacing: -.03em; }
+.app-frame .vault-note { flex: 0 0 auto; color: rgba(16,37,64,.48); font: 8px "Courier New",monospace; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.app-frame .vault-meta { border-color: var(--app-line); color: #718095; font: 9px/1.45 "Courier New",monospace; text-transform: uppercase; }
+.app-frame .vault-actions { margin-top: auto; }
+.app-frame .vault-actions .button { min-height: 39px; }
+.app-frame .form-row { align-items: stretch; margin-top: 16px; }
+.app-frame .form-row .button { min-width: max-content; }
+.app-frame .profile-grid .form-row,
+.app-frame .card > .form-row { gap: 12px; }
+.app-frame .privacy-callout { border-color: var(--app-gold); color: #687486; }
+.app-frame .badge { background: rgba(201,171,96,.2); color: #735f2f; border-radius: 7px; font: 700 8px "Courier New",monospace; letter-spacing: .08em; text-transform: uppercase; }
+.app-frame .status-banner,
+.app-frame .disclosure { border-radius: 11px; }
+@media (max-width: 760px) {
+  .app-frame .vault-image { height: 190px; }
+  .app-frame .vault-head > div { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .app-frame .form-row { flex-direction: column; }
+  .app-frame .form-row .button { width: 100%; }
+}

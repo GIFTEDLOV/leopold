@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useMemo } from "react";
 
 import { useLeopoldUiController, type UiPrivateValue, type UiVaultSummary } from "@/components/leopold-ui-controller";
@@ -8,6 +9,13 @@ import styles from "./dashboard-experience.module.css";
 
 const USDC_DECIMALS = 6n;
 const USDC_SCALE = 10n ** USDC_DECIMALS;
+
+const vaultPresentation = {
+  daily: { note: "Fast rhythm", image: "/marketing/leopold/leopold-daily.webp" },
+  weekly: { note: "Recommended", image: "/marketing/leopold/leopold-weekly.webp" },
+  monthly: { note: "Long horizon", image: "/marketing/leopold/leopold-monthly.webp" },
+  boost: { note: "Sponsor enhanced", image: "/marketing/leopold/leopold-boost.webp" },
+} as const;
 
 function formatUsdc(value: bigint | null): string {
   if (value === null) return "—";
@@ -162,20 +170,29 @@ export function DashboardExperience() {
         <div className={styles.vaultGrid}>
           {controller.vaults.map((vault, index) => (
             <Link className={`${styles.vaultCard} ${vault.recommended ? styles.recommended : ""}`} href={`/app/vaults/${vault.id}`} key={vault.id}>
-              <div className={styles.vaultTopline}>
+              <figure className={styles.vaultImage}>
+                <Image src={vaultPresentation[vault.id].image} alt={`${vault.name} prize-saving vault`} fill sizes="(max-width: 760px) 100vw, (max-width: 1200px) 50vw, 25vw" />
                 <span>{String(index + 1).padStart(2, "0")}</span>
-                <span>{vault.recommended ? "Recommended" : vaultStatus(vault)}</span>
-              </div>
-              <h3>{vault.name}</h3>
-              <div className={styles.vaultRule} />
-              <dl>
-                <div><dt>Cadence</dt><dd>{durationLabel(vault.durationSeconds)}</dd></div>
-                <div><dt>Round</dt><dd>{vault.round.id?.toString() ?? "—"}</dd></div>
-                <div><dt>Prize reserve</dt><dd>{vault.round.publicPrizeReserve !== null ? `${formatUsdc(vault.round.publicPrizeReserve)} USDC` : "—"}</dd></div>
-              </dl>
-              <div className={styles.vaultPrivate}>
-                <span>Your savings</span>
-                <strong>{protectedAmount(vault.privateSavings)}</strong>
+              </figure>
+              <div className={styles.vaultBody}>
+                <div className={styles.vaultTitleRow}>
+                  <h3>{vault.name}</h3>
+                  <span>{vaultPresentation[vault.id].note}</span>
+                </div>
+                <div className={styles.vaultTopline}>
+                  <span>{vaultStatus(vault)}</span>
+                  <span>{vault.round.label}</span>
+                </div>
+                <div className={styles.vaultRule} />
+                <dl>
+                  <div><dt>Cadence</dt><dd>{durationLabel(vault.durationSeconds)}</dd></div>
+                  <div><dt>Round</dt><dd>{vault.round.id?.toString() ?? "—"}</dd></div>
+                  <div><dt>Prize reserve</dt><dd>{vault.round.publicPrizeReserve !== null ? `${formatUsdc(vault.round.publicPrizeReserve)} USDC` : "—"}</dd></div>
+                </dl>
+                <div className={styles.vaultPrivate}>
+                  <span>Your savings</span>
+                  <strong>{protectedAmount(vault.privateSavings)}</strong>
+                </div>
               </div>
             </Link>
           ))}

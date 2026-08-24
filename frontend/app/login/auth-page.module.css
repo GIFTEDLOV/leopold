@@ -350,3 +350,26 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+.scope :global(.button) {
+  border-radius: 9px;
+  box-shadow: inset 0 1px rgba(255,255,255,.18), 0 6px 15px rgba(10,25,43,.12);
+  font: 700 9px/1 "Courier New", monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease, color .18s ease, border-color .18s ease;
+}
+.scope :global(.button:not(.secondary)) {
+  background: linear-gradient(180deg,#172b45 0%,#07101d 100%);
+  border-color: #07101d;
+}
+.scope :global(.button.secondary) {
+  background: linear-gradient(180deg,#fffef9 0%,#eeebe2 100%);
+  border-color: rgba(16,37,64,.38);
+  color: #102540;
+  box-shadow: inset 0 1px rgba(255,255,255,.82),0 6px 15px rgba(10,25,43,.11);
+}
+.scope :global(.button:hover:not(:disabled)) {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px rgba(255,255,255,.25),0 10px 22px rgba(10,25,43,.17);
+}

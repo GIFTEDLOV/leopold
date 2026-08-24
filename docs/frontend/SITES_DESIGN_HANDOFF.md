@@ -529,3 +529,19 @@ Before changing this page:
 - `/ops`
 
 The repository also retains its existing privacy, terms, health, probe, and E2E support routes. This design import does not remove or redirect them.
+
+## Authenticated application presentation
+
+The approved internal application shell is now integrated without replacing the existing authentication, wallet, financial-provider, or protocol behavior:
+
+- The desktop sidebar rests as a 56px icon rail and expands to 218px on pointer hover or keyboard focus.
+- The complete Leopold wordmark remains visible when expanded; the gold monogram remains visible when collapsed.
+- Navigation uses familiar inline SVG icons for Home, Vaults, Prizes, Activity, Rewards, and Profile.
+- Footer guidance is hidden in the compact rail and wraps normally only after expansion.
+- The 54px top bar uses the Leopold monogram and wordmark in place of a persistent network label; wallet/network recovery remains available through the existing account and recovery controls.
+- App surfaces use navy, warm paper, muted gold, dotted texture, layered shadows, 14px card radii, and the existing serif/monospace hierarchy.
+- Non-marketing buttons use a clear hierarchy: gold primary actions, solid navy directional actions, raised paper secondary actions, and visible disabled states.
+- Daily, Weekly, Monthly, and Boost cards use the same local editorial photographs as the marketing cadence section. Descriptors sit beside vault names rather than over the images.
+- Dashboard values and actions still come exclusively from `useLeopoldUiController()`; vault directory and detail actions continue using the existing financial provider boundary.
+
+The landing-page component and its button treatment remain unchanged by these authenticated-application rules.
