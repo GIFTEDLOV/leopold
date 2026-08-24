@@ -212,6 +212,81 @@
   background: rgba(242, 240, 233, 0.66);
 }
 
+.formContent :global(.card h2) {
+  margin: 5px 0 2px;
+  color: var(--navy);
+  font: 400 27px/1.05 var(--serif);
+  letter-spacing: -0.025em;
+}
+
+.formContent :global(.badge) {
+  width: max-content;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(192, 164, 100, 0.18);
+  color: var(--navy);
+  font: 700 8px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.formContent :global(.card + .button),
+.formContent :global(form + .button) {
+  margin-top: 4px;
+}
+
+.formContent :global(.profile-actions) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.formContent :global(.profile-actions .button) {
+  position: relative;
+  height: 50px;
+  min-height: 50px;
+  margin: 0;
+  justify-content: center;
+  padding: 0 36px;
+  text-align: center;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.formContent :global(.profile-actions .button::after) {
+  position: absolute;
+  right: 15px;
+}
+
+.formContent :global(.profile-actions .button:only-child) {
+  grid-column: 1 / -1;
+}
+
+.formContent :global(.profile-actions .profile-primary) {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, #d5b86d 0%, var(--gold) 100%);
+  color: var(--ink);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.34), 0 8px 18px rgba(10, 25, 43, 0.15);
+}
+
+.formContent :global(.profile-actions .profile-primary:hover) {
+  border-color: #d4b45f;
+  background: linear-gradient(180deg, #dfc579 0%, #c9a857 100%);
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .formContent :global(.profile-actions) { gap: 8px; margin-top: 10px; }
+  .formContent :global(.profile-actions .button) {
+    height: 42px;
+    min-height: 42px;
+    padding-inline: 27px;
+    white-space: normal;
+  }
+}
+
 .formContent :global(.card) :global(.subtle) { font-size: 11px; }
 .formContent :global(.error) {
   margin-top: 10px;

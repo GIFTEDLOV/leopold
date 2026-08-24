@@ -77,7 +77,23 @@ function MosaicPanel() {
   );
 }
 
-export function LoginShell({ children }: { children: ReactNode }) {
+type LoginShellProps = {
+  children: ReactNode;
+  eyebrow?: string;
+  title?: ReactNode;
+};
+
+export function LoginShell({
+  children,
+  eyebrow = "PRIVATE PRIZE SAVINGS",
+  title = (
+    <>
+      Sign Up/Sign In
+      <br />
+      to <span>Leopold</span>
+    </>
+  ),
+}: LoginShellProps) {
   return (
     <main className={styles.login}>
       <section className={styles.board} aria-labelledby="login-title">
@@ -96,12 +112,8 @@ export function LoginShell({ children }: { children: ReactNode }) {
           </Link>
 
           <div className={styles.formContent}>
-            <p className={styles.eyebrow}>PRIVATE PRIZE SAVINGS</p>
-            <h1 id="login-title">
-              Sign Up/Sign In
-              <br />
-              to <span>Leopold</span>
-            </h1>
+            <p className={styles.eyebrow}>{eyebrow}</p>
+            <h1 id="login-title">{title}</h1>
             {children}
           </div>
 

@@ -545,3 +545,5 @@ The approved internal application shell is now integrated without replacing the 
 - Dashboard values and actions still come exclusively from `useLeopoldUiController()`; vault directory and detail actions continue using the existing financial provider boundary.
 
 The landing-page component and its button treatment remain unchanged by these authenticated-application rules.
+
+The authenticated profile-completion state at `/onboarding` reuses the login page's split-board shell. Wallet-first email verification, username creation, provider-required profile completion, verified-wallet connection, and entry into `/app` retain their existing handlers; only their presentation is shared with the login system.
