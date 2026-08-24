@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { AddMoneyModal } from "./add-money-modal";
@@ -175,6 +176,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <p>Private values stay hidden until you deliberately reveal them.</p>
           <Link href="/app/help">Help &amp; support</Link>
           <Link href="/transparency">Protocol transparency</Link>
+          <ThemeToggle className="sidebar-theme-toggle" />
         </div>
       </aside>
       <main className="app-main">

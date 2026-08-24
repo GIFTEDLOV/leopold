@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import styles from "./leopold-marketing-home.module.css";
@@ -491,7 +492,7 @@ export function LeopoldMarketingHome() {
           <div className={styles["footer-privacy"]}><h3>PRIVACY</h3><p>Confidential, not anonymous.</p><p>Private values reveal only on explicit user action.</p></div>
           <a className={styles["footer-monogram"]} href="#top" aria-label="Leopold home"><span aria-hidden="true" /></a>
         </div>
-        <div className={styles["footer-legal"]}><span>© 2026 LEOPOLD</span><span>SEPOLIA PROTOTYPE · NOT AN OFFER OF FINANCIAL SERVICES</span></div>
+        <div className={styles["footer-legal"]}><span>© 2026 LEOPOLD</span><ThemeToggle className={styles["footer-theme-toggle"]} /><span>SEPOLIA PROTOTYPE · NOT AN OFFER OF FINANCIAL SERVICES</span></div>
       </footer>
     </div>
   );

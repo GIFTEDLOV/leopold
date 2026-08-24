@@ -1144,6 +1144,56 @@ input:focus-visible {
 .app-frame .badge { background: rgba(201,171,96,.2); color: #735f2f; border-radius: 7px; font: 700 8px "Courier New",monospace; letter-spacing: .08em; text-transform: uppercase; }
 .app-frame .status-banner,
 .app-frame .disclosure { border-radius: 11px; }
+
+.app-frame .sidebar-theme-toggle { width:100%; min-width:0; justify-content:flex-start; margin-top:8px; color:rgba(255,255,255,.72); }
+
+html[data-leopold-theme="dark"] body { background:#07101d; color:#f7f4eb; }
+html[data-leopold-theme="dark"] .landing { background:#07101d; color:#f7f4eb; }
+html[data-leopold-theme="dark"] .landing .landing-nav { color:#f7f4eb; }
+html[data-leopold-theme="dark"] .landing .brand-mark { background:#c9ab60; color:#07101d; }
+html[data-leopold-theme="dark"] .landing .card { background:#0d1a2b; border-color:rgba(255,255,255,.13); box-shadow:0 10px 28px rgba(0,0,0,.2); }
+html[data-leopold-theme="dark"] .landing .list-row { border-color:rgba(255,255,255,.13); }
+html[data-leopold-theme="dark"] .landing .subtle,
+html[data-leopold-theme="dark"] .landing .config-list,
+html[data-leopold-theme="dark"] .landing .privacy-callout { color:#a8b4c3; }
+html[data-leopold-theme="dark"] .landing .button.secondary { background:#132238; border-color:transparent; color:#f7f4eb; }
+html[data-leopold-theme="dark"] .app-frame {
+  --app-navy:#f7f4eb; --app-blue:#1b2c44; --app-paper:#07101d; --app-white:#0d1a2b; --app-line:rgba(255,255,255,.13);
+  background-color:#07101d; background-image:radial-gradient(rgba(255,255,255,.045) .55px,transparent .55px); color:#f7f4eb;
+}
+html[data-leopold-theme="dark"] .app-frame .topbar { background:rgba(7,16,29,.94); border-color:rgba(255,255,255,.11); box-shadow:0 5px 22px rgba(0,0,0,.22); }
+html[data-leopold-theme="dark"] .app-frame .topbar-brand { color:#fffef9; }
+html[data-leopold-theme="dark"] .app-frame .nav-link { color:#aeb8c5; }
+html[data-leopold-theme="dark"] .app-frame .nav-link:hover,
+html[data-leopold-theme="dark"] .app-frame .nav-link.active { background:rgba(201,171,96,.1); border-color:rgba(201,171,96,.28); color:#fffef9; }
+html[data-leopold-theme="dark"] .app-frame .account-pill,
+html[data-leopold-theme="dark"] .app-frame .button.secondary { background:linear-gradient(180deg,#1d3049,#101f33); border-color:transparent; color:#f7f4eb; }
+html[data-leopold-theme="dark"] .app-frame .card,
+html[data-leopold-theme="dark"] .app-frame .vault-card,
+html[data-leopold-theme="dark"] .app-frame .account-popover,
+html[data-leopold-theme="dark"] .app-frame .modal,
+html[data-leopold-theme="dark"] .app-frame .wallet-gate { background:#0d1a2b; border-color:rgba(90,119,151,.28); box-shadow:0 10px 28px rgba(0,0,0,.2); }
+html[data-leopold-theme="dark"] .app-frame .page-heading p,
+html[data-leopold-theme="dark"] .app-frame .subtle,
+html[data-leopold-theme="dark"] .app-frame .vault-meta,
+html[data-leopold-theme="dark"] .app-frame .privacy-callout { color:#9fabb9; }
+html[data-leopold-theme="dark"] .app-frame .input { background:#0d1a2b; border-color:rgba(255,255,255,.14); color:#f7f4eb; }
+html[data-leopold-theme="dark"] .app-frame .filter-bar,
+html[data-leopold-theme="dark"] .app-frame .tabs { background:transparent; border-color:transparent; box-shadow:none; }
+html[data-leopold-theme="dark"] .app-frame .filter-bar button,
+html[data-leopold-theme="dark"] .app-frame .tabs button { background:#132238; border-color:transparent; color:#c5ced9; box-shadow:0 5px 14px rgba(0,0,0,.18); }
+html[data-leopold-theme="dark"] .app-frame .filter-bar button.active,
+html[data-leopold-theme="dark"] .app-frame .tabs button.active { background:linear-gradient(180deg,#d8bd78,var(--app-gold)); color:#07101d; }
+html[data-leopold-theme="dark"] .app-frame button:disabled { background:#101d2f; color:#718095; border-color:transparent; box-shadow:none; }
+html[data-leopold-theme="dark"] .app-frame .vault-note { color:#9ba8b8; }
+html[data-leopold-theme="dark"] .app-frame .vault-image > span { color:#f7f4eb; text-shadow:0 1px 2px rgba(0,0,0,.75); }
+
+@media (max-width:520px) {
+  .app-frame .topbar { height:auto; min-height:52px; flex-wrap:wrap; }
+  .app-frame .content { padding-left:13px; padding-right:13px; }
+  .app-frame .card { padding:20px; }
+  .app-frame .page-heading h1 { font-size:40px; }
+}
 @media (max-width: 760px) {
   .app-frame .vault-image { height: 190px; }
   .app-frame .vault-head > div { align-items: flex-start; flex-direction: column; gap: 6px; }

@@ -19,6 +19,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: 'try{var t=localStorage.getItem("leopold-theme");if(t==="dark"||t==="light")document.documentElement.dataset.leopoldTheme=t}catch(e){}' }} />
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>

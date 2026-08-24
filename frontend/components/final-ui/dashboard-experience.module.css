@@ -127,3 +127,32 @@
 .listPanel{border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:inset 0 1px rgba(255,255,255,.92),0 13px 32px rgba(16,37,64,.08),0 3px 10px rgba(16,37,64,.05)}
 .footerNote{border-radius:14px;box-shadow:inset 0 1px rgba(255,255,255,.8),0 10px 24px rgba(16,37,64,.07)}
 @media(max-width:760px){.dashboard{padding:30px 16px 60px}.vaultImage{height:190px}.vaultTitleRow{align-items:flex-start;flex-direction:column;gap:6px}}
+
+:global(html[data-leopold-theme="dark"]) .dashboard{--navy:#f7f4eb;--navy-soft:#1b2c44;--paper:#07101d;--paper-deep:#0d1a2b;--muted:#a8b4c3;--line:rgba(255,255,255,.13);color:#f7f4eb}
+:global(html[data-leopold-theme="dark"]) .eyebrow,
+:global(html[data-leopold-theme="dark"]) .introMeta span,
+:global(html[data-leopold-theme="dark"]) .introMeta small,
+:global(html[data-leopold-theme="dark"]) .panelHeader,
+:global(html[data-leopold-theme="dark"]) .vaultTopline,
+:global(html[data-leopold-theme="dark"]) .recommended .vaultTopline,
+:global(html[data-leopold-theme="dark"]) .vaultCard dt,
+:global(html[data-leopold-theme="dark"]) .recommended dt,
+:global(html[data-leopold-theme="dark"]) .vaultPrivate span { color:#9fabb9; }
+:global(html[data-leopold-theme="dark"]) .balancePanel,
+:global(html[data-leopold-theme="dark"]) .vaultCard,
+:global(html[data-leopold-theme="dark"]) .recommended,
+:global(html[data-leopold-theme="dark"]) .listPanel { background:#0d1a2b; color:#f7f4eb; border-color:rgba(90,119,151,.28); box-shadow:0 10px 28px rgba(0,0,0,.2); }
+:global(html[data-leopold-theme="dark"]) .primaryPanel { background:linear-gradient(145deg,#101f34,#172e4c); }
+:global(html[data-leopold-theme="dark"]) .opportunityPanel,
+:global(html[data-leopold-theme="dark"]) .footerNote { background:#101d2f; }
+:global(html[data-leopold-theme="dark"]) .vaultCard:hover,
+:global(html[data-leopold-theme="dark"]) .recommended:hover { background:#14253b; color:#f7f4eb; box-shadow:0 16px 34px rgba(0,0,0,.28); }
+:global(html[data-leopold-theme="dark"]) .vaultTitleRow>span { color:#9ba8b8; }
+:global(html[data-leopold-theme="dark"]) .vaultImage>span { color:#f7f4eb; text-shadow:0 1px 2px rgba(0,0,0,.8); }
+:global(html[data-leopold-theme="dark"]) .textLink,
+:global(html[data-leopold-theme="dark"]) .revealButton,
+:global(html[data-leopold-theme="dark"]) .sectionHeading>a,
+:global(html[data-leopold-theme="dark"]) .listHeading>a,
+:global(html[data-leopold-theme="dark"]) .footerNote a { background:linear-gradient(180deg,#223956,#14263e); border-color:transparent; color:#f7f4eb; }
+:global(html[data-leopold-theme="dark"]) .primaryPanel .textLink { background:linear-gradient(180deg,#d8bd78,var(--gold)); color:#07101d; }
+:global(html[data-leopold-theme="dark"]) .revealButton:disabled { background:#101d2f; color:#718095; border-color:transparent; }
