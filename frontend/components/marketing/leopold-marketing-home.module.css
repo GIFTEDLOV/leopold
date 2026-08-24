@@ -245,19 +245,25 @@
 .footer-theme-toggle { flex:0 0 auto; color:rgba(255,255,255,.72); }
 
 :global(html[data-leopold-theme="dark"]) .marketing {
-  --navy:#f7f4eb; --navy-soft:#aeb9c8; --paper:#07101d; --paper-deep:#0d1a2b;
-  --mist:#7e8998; --line:rgba(255,255,255,.13); background:#07101d; color:#f7f4eb;
+  --line:rgba(255,255,255,.13);
+  background:#07101d;
+  color:#f7f4eb;
 }
 :global(html[data-leopold-theme="dark"]) .site-header { background:#030811; border-color:rgba(255,255,255,.08); }
 :global(html[data-leopold-theme="dark"]) .brand-mark { filter:brightness(0) saturate(100%) invert(76%) sepia(35%) saturate(706%) hue-rotate(4deg) brightness(90%) contrast(86%); }
 :global(html[data-leopold-theme="dark"]) .gateway,
 :global(html[data-leopold-theme="dark"]) .built { background-color:#07101d; background-image:radial-gradient(rgba(255,255,255,.045) .55px,transparent .55px); }
 :global(html[data-leopold-theme="dark"]) .product-copy { background:#0d1a2b; border-color:rgba(255,255,255,.12); }
+:global(html[data-leopold-theme="dark"]) .product-copy .section-label,
+:global(html[data-leopold-theme="dark"]) .saving-process-heading .section-label { background:#17273c; color:#d8bd78; }
 :global(html[data-leopold-theme="dark"]) .product-copy > p:not(.section-label),
 :global(html[data-leopold-theme="dark"]) .saving-steps p { color:#a8b4c3; }
+:global(html[data-leopold-theme="dark"]) .product-copy a { color:#f7f4eb; }
 :global(html[data-leopold-theme="dark"]) .saving-process { background:#0b1727; }
 :global(html[data-leopold-theme="dark"]) .saving-steps,
 :global(html[data-leopold-theme="dark"]) .saving-steps li { border-color:rgba(255,255,255,.13); }
+:global(html[data-leopold-theme="dark"]) .pixel-cutouts__tile { background-color:#07101d; background-image:radial-gradient(rgba(255,255,255,.05) .55px,transparent .55px); }
+:global(html[data-leopold-theme="dark"]) .feature-card { box-shadow:0 14px 34px rgba(0,0,0,.2); }
 :global(html[data-leopold-theme="dark"]) .section-label { background:#17273c; color:#d8bd78; }
 :global(html[data-leopold-theme="dark"]) .principle,
 :global(html[data-leopold-theme="dark"]) .site-footer { background:#030811; }
