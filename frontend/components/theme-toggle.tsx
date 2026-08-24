@@ -1,22 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import styles from "./theme-toggle.module.css";
 
 type Theme = "light" | "dark";
 
-export function ThemeToggle({ className = "" }: { className?: string }) {
-  const [theme, setTheme] = useState<Theme>("light");
+const THEME_EVENT = "leopold-theme-change";
 
-  useEffect(() => {
-    setTheme(document.documentElement.dataset.leopoldTheme === "dark" ? "dark" : "light");
-  }, []);
+function getThemeSnapshot(): Theme {
+  return document.documentElement.dataset.leopoldTheme === "dark" ? "dark" : "light";
+}
+
+function getServerThemeSnapshot(): Theme {
+  return "light";
+}
+
+function subscribeToTheme(onStoreChange: () => void) {
+  window.addEventListener(THEME_EVENT, onStoreChange);
+  return () => window.removeEventListener(THEME_EVENT, onStoreChange);
+}
+
+export function ThemeToggle({ className = "" }: { className?: string }) {
+  const theme = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, getServerThemeSnapshot);
 
   const toggleTheme = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.leopoldTheme = next;
     window.localStorage.setItem("leopold-theme", next);
-    setTheme(next);
+    window.dispatchEvent(new Event(THEME_EVENT));
   };
 
   return (
