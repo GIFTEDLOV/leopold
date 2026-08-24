@@ -209,7 +209,7 @@ describe("explicit wallet disconnect followed by account rehydration", () => {
 
   it("keeps the account and linked-wallet metadata while the explicit wallet session stays disconnected", async () => {
     await act(async () => root?.render(<TestApplication />));
-    await waitFor(container, "Ethereum Sepolia");
+    await waitFor(container, `SIGNED_IN_READY|verified@example.com|leopold_user|PRESENT|${dynamic.address}|CONNECTED|NONE`);
 
     await act(async () => buttonWithText(container, dynamic.address.slice(0, 6)).click());
     await act(async () => buttonWithText(container, "Disconnect").click());
@@ -260,7 +260,7 @@ describe("explicit wallet disconnect followed by account rehydration", () => {
     });
     dynamic.updateUser.mockRejectedValueOnce(collision);
     await act(async () => root?.render(<TestApplication />));
-    await waitFor(container, "Ethereum Sepolia");
+    await waitFor(container, `SIGNED_IN_READY|verified@example.com|leopold_user|PRESENT|${dynamic.address}|CONNECTED|NONE`);
 
     await act(async () => buttonWithText(container, "Test username collision").click());
     await waitFor(container, "That username is unavailable. Choose another one.");
@@ -303,7 +303,7 @@ describe("explicit wallet disconnect followed by account rehydration", () => {
 
   it("keeps account signout separate and clears the Leopold wallet-session marker", async () => {
     await act(async () => root?.render(<TestApplication />));
-    await waitFor(container, "Ethereum Sepolia");
+    await waitFor(container, `SIGNED_IN_READY|verified@example.com|leopold_user|PRESENT|${dynamic.address}|CONNECTED|NONE`);
 
     await act(async () => buttonWithText(container, "Test account sign out").click());
     expect(dynamic.handleLogOut).toHaveBeenCalledOnce();
