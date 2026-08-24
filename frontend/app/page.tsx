@@ -9,7 +9,7 @@ export default function HomePage() {
           color: #fffef9;
         }
 
-        header a[href="/app"] {
+        header a[href="/onboarding"] {
           color: #c0a464;
         }
       `}</style>
