@@ -87,6 +87,7 @@ type LoginShellProps = {
 export function LoginShell({
   children,
   eyebrow = "PRIVATE PRIZE SAVINGS",
+  profileLayout = false,
   title = (
     <>
       Sign Up/Sign In
@@ -94,7 +95,6 @@ export function LoginShell({
       to <span>Leopold</span>
     </>
   ),
-  profileLayout = false,
 }: LoginShellProps) {
   return (
     <main className={styles.login}>
