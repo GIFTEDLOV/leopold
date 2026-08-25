@@ -228,6 +228,10 @@
 .privacyBand,.helpCta{margin-top:44px}
 :global(html[data-leopold-theme="dark"]) .brand>span{color:#fffef9}
 
+/* Keep prize filters visually attached to their cards in both themes. */
+.tabRow{margin:0 0 14px;padding:0;background:transparent;border:0;box-shadow:none}
+.tabRow + .prizeGrid{margin-top:0}
+
 @media(max-height:820px) and (min-width:801px){
   .navLabel{margin-top:28px}
   .nav{gap:1px}
