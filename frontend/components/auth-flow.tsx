@@ -276,7 +276,7 @@ export function OnboardingClient() {
           </button>
         </div>
       ) : (
-        <div className="card">
+        <div className="card profile-ready-card">
           <span className="badge">Email verified</span>
           <h2>{auth.username ?? "Profile ready"}</h2>
           <p className="subtle">
