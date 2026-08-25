@@ -219,8 +219,38 @@ export function LeopoldMarketingHome() {
   const [principleHeadline, setPrincipleHeadline] = useState(0);
   const [protocolEntered, setProtocolEntered] = useState(false);
   const [savingProcessEntered, setSavingProcessEntered] = useState(false);
+  const heroRef = useRef<HTMLElement>(null);
+  const heroTitleRef = useRef<HTMLHeadingElement>(null);
   const protocolRef = useRef<HTMLElement>(null);
   const savingProcessRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const hero = heroRef.current;
+    const heroTitle = heroTitleRef.current;
+    if (!hero || !heroTitle || reducedMotion.matches) return;
+
+    let animationFrame = 0;
+    const updateScrollEffect = () => {
+      animationFrame = 0;
+      const heroRect = hero.getBoundingClientRect();
+      const progress = Math.min(1, Math.max(0, -heroRect.top / Math.max(heroRect.height, 1)));
+      heroTitle.style.setProperty("--hero-scroll-scale", (1 + progress * 0.55).toFixed(3));
+      heroTitle.style.setProperty("--hero-scroll-lift", `${(-progress * 12).toFixed(1)}px`);
+    };
+    const requestUpdate = () => {
+      if (animationFrame) return;
+      animationFrame = window.requestAnimationFrame(updateScrollEffect);
+    };
+    updateScrollEffect();
+    window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+    return () => {
+      window.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("resize", requestUpdate);
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+    };
+  }, []);
 
   useEffect(() => {
     heroImages.forEach((source) => {
@@ -314,7 +344,7 @@ export function LeopoldMarketingHome() {
       </header>
 
       <main id="marketing-main">
-        <section className={styles.hero} id="top" aria-label="Leopold introduction">
+        <section className={styles.hero} id="top" aria-label="Leopold introduction" ref={heroRef}>
           <div className={styles["hero-tiles"]} aria-hidden="true">
             {Array.from({ length: 96 }).map((_, index) => (
               <span
@@ -336,7 +366,7 @@ export function LeopoldMarketingHome() {
           <div className={styles["hero-shade"]} />
           <div className={styles["hero-copy"]}>
             <p className={styles.eyebrow}>PRIVATE PRIZE SAVINGS</p>
-            <h1>Private savings.<br /><StyledWords accentWords={["provable"]}>Publicly provable.</StyledWords></h1>
+            <h1 className={styles["hero-scroll-title"]} ref={heroTitleRef}>Private savings.<br /><StyledWords accentWords={["provable"]}>Publicly provable.</StyledWords></h1>
           </div>
           <button
             className={styles["scroll-cue"]}
@@ -482,7 +512,7 @@ export function LeopoldMarketingHome() {
 
       <footer className={styles["site-footer"]}>
         <div className={styles["footer-brandline"]}>
-          <a className={classes("brand", "brand--large")} href="#top"><BrandMark /><span>Leopold</span></a>
+          <a className={classes("brand", "brand--large")} href="#top"><BrandMark /><span>Leop<span className={styles["brand-word-accent"]}>old</span></span></a>
           <h2>Private prize savings, built to be verified.</h2>
         </div>
         <div className={styles["footer-grid"]}>

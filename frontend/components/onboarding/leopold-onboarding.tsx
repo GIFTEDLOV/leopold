@@ -190,7 +190,6 @@ function OnboardingWalkthrough() {
         <Brand />
         <div className={styles["header-links"]}>
           <span>PRIVATE PRIZE SAVINGS</span>
-          <Link className={styles["skip-onboarding"]} href="/login">Jump to sign in <span aria-hidden="true">↗</span></Link>
         </div>
       </header>
 
@@ -215,6 +214,7 @@ function OnboardingWalkthrough() {
                   <span className={styles["image-index"]} aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                 </div>
                 <div className={styles["slide-copy"]}>
+                  <div className={styles["board-brand"]}><Brand /><span>ONBOARDING</span></div>
                   <div className={styles["board-intro"]}>
                     <p>LEOPOLD ORIENTATION</p>
                     <div>
@@ -226,31 +226,15 @@ function OnboardingWalkthrough() {
                   <h2><AccentTitle accentWords={slide.accentWords}>{slide.title}</AccentTitle></h2>
                   <p className={styles.copy}>{slide.copy}</p>
                   <p className={styles.note}>{slide.note}</p>
-                  {"complete" in slide && slide.complete ? (
-                    <div className={styles["completion-actions"]}>
-                      <Link className={styles.primary} href="/login">Continue to sign in <span aria-hidden="true">↗</span></Link>
-                      <Link className={styles.secondary} href="/">Return to landing page</Link>
-                    </div>
-                  ) : (
-                    <button className={styles["step-next"]} type="button" onClick={() => goTo(index + 1)}>Next step <span aria-hidden="true">→</span></button>
-                  )}
+                  <div className={styles["slide-actions"]}>
+                    {index > 0 ? <button className={styles["step-previous"]} type="button" onClick={() => goTo(index - 1)}><span aria-hidden="true">←</span> Previous step</button> : null}
+                    {"complete" in slide && slide.complete ? <div className={styles["completion-actions"]}><Link className={styles.primary} href="/login">Continue to sign in <span aria-hidden="true">↗</span></Link><Link className={styles.secondary} href="/">Return to landing page</Link></div> : <><button className={styles["step-next"]} type="button" onClick={() => goTo(index + 1)}>Next step <span aria-hidden="true">→</span></button><div className={styles["jump-row"]}><Link className={styles["jump-sign-in"]} href="/login">Jump to sign in <span aria-hidden="true">↗</span></Link></div></>}
+                  </div>
                 </div>
               </article>
             ))}
           </div>
 
-          <div className={styles.progress} role="group" aria-label="Choose an onboarding step">
-            {onboardingSlides.map((slide, index) => (
-              <button
-                className={index === activeIndex ? styles.active : undefined}
-                type="button"
-                onClick={() => goTo(index)}
-                aria-label={`Go to step ${index + 1}: ${slide.title}`}
-                aria-current={index === activeIndex ? "step" : undefined}
-                key={slide.label}
-              ><span>{String(index + 1).padStart(2, "0")}</span></button>
-            ))}
-          </div>
         </section>
       </main>
     </div>

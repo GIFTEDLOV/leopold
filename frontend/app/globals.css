@@ -1200,3 +1200,24 @@ html[data-leopold-theme="dark"] .app-frame .vault-image > span { color:#f7f4eb; 
   .app-frame .form-row { flex-direction: column; }
   .app-frame .form-row .button { width: 100%; }
 }
+
+/* Final approved compact application shell. */
+@media (min-width:761px) {
+  .app-frame .sidebar{width:48px;padding:20px 6px}
+  .app-frame .sidebar:hover,.app-frame .sidebar:focus-within{width:202px;padding-inline:14px}
+  .app-frame .app-main{margin-left:48px}
+  .app-frame .sidebar .brand{width:36px}
+  .app-frame .sidebar:hover .brand,.app-frame .sidebar:focus-within .brand{width:174px;min-width:174px}
+  .app-frame .nav-link{width:36px;min-height:40px;padding-inline:7px}
+  .app-frame .sidebar:hover .nav-link,.app-frame .sidebar:focus-within .nav-link{padding-inline:9px}
+  .app-frame .sidebar-foot{padding-inline:8px;padding-top:13px;gap:7px;font-size:10px}
+}
+.app-frame .topbar{height:48px;min-height:48px;padding-inline:2.2vw}
+.app-frame .content{padding:24px 2.4vw 56px}
+.app-frame .page-heading{margin-bottom:24px}
+.app-frame .section{margin-top:44px}
+html[data-leopold-theme="dark"] .app-frame .sidebar .brand>span{color:#fffef9}
+.app-frame .card,.app-frame .vault-card{border-bottom:3px solid rgba(201,171,96,.72)}
+html[data-leopold-theme="dark"] .app-frame .card,html[data-leopold-theme="dark"] .app-frame .vault-card{border-bottom-color:#c9ab60}
+@media(max-height:820px) and (min-width:761px){.app-frame .nav-label{margin-top:28px}.app-frame .nav-list{gap:1px}.app-frame .nav-link{min-height:37px}.app-frame .sidebar-foot p{display:none}}
+@media(max-height:700px) and (min-width:761px){.app-frame .sidebar{padding-block:14px}.app-frame .nav-label{margin-top:18px;margin-bottom:8px}.app-frame .nav-link{min-height:34px}.app-frame .sidebar-foot{padding-top:8px;gap:5px}}

@@ -98,6 +98,28 @@
 }
 @media (prefers-reduced-motion:reduce) { .onboarding *, .onboarding *::before, .onboarding *::after { scroll-behavior:auto!important; transition-duration:.01ms!important; } }
 
+/* Approved compact onboarding presentation. */
+.carousel{padding:12px 5.2vw;grid-template-rows:minmax(0,1fr)}
+.slide{grid-template-columns:minmax(0,.98fr) minmax(360px,1.02fr);border-color:rgba(255,255,255,.32);border-bottom:4px solid var(--accent-yellow);box-shadow:none}
+.slide::after{box-shadow:none}
+.slide-copy{justify-content:flex-start;padding:42px clamp(34px,4vw,64px) 30px}
+.board-brand{width:max-content;margin:0 0 34px;display:flex;align-items:center;gap:18px}
+.board-brand .brand{width:max-content;gap:13px;font-size:28px}
+.board-brand .brand-mark{width:34px;height:34px;filter:brightness(0) saturate(100%) invert(70%) sepia(40%) saturate(624%) hue-rotate(4deg) brightness(94%) contrast(88%)}
+.board-brand>span{min-height:28px;padding-left:18px;display:inline-flex;align-items:center;border-left:1px solid var(--line);color:var(--accent-yellow);font:700 9px var(--mono);letter-spacing:.2em}
+.board-intro{margin-bottom:28px;padding-bottom:18px}.board-intro>p{margin-bottom:9px;font-size:9px}.board-intro>div>span{font-size:clamp(22px,1.8vw,29px);line-height:1.14}
+.label{margin-bottom:18px;padding:7px 10px;font-size:10px}.slide-copy h2{max-width:620px;font-size:clamp(38px,3.1vw,49px);line-height:1.04}.copy{max-width:620px;margin-top:20px;font-size:16px;line-height:1.62}.note{max-width:620px;margin-top:20px;padding-top:14px;font-size:10px;line-height:1.65}
+.slide-actions{margin-top:20px;display:flex;flex-wrap:wrap;align-items:center;gap:12px}.slide-actions .step-next,.slide-actions .completion-actions{margin-top:0}.jump-row{flex:0 0 100%}
+.jump-sign-in,.step-previous{width:max-content;min-height:40px;padding:0 15px;display:inline-flex;align-items:center;border-radius:9px;font:700 9px var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.jump-sign-in{gap:10px;border:1px solid var(--accent-yellow);background:linear-gradient(180deg,#d8bd78,var(--accent-yellow));color:var(--ink)!important;box-shadow:inset 0 1px rgba(255,255,255,.34),0 7px 16px rgba(10,25,43,.15)}
+.step-previous{border:1px solid var(--line);background:rgba(255,254,249,.72);color:var(--navy);cursor:pointer;box-shadow:inset 0 1px rgba(255,255,255,.34),0 6px 15px rgba(10,25,43,.12)}.step-previous span{margin-right:9px}
+:global(html[data-leopold-theme="dark"]) .slide{border-color:rgba(255,255,255,.11);border-bottom-color:var(--accent-yellow);box-shadow:none}
+:global(html[data-leopold-theme="dark"]) .slide::after{box-shadow:none}
+:global(html[data-leopold-theme="dark"]) .brand>span{color:#fffef9}
+:global(html[data-leopold-theme="dark"]) .board-brand .brand-mark{filter:brightness(0) saturate(100%) invert(76%) sepia(35%) saturate(706%) hue-rotate(4deg) brightness(90%) contrast(86%)}
+:global(html[data-leopold-theme="dark"]) .step-previous{background:linear-gradient(180deg,#1a2a40,#0f1d30);border-color:rgba(255,255,255,.18);color:#f7f4eb}
+@media(max-width:720px){.carousel{padding:10px 18px}.board-brand{margin-bottom:16px;gap:10px}.board-brand .brand{gap:9px;font-size:20px}.board-brand .brand-mark{width:25px;height:25px}.board-brand>span{min-height:22px;padding-left:10px;font-size:7px}.slide-actions{margin-top:10px;gap:8px}.step-previous,.jump-sign-in{min-height:34px;padding:0 11px;font-size:8px}}
+
 .header-links .skip-onboarding,.step-next,.primary,.secondary{border-radius:9px;box-shadow:inset 0 1px rgba(255,255,255,.34),0 6px 15px rgba(10,25,43,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease,color .18s ease,border-color .18s ease}
 .header-links .skip-onboarding:hover,.step-next:hover,.primary:hover,.secondary:hover{transform:translateY(-1px);box-shadow:inset 0 1px rgba(255,255,255,.42),0 10px 22px rgba(10,25,43,.17)}
 .step-next{min-height:40px;padding:0 15px;border:1px solid var(--navy);background:linear-gradient(180deg,#243955 0%,var(--navy) 100%);color:var(--paper);font-weight:700}
@@ -113,3 +135,7 @@
 :global(html[data-leopold-theme="dark"]) .note{color:#8d9aab;border-color:rgba(255,255,255,.13)}
 :global(html[data-leopold-theme="dark"]) .step-next{background:linear-gradient(180deg,#20334c,#102138);border-color:rgba(255,255,255,.17);color:#fffef9}
 :global(html[data-leopold-theme="dark"]) .secondary{background:linear-gradient(180deg,#1a2a40,#0f1d30);border-color:rgba(255,255,255,.18);color:#f7f4eb!important}
+
+/* Keep the approved board edge flat after dark-theme cascade rules. */
+:global(html[data-leopold-theme="dark"]) .slide{border-bottom-color:var(--accent-yellow);box-shadow:none}
+:global(html[data-leopold-theme="dark"]) .slide::after{box-shadow:none}
