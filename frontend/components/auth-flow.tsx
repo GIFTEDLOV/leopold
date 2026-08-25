@@ -197,9 +197,9 @@ export function OnboardingClient() {
   }
 
   return (
-    <AuthFrame eyebrow="Welcome to Leopold" title={<>Finish your <span>profile</span></>}>
+    <AuthFrame eyebrow="Welcome to Leopold" title={<>Finish your<br /><span>profile</span></>}>
       <p className="subtle">
-        Choose a unique lowercase username. It stays offchain and is not a public mapping to your financial wallet.
+        Your email identity and external financial wallet remain separate by design. Verify the wallet that will control your savings.
       </p>
       {!auth.emailVerified ? (
         !auth.otpSent ? (
