@@ -36,16 +36,15 @@ export default function RewardsPage() {
         <div>
           <p className={styles.eyebrow}>Public reward accounting</p>
           <h1>Rewards, kept <em>distinct.</em></h1>
-          <p>Refundable bonds and settlement rewards are separate from prizes and savings.</p>
+          <p>Refundable settlement bonds and finalization rewards are separate from prizes, yield and principal.</p>
         </div>
       </div>
       <div className={styles.metrics}>
         <article className={styles.metricHero}>
-          <div><span>Bond refunds</span><span className={styles.status}>Availability</span></div>
+          <div><span>Bond refunds</span><span className={styles.status}>{refundAmount === undefined ? "Unavailable" : "Available"}</span></div>
           <strong>{refundAmount === undefined ? "—" : formatEther(refundAmount)} <small>ETH</small></strong>
           <p>
-            Available after the round’s public bond accounting is finalized. Winner and loser refunds follow identical
-            public logic.
+            Available after public bond accounting finalizes for an entered round.
           </p>
           <button
             className={styles.outlineButton}
@@ -59,12 +58,16 @@ export default function RewardsPage() {
           </button>
         </article>
         <article>
-          <div><span>Settlement rewards</span><span className={styles.status}>Availability</span></div>
+          <div><span>Settlement rewards</span><span className={styles.status}>{rewardTotal > 0n ? "Available" : "Unavailable"}</span></div>
           <strong>{financial.fixture ? "0" : leopoldConfig.ready ? formatEther(rewardTotal) : "—"} <small>ETH</small></strong>
           <p>
-            Credited only when this address performs permissionless draw-finalization work. This is not prize winnings,
-            yield, or a bond refund.
+            Credited only when this address performs permissionless draw-finalization work.
           </p>
+        </article>
+        <article>
+          <div><span>Claimed rewards</span><span className={styles.status}>{financial.activity.some((item) => /claim/i.test(item.label)) ? "History" : "No history"}</span></div>
+          <strong>—</strong>
+          <p>Completed public reward claims will appear here.</p>
         </article>
       </div>
       <section className={styles.panel}>
