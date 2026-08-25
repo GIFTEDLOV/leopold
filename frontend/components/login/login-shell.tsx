@@ -81,6 +81,7 @@ type LoginShellProps = {
   children: ReactNode;
   eyebrow?: string;
   title?: ReactNode;
+  profileLayout?: boolean;
 };
 
 export function LoginShell({
@@ -93,6 +94,7 @@ export function LoginShell({
       to <span>Leopold</span>
     </>
   ),
+  profileLayout = false,
 }: LoginShellProps) {
   return (
     <main className={styles.login}>
@@ -120,7 +122,7 @@ export function LoginShell({
             </span>
           </Link>
 
-          <div className={styles.formContent}>
+          <div className={`${styles.formContent} ${profileLayout ? styles.profileContent : ""}`}>
             <p className={styles.eyebrow}>{eyebrow}</p>
             <h1 id="login-title">{title}</h1>
             {children}
