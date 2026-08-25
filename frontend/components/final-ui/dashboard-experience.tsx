@@ -205,7 +205,14 @@ export function DashboardExperience() {
               </div>
               <span>Entered</span>
             </div>
-          )) : <div className={styles.empty}>You have not entered an open prize round yet.</div>}
+          )) : (
+            <div className={styles.empty}>
+              <span>◇</span>
+              <h3>No entered rounds yet</h3>
+              <p>Open prize entries will appear after a successful vault entry transaction.</p>
+              <Link href="/app/vaults">Choose a vault ↗</Link>
+            </div>
+          )}
         </article>
 
         <article className={styles.panel}>
@@ -221,7 +228,13 @@ export function DashboardExperience() {
               </div>
               <span>{item.state.replaceAll("-", " ")}</span>
             </div>
-          )) : <div className={styles.empty}>Your public transaction lifecycle will appear here without private amounts.</div>}
+          )) : (
+            <div className={styles.empty}>
+              <span>◇</span>
+              <h3>No recent activity</h3>
+              <p>This browser session has no Leopold transaction history yet.</p>
+            </div>
+          )}
         </article>
       </section>
 
