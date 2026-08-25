@@ -1,151 +1,26 @@
 import Link from "next/link";
 
+import { ThemeToggle } from "@/components/theme-toggle";
+import styles from "@/components/full-site/public-pages.module.css";
 import { getPublicHealth, type HealthCheck, type HealthState } from "@/lib/ops/health";
 
 export const dynamic = "force-dynamic";
 
-const stateLabels: Record<HealthState, string> = {
-  HEALTHY: "Operational",
-  DEGRADED: "Degraded",
-  UNAVAILABLE: "Unavailable",
-  UNKNOWN: "Unknown",
-};
+const stateLabels: Record<HealthState, string> = { HEALTHY: "Operational", DEGRADED: "Degraded", UNAVAILABLE: "Unavailable", UNKNOWN: "Unknown" };
 
-function Status({ check }: { check: HealthCheck }) {
-  return (
-    <>
-      <span className="badge neutral">{stateLabels[check.state]}</span>
-      <span className="subtle">{check.durationMs} ms</span>
-    </>
-  );
+function Header() {
+  return <header className={styles.header}><Link href="/"><i className={styles.mark} aria-hidden="true"/><span>Leop<span>old</span> Ops</span></Link><nav><Link href="/transparency">Transparency</Link><ThemeToggle/><Link className={styles.open} href="/app">Open app</Link></nav></header>;
 }
 
-function publicAddress(address: string | null) {
-  return address ?? "Not configured";
-}
+function checkDetail(check: HealthCheck) { return check.message || "No public readiness detail is currently available."; }
 
 export default async function OpsPage() {
   const health = await getPublicHealth();
-  return (
-    <main className="landing">
-      <nav className="landing-nav">
-        <Link className="brand" href="/">
-          <span className="brand-mark">L</span>Leopold Ops
-        </Link>
-        <Link href="/app">Back to app</Link>
-      </nav>
-      <section className="how" style={{ borderTop: 0 }}>
-        <div className="how-inner">
-          <span className="eyebrow">Public operational status</span>
-          <h2>Leopold Protocol Status</h2>
-          <p className="subtle">
-            Overall service: {stateLabels[health.state]} · checked {health.checkedAt}
-          </p>
-          <p>
-            <strong>Service availability does not affect ownership of funds held by the protocol.</strong>
-          </p>
-
-          <div className="grid two section">
-            <article className="card">
-              <div className="list-row">
-                <h3>Network</h3>
-                <Status check={health.network} />
-              </div>
-              <div className="config-list">
-                Ethereum Sepolia
-                <br />
-                chain ID: {health.network.chainId}
-                <br />
-                RPC: {health.network.message}
-                <br />
-                latest block: {health.network.latestBlock ?? "Unavailable"}
-                <br />
-                block freshness:{" "}
-                {health.network.blockAgeSeconds === null ? "Unavailable" : `${health.network.blockAgeSeconds}s old`}
-              </div>
-            </article>
-            <article className="card">
-              <div className="list-row">
-                <h3>Confidential Infrastructure</h3>
-                <Status check={health.zama} />
-              </div>
-              <div className="config-list">
-                Zama: {health.zama.message}
-                <br />
-                readiness signal: public encryption-key metadata
-                <br />
-                No decryption, wallet signature, or transaction is used by this check.
-              </div>
-            </article>
-            <article className="card">
-              <div className="list-row">
-                <h3>Authentication</h3>
-                <Status check={health.dynamic} />
-              </div>
-              <div className="config-list">
-                Dynamic: {health.dynamic.message}
-                <br />
-                readiness signal:{" "}
-                {health.dynamic.signal === "PUBLIC_ENVIRONMENT_SETTINGS"
-                  ? "public environment settings"
-                  : "local configuration"}
-              </div>
-            </article>
-            <article className="card">
-              <div className="list-row">
-                <h3>Production Deployment</h3>
-                <Status check={health.deployment} />
-              </div>
-              <div className="config-list">
-                registry: {publicAddress(health.deployment.registry)}
-                <br />
-                lcUSDC: {publicAddress(health.deployment.lcUsdc)}
-                <br />
-                manifest digest: {health.release.manifestSha256}
-                <br />
-                freeze: {health.release.freezeStatus}
-              </div>
-            </article>
-          </div>
-
-          <article className="card section">
-            <h3>Official vaults</h3>
-            {health.deployment.vaults.map((vault) => (
-              <div className="list-row" key={vault.name}>
-                <div className="list-main">
-                  <strong>{vault.name}</strong>
-                  <span>{publicAddress(vault.address)}</span>
-                </div>
-                <span className="badge neutral">{vault.hasCode ? "Code verified" : "Check unavailable"}</span>
-              </div>
-            ))}
-          </article>
-
-          <article className="card section">
-            <h3>Security</h3>
-            <div className="config-list">
-              P-01: {health.release.p01Status}
-              <br />
-              unresolved Critical: {health.release.unresolvedCritical}
-              <br />
-              unresolved High: {health.release.unresolvedHigh}
-              <br />
-              unresolved Medium: {health.release.unresolvedMedium}
-              <br />
-              LeopoldVault runtime: {health.release.runtimeBytes.toLocaleString()} bytes
-              <br />
-              EIP-170 headroom: {health.release.eip170Headroom.toLocaleString()} bytes
-              <br />
-              contract freeze: {health.release.freezeStatus}
-            </div>
-          </article>
-
-          <p className="subtle">
-            This page uses public configuration and availability signals only. It does not request authentication,
-            signatures, private processing, or blockchain writes.
-          </p>
-        </div>
-      </section>
-    </main>
-  );
+  const checks = [
+    { title: "Ethereum Sepolia network", check: health.network, detail: `Chain ${health.network.chainId ?? "unavailable"} · latest block ${health.network.latestBlock ?? "unavailable"}` },
+    { title: "Zama confidential infrastructure", check: health.zama, detail: "Public encryption-key metadata readiness signal" },
+    { title: "Dynamic authentication", check: health.dynamic, detail: health.dynamic.signal === "PUBLIC_ENVIRONMENT_SETTINGS" ? "Public environment settings" : "Local configuration" },
+    { title: "Production deployment", check: health.deployment, detail: `Registry ${health.deployment.registry ?? "not configured"}` },
+  ];
+  return <main className={styles.page}><Header/><section className={`${styles.hero} ${styles.opsHero}`}><p>PUBLIC OPERATIONAL STATUS</p><h1>Leopold protocol<br/><em>status.</em></h1><span>Compact public readiness signals only. No authentication, wallet signature, private processing or blockchain write is requested.</span></section><section className={styles.ops}><div className={styles.opsTop}><div><span>OVERALL SERVICE</span><strong>{stateLabels[health.state]}</strong><small>Checked {health.checkedAt}</small></div><i>{health.state === "HEALTHY" ? "●" : "—"}</i></div><div className={styles.checks}>{checks.map(({ title, check, detail }, index)=><article key={title}><header><b>{String(index+1).padStart(2,"0")}</b><span>{stateLabels[check.state]}</span></header><h2>{title}</h2><p>{checkDetail(check)}</p><dl><div><dt>Response</dt><dd>{check.durationMs} ms</dd></div><div><dt>Configuration</dt><dd>{detail}</dd></div></dl></article>)}</div><section className={styles.addresses}><p>OFFICIAL VAULTS</p>{health.deployment.vaults.map(vault=><div key={vault.name}><strong>{vault.name}</strong><code>{vault.address ?? "Address not configured"}</code><span>{vault.hasCode ? "CODE VERIFIED" : "CHECK UNAVAILABLE"}</span></div>)}</section><p className={styles.ownership}>Service availability does not affect ownership of funds held by the protocol.</p></section></main>;
 }

@@ -7,6 +7,7 @@ import { formatUsdcAmount, parseUsdcAmount } from "@/lib/leopold/amounts";
 import { canPrepareVaultWithdrawal, getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { privateAmountLabel, useFinancial } from "./financial-provider";
 import { transactionIsBusy } from "@/lib/leopold/transactions";
+import styles from "@/components/full-site/leopold-app-ui.module.css";
 
 export function VaultDetail({ slug }: { slug: VaultId }) {
   const vault = getVaultConfig(slug)!;
@@ -31,26 +32,26 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
     }
   })();
   return (
-    <div className="content">
-      <div className="page-heading">
+    <div className={styles.content}>
+      <div className={styles.pageHeading}>
         <div>
-          <span className="eyebrow">{slug === "weekly" ? "Recommended vault" : "Private savings vault"}</span>
+          <span className={styles.eyebrow}>{slug === "weekly" ? "Recommended vault" : "Private savings vault"}</span>
           <h1>{vault.name} Vault</h1>
           <p>
             {vault.roundDurationSeconds / 86_400} day round · {financial.fixture && !state ? "Open" : roundStatus.label}
           </p>
         </div>
-        {entered ? <span className="badge">Entered current round</span> : null}
+        {entered ? <span className={styles.status}>Entered current round</span> : null}
       </div>
-      <div className="detail-layout">
-        <div className="grid">
-          <article className="card">
-            <div className="card-label">Your private savings</div>
+      <div className={styles.detailGrid}>
+        <div className={styles.profileGrid}>
+          <article className={styles.panel}>
+            <div className={styles.eyebrow}>Your private savings</div>
             <div className="stat" data-testid="private-position">
               {privateAmountLabel(revealed, financial.vaultPositions[slug] ?? null)}
             </div>
             <button
-              className="button secondary small"
+              className={styles.outlineButton}
               data-testid="reveal-position"
               disabled={busy || !financial.financialActionsEnabled}
               onClick={() => {
@@ -61,13 +62,13 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               {revealed ? "Hide" : "Reveal"}
             </button>
           </article>
-          <article className="card" id="save">
+          <article className={styles.panel} id="save">
             <h2>Save privately</h2>
-            <p className="subtle">
+            <p className={styles.fine}>
               Move available Private USDC into this vault. Your saving succeeds when the vault transaction confirms;
               vault-level strategy activity happens separately.
             </p>
-            <div className="form-row">
+            <div className={styles.buttonRow}>
               <input
                 className="input"
                 aria-label="Amount to save"
@@ -76,7 +77,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
                 onChange={(event) => setSaveAmount(event.target.value)}
               />
               <button
-                className="button"
+                className={styles.primaryButton}
                 data-testid="save-private"
                 disabled={
                   busy ||
@@ -92,18 +93,18 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               </button>
             </div>
             {financial.privateBalanceRevealed && financial.privateBalance !== null ? (
-              <p className="subtle">Enter an amount up to {formatUsdcAmount(financial.privateBalance)} USDC.</p>
+              <p className={styles.fine}>Enter an amount up to {formatUsdcAmount(financial.privateBalance)} USDC.</p>
             ) : null}
             {!financial.fixture && state !== undefined && !roundOpen ? (
-              <p className="subtle">This vault round is not open for deposits.</p>
+              <p className={styles.fine}>This vault round is not open for deposits.</p>
             ) : null}
           </article>
-          <article className="card">
+          <article className={styles.panel}>
             <h2>Withdraw savings</h2>
-            <p className="subtle">
+            <p className={styles.fine}>
               Withdraw from this vault to your Private USDC balance. There is no withdrawal queue.
             </p>
-            <div className="form-row">
+            <div className={styles.buttonRow}>
               <input
                 className="input"
                 aria-label="Amount to withdraw"
@@ -112,7 +113,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
                 onChange={(event) => setWithdrawAmount(event.target.value)}
               />
               <button
-                className="button secondary"
+                className={styles.outlineButton}
                 data-testid="withdraw"
                 disabled={busy || !financial.financialActionsEnabled || !canPrepareWithdrawal || knownZeroPosition}
                 onClick={() => {
@@ -123,18 +124,18 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               </button>
             </div>
             {!financial.fixture && roundStatus.code === "ENDED" && !knownZeroPosition ? (
-              <p className="subtle">This prize period has ended. Withdrawal requires two wallet confirmations.</p>
+              <p className={styles.fine}>This prize period has ended. Withdrawal requires two wallet confirmations.</p>
             ) : null}
           </article>
         </div>
-        <aside className="grid">
-          <article className="card">
-            <div className="card-label">Current prize round</div>
+        <aside className={styles.profileGrid}>
+          <article className={styles.panel}>
+            <div className={styles.eyebrow}>Current prize round</div>
             <div className="stat">{entered ? "Entered" : "Not entered"}</div>
-            <p className="subtle">
+            <p className={styles.fine}>
               Your prize chances start when you enter this round and grow while your savings remain in the vault.
             </p>
-            <div className="disclosure">
+            <div className={styles.notice}>
               <strong>
                 Refundable settlement bond
                 <br />
@@ -145,7 +146,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               portion compensates permissionless private draw finalization.
             </div>
             <button
-              className="button"
+              className={styles.primaryButton}
               data-testid="enter-round"
               style={{ width: "100%", marginTop: 14 }}
               disabled={
@@ -162,8 +163,8 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               {entered ? "Entered" : "Enter Prize Round"}
             </button>
           </article>
-          <article className="card">
-            <div className="card-label">Prize eligibility</div>
+          <article className={styles.panel}>
+            <div className={styles.eyebrow}>Prize eligibility</div>
             <div className="stat">
               {financial.privateEligibility[slug] === undefined
                 ? entered
@@ -173,12 +174,12 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
                   ? "No eligible savings yet"
                   : "Revealed · active"}
             </div>
-            <p className="subtle">
+            <p className={styles.fine}>
               Exact eligibility remains private. Earlier savings history before registration does not count for this
               round.
             </p>
             <button
-              className="button secondary small"
+              className={styles.outlineButton}
               disabled={busy || !financial.financialActionsEnabled || !entered}
               onClick={() => {
                 void financial.revealEligibility(slug).catch(() => undefined);
@@ -190,17 +191,17 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
         </aside>
       </div>
       {financial.txStage !== "ready" ? (
-        <div className="tx-status" role="status">
+        <div className={styles.notice} role="status">
           {financial.txLabel}
         </div>
       ) : null}
       {financial.error ? (
         <>
-          <div className="error" role="alert">
+          <div className={styles.notice} role="alert">
             {financial.error.message}
           </div>
           {financial.error.technicalDetail ? (
-            <details className="subtle">
+            <details className={styles.fine}>
               <summary>Technical detail</summary>
               <code>{financial.error.technicalDetail}</code>
             </details>

@@ -10,6 +10,7 @@ import { useAuth } from "./auth-provider";
 import { useFinancial } from "./financial-provider";
 import { useWalletIdentity } from "./wallet-identity-provider";
 import { addMoneyButtonDisabled } from "@/lib/auth/hydration";
+import styles from "@/components/full-site/leopold-app-ui.module.css";
 
 const navigation = [
   ["Home", "/app", "home"],
@@ -152,40 +153,40 @@ export function AppShell({ children }: { children: ReactNode }) {
   })();
 
   return (
-    <div className="app-frame">
-      <aside className="sidebar">
-        <Link className="brand" href="/">
+    <div className={`${styles.frame} app-frame`}>
+      <aside className={styles.sidebar}>
+        <Link className={styles.brand} href="/">
           <Image src="/marketing/leopold/leopold-monogram.png" width={30} height={30} alt="" aria-hidden="true" />
           <span>Leop<span>old</span></span>
         </Link>
-        <p className="nav-label">Private savings</p>
-        <nav className="nav-list" aria-label="Primary navigation">
+        <p className={styles.navLabel}>Private savings</p>
+        <nav className={styles.nav} aria-label="Primary navigation">
           {navigation.map(([label, href, icon]) => (
             <Link
               key={href}
-              className={`nav-link ${pathname === href || (href !== "/app" && pathname.startsWith(href)) ? "active" : ""}`}
+              className={pathname === href || (href !== "/app" && pathname.startsWith(href)) ? styles.active : ""}
               href={href}
             >
-              <span className="nav-icon"><NavIcon name={icon} /></span>
-              <span className="nav-text">{label}</span>
-              <span className="nav-arrow" aria-hidden="true">↗</span>
+              <i><NavIcon name={icon} /></i>
+              <span>{label}</span>
+              <b aria-hidden="true">↗</b>
             </Link>
           ))}
         </nav>
-        <div className="sidebar-foot">
+        <div className={styles.sidebarFoot}>
           <p>Private values stay hidden until you deliberately reveal them.</p>
           <Link href="/app/help">Help &amp; support</Link>
           <Link href="/transparency">Protocol transparency</Link>
-          <ThemeToggle className="sidebar-theme-toggle" />
+          <ThemeToggle className={styles.sidebarThemeToggle} />
         </div>
       </aside>
-      <main className="app-main">
-        <header className="topbar">
-          <Link className="topbar-brand" href="/app" aria-label={`Leopold home. ${networkLabel}`}>
+      <main className={styles.mainColumn}>
+        <header className={styles.topbar}>
+          <Link className={styles.networkBrand} href="/app" aria-label={`Leopold home. ${networkLabel}`}>
             <Image src="/marketing/leopold/leopold-monogram.png" width={24} height={24} alt="" aria-hidden="true" />
             <span>Leop<span>old</span></span>
           </Link>
-          <div className="account-control">
+          <div className={`${styles.topActions} account-control`}>
             <button
               className="account-pill"
               onClick={() => setWalletMenu((open) => !open)}
@@ -231,7 +232,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : null}
           </div>
           <button
-            className="button"
+            className={styles.primaryButton}
             onClick={() => setAddMoney(true)}
             disabled={addMoneyButtonDisabled(clientReady, auth.accountStatus === "SIGNED_IN_READY", financial.fixture)}
           >
@@ -240,7 +241,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         {recovery.visible ? (
-          <div className="inline-notice" role="alert">
+          <div className={`${styles.alert} inline-notice`} role="alert">
             <strong>{recovery.message}</strong>
             <span>{recovery.detail}</span>
             {auth.authError ? <span className="error">{auth.authError}</span> : null}

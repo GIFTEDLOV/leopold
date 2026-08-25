@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useMemo } from "react";
 
 import { useLeopoldUiController, type UiPrivateValue, type UiVaultSummary } from "@/components/leopold-ui-controller";
-import styles from "./dashboard-experience.module.css";
+import styles from "@/components/full-site/leopold-app-ui.module.css";
 
 const USDC_DECIMALS = 6n;
 const USDC_SCALE = 10n ** USDC_DECIMALS;
@@ -52,13 +52,6 @@ function vaultStatus(vault: UiVaultSummary): string {
   return "Unavailable";
 }
 
-function transactionTone(state: string): string {
-  if (state === "success") return styles.success;
-  if (state === "failure") return styles.failure;
-  if (state === "confirming" || state === "submitted" || state === "private-processing") return styles.pending;
-  return styles.neutral;
-}
-
 export function DashboardExperience() {
   const controller = useLeopoldUiController();
   const privateUsdc = controller.balances.privateUsdc;
@@ -92,14 +85,14 @@ export function DashboardExperience() {
   };
 
   return (
-    <div className={styles.dashboard}>
-      <section className={styles.intro}>
+    <div className={styles.content}>
+      <section className={styles.pageHeading}>
         <div>
           <span className={styles.eyebrow}>Private savings overview</span>
           <h1>{controller.account.username ? `Welcome back, ${controller.account.username}.` : "Your private savings."}</h1>
           <p>One place for savings, prize rounds and wallet activity — with private values hidden until you choose to reveal them.</p>
         </div>
-        <div className={styles.introMeta}>
+        <div className={styles.outlineButton}>
           <span>Financial wallet</span>
           <strong>{shortAddress(controller.wallet.address)}</strong>
           <small>{controller.wallet.state === "connected" ? "Ethereum Sepolia" : controller.wallet.state.replaceAll("-", " ")}</small>
@@ -107,58 +100,58 @@ export function DashboardExperience() {
       </section>
 
       {controller.transactions.current.state !== "idle" ? (
-        <section className={styles.transactionBar} aria-live="polite">
-          <span className={styles.transactionIndex}>LIVE</span>
+        <section className={styles.alert} aria-live="polite">
+          <span>LIVE</span>
           <div>
             <strong>{controller.transactions.current.label || "Transaction in progress"}</strong>
             <p>{controller.transactions.current.error?.message ?? "Leopold is tracking this action. A new write will never be retried automatically."}</p>
           </div>
-          <span className={`${styles.transactionState} ${transactionTone(controller.transactions.current.state)}`}>
+          <span>
             {controller.transactions.current.state.replaceAll("-", " ")}
           </span>
         </section>
       ) : null}
 
-      <section className={styles.balanceGrid}>
-        <article className={`${styles.balancePanel} ${styles.primaryPanel}`}>
-          <div className={styles.panelHeader}>
+      <section className={styles.metrics}>
+        <article className={styles.metricHero}>
+          <div>
             <span>Total private savings</span>
             <span>{revealedSavings.count}/{controller.vaults.length} vaults revealed</span>
           </div>
-          <strong className={styles.mainAmount}>{totalSavingsLabel}</strong>
+          <strong>{totalSavingsLabel}</strong>
           <p>Calculated only from vault values you have explicitly revealed in this browser session.</p>
-          <Link href="/app/vaults" className={styles.textLink}>Review vault savings <span>↗</span></Link>
+          <Link href="/app/vaults">Review vault savings <span>↗</span></Link>
         </article>
 
-        <article className={styles.balancePanel}>
-          <div className={styles.panelHeader}>
+        <article>
+          <div>
             <span>Private USDC available</span>
             <span>{privateUsdc.state.replaceAll("-", " ")}</span>
           </div>
-          <strong className={styles.secondaryAmount}>{protectedAmount(privateUsdc)}</strong>
+          <strong>{protectedAmount(privateUsdc)}</strong>
           <button
-            className={styles.revealButton}
+            className={styles.outlineButton}
             type="button"
             disabled={!controller.wallet.canUseFinancialActions || privateUsdc.state === "revealing"}
             onClick={() => void revealPrivate().catch(() => undefined)}
           >
             {privateUsdc.state === "revealed" ? "Hide balance" : privateUsdc.state === "revealing" ? "Revealing…" : "Reveal Private USDC"}
           </button>
-          {privateUsdc.state === "reveal-failed" ? <p className={styles.errorCopy}>The value stayed private. You can try revealing it again.</p> : null}
+          {privateUsdc.state === "reveal-failed" ? <p>The value stayed private. You can try revealing it again.</p> : null}
         </article>
 
-        <article className={`${styles.balancePanel} ${styles.opportunityPanel}`}>
-          <div className={styles.panelHeader}>
+        <article>
+          <div>
             <span>Next prize opportunity</span>
             <span>{nextOpportunity ? vaultStatus(nextOpportunity) : "Checking"}</span>
           </div>
-          <strong className={styles.opportunityName}>{nextOpportunity?.name ?? "No open round"}</strong>
+          <strong className={styles.metricName}>{nextOpportunity?.name ?? "No open round"}</strong>
           <p>{nextOpportunity ? `${durationLabel(nextOpportunity.durationSeconds)} cadence · ${nextOpportunity.round.participantCount?.toString() ?? "—"} public participants` : "Leopold will show the next open round here when current state is available."}</p>
-          <Link href="/app/prizes" className={styles.textLink}>View prize rounds <span>↗</span></Link>
+          <Link href="/app/prizes">View prize rounds <span>↗</span></Link>
         </article>
       </section>
 
-      <section className={styles.vaultSection}>
+      <section className={styles.section}>
         <div className={styles.sectionHeading}>
           <div>
             <span className={styles.eyebrow}>Four official vaults</span>
@@ -170,38 +163,37 @@ export function DashboardExperience() {
         <div className={styles.vaultGrid}>
           {controller.vaults.map((vault, index) => (
             <Link className={`${styles.vaultCard} ${vault.recommended ? styles.recommended : ""}`} href={`/app/vaults/${vault.id}`} key={vault.id}>
-              <figure className={styles.vaultImage}>
+              <figure>
                 <Image src={vaultPresentation[vault.id].image} alt={`${vault.name} prize-saving vault`} fill sizes="(max-width: 760px) 100vw, (max-width: 1200px) 50vw, 25vw" />
                 <span>{String(index + 1).padStart(2, "0")}</span>
               </figure>
-              <div className={styles.vaultBody}>
+              <div>
                 <div className={styles.vaultTitleRow}>
                   <h3>{vault.name}</h3>
                   <span>{vaultPresentation[vault.id].note}</span>
                 </div>
-                <div className={styles.vaultTopline}>
+                <div>
                   <span>{vaultStatus(vault)}</span>
                   <span>{vault.round.label}</span>
                 </div>
-                <div className={styles.vaultRule} />
                 <dl>
                   <div><dt>Cadence</dt><dd>{durationLabel(vault.durationSeconds)}</dd></div>
                   <div><dt>Round</dt><dd>{vault.round.id?.toString() ?? "—"}</dd></div>
                   <div><dt>Prize reserve</dt><dd>{vault.round.publicPrizeReserve !== null ? `${formatUsdc(vault.round.publicPrizeReserve)} USDC` : "—"}</dd></div>
                 </dl>
-                <div className={styles.vaultPrivate}>
+                <p>
                   <span>Your savings</span>
                   <strong>{protectedAmount(vault.privateSavings)}</strong>
-                </div>
+                </p>
               </div>
             </Link>
           ))}
         </div>
       </section>
 
-      <section className={styles.lowerGrid}>
-        <article className={styles.listPanel}>
-          <div className={styles.listHeading}>
+      <section className={styles.twoColumns}>
+        <article className={styles.panel}>
+          <div className={styles.panelTitle}>
             <div><span className={styles.eyebrow}>Prize status</span><h2>Your entered rounds.</h2></div>
             <Link href="/app/prizes">All prizes ↗</Link>
           </div>
@@ -211,13 +203,13 @@ export function DashboardExperience() {
                 <strong>{vault.name}</strong>
                 <span>{vault.round.label} · Round {vault.round.id?.toString() ?? "—"}</span>
               </div>
-              <span className={styles.rowStatus}>Entered</span>
+              <span>Entered</span>
             </div>
-          )) : <div className={styles.emptyState}>You have not entered an open prize round yet.</div>}
+          )) : <div className={styles.empty}>You have not entered an open prize round yet.</div>}
         </article>
 
-        <article className={styles.listPanel}>
-          <div className={styles.listHeading}>
+        <article className={styles.panel}>
+          <div className={styles.panelTitle}>
             <div><span className={styles.eyebrow}>Privacy-safe history</span><h2>Recent activity.</h2></div>
             <Link href="/app/activity">All activity ↗</Link>
           </div>
@@ -227,13 +219,13 @@ export function DashboardExperience() {
                 <strong>{item.label}</strong>
                 <span>{item.hash ? `${item.hash.slice(0, 10)}…${item.hash.slice(-6)}` : "No public hash yet"}</span>
               </div>
-              <span className={`${styles.rowStatus} ${transactionTone(item.state)}`}>{item.state.replaceAll("-", " ")}</span>
+              <span>{item.state.replaceAll("-", " ")}</span>
             </div>
-          )) : <div className={styles.emptyState}>Your public transaction lifecycle will appear here without private amounts.</div>}
+          )) : <div className={styles.empty}>Your public transaction lifecycle will appear here without private amounts.</div>}
         </article>
       </section>
 
-      <section className={styles.footerNote}>
+      <section className={styles.privacyBand}>
         <span>Private by default</span>
         <p>Leopold reveals private balances and outcomes only after your explicit authorization. Wallet activity and protocol state remain public by design.</p>
         <Link href="/transparency">What Leopold keeps private <span>↗</span></Link>

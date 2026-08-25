@@ -35,21 +35,26 @@ const questions = [
 
 export default function HelpPage() {
   return (
-    <div className="content">
-      <div className="page-heading">
+    <div className={styles.content}>
+      <div className={styles.pageHeading}>
         <div>
-          <h1>Help</h1>
+          <p className={styles.eyebrow}>Leopold guide</p>
+          <h1>Clear answers, kept <em>short.</em></h1>
           <p>Clear answers about private savings and prizes.</p>
         </div>
       </div>
-      <article className="card qa">
-        {questions.map(([question, answer]) => (
-          <details key={question}>
-            <summary>{question}</summary>
+      <section className={styles.helpGrid}>
+        <aside><p className={styles.eyebrow}>Guide index</p>{questions.map(([question], index) => <a href={`#help-${index}`} key={question}>{String(index + 1).padStart(2, "0")} {question}</a>)}</aside>
+        <div>{questions.map(([question, answer], index) => (
+          <details id={`help-${index}`} key={question} open={index === 0}>
+            <summary><span>{String(index + 1).padStart(2, "0")}</span>{question}<b>+</b></summary>
             <p>{answer}</p>
           </details>
-        ))}
-      </article>
+        ))}</div>
+      </section>
+      <section className={styles.helpCta}><div><p className={styles.eyebrow}>Need protocol detail?</p><h2>See what is public—and what stays private.</h2></div><Link className={styles.primaryButton} href="/transparency">Open transparency ↗</Link></section>
     </div>
   );
 }
+import Link from "next/link";
+import styles from "@/components/full-site/leopold-app-ui.module.css";

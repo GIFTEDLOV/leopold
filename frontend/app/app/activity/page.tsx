@@ -2,31 +2,34 @@
 
 import { FixtureStatus } from "@/components/configuration-status";
 import { useFinancial } from "@/components/financial-provider";
+import styles from "@/components/full-site/leopold-app-ui.module.css";
 
 export default function ActivityPage() {
   const financial = useFinancial();
   return (
-    <div className="content">
+    <div className={styles.content}>
       <FixtureStatus />
-      <div className="page-heading">
+      <div className={styles.pageHeading}>
         <div>
-          <h1>Activity</h1>
+          <p className={styles.eyebrow}>Privacy-safe history</p>
+          <h1>Activity without <em>exposure.</em></h1>
           <p>Public transactions for this wallet. Confidential values are never reconstructed here.</p>
         </div>
       </div>
-      <article className="card">
+      <section className={styles.filterBar}><span>Browser session</span><div><button className={styles.selected}>All</button><button>Deposits</button><button>Withdrawals</button><button>Prizes</button></div></section>
+      <article className={styles.panel}>
         {financial.activity.length ? (
           financial.activity.map((item) => (
-            <div className="list-row" key={item.id}>
-              <div className="list-main">
+            <div className={styles.listRow} key={item.id}>
+              <div>
                 <strong>{item.label}</strong>
                 <span>{item.vault ? `${item.vault} Vault · ` : ""}Ethereum Sepolia</span>
               </div>
-              <span className="badge neutral">{item.status}</span>
+              <span className={styles.status}>{item.status}</span>
             </div>
           ))
         ) : (
-          <div className="empty">No recent Leopold activity for this browser session</div>
+          <div className={styles.empty}>No recent Leopold activity for this browser session</div>
         )}
       </article>
     </div>

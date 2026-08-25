@@ -1,0 +1,254 @@
+.frame{--app-ink:#07101d;--app-navy:#102540;--app-blue:#30435f;--app-paper:#f7f4eb;--app-white:#fffef9;--app-gold:#c9ab60;--app-line:rgba(16,37,64,.17);min-height:100svh;background-color:var(--app-paper);background-image:radial-gradient(rgba(16,37,64,.07) .55px,transparent .55px);background-size:4px 4px;color:var(--app-navy);font-family:Arial,Helvetica,sans-serif}.frame button,.frame input{font:inherit}.sidebar{position:fixed;z-index:30;inset:0 auto 0 0;width:246px;display:flex;flex-direction:column;padding:26px 20px;background:var(--app-ink);color:var(--app-white);border-right:1px solid rgba(255,255,255,.08)}.brand{display:flex;align-items:center;gap:10px;font:700 19px Georgia,serif;letter-spacing:-.025em}.brand img{width:30px;height:30px;object-fit:contain;filter:brightness(0) invert(1)}.brand>span>span{color:var(--app-gold)}.navLabel,.eyebrow{margin:0;font:10px/1.35 "Courier New",monospace;letter-spacing:.17em;text-transform:uppercase}.navLabel{margin:60px 12px 15px;color:rgba(255,255,255,.35)}.nav{display:grid;gap:3px}.nav a{position:relative;display:grid;grid-template-columns:28px 1fr 20px;align-items:center;gap:10px;min-height:44px;padding:0 12px;color:rgba(255,255,255,.62);border:1px solid transparent;font:14px Georgia,serif;transition:background .18s,color .18s,border .18s}.nav a:hover,.nav a.active{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:var(--app-white)}.nav a.active:before{content:"";position:absolute;left:-1px;top:8px;bottom:8px;width:2px;background:var(--app-gold)}.nav i{font-style:normal;color:var(--app-gold);text-align:center}.nav b{font-weight:400;opacity:0;transition:opacity .18s}.nav a:hover b,.nav a.active b{opacity:.65}.sidebarFoot{margin-top:auto;padding:20px 12px 0;border-top:1px solid rgba(255,255,255,.12);display:grid;gap:10px;color:rgba(255,255,255,.45);font-size:11px;line-height:1.5}.sidebarFoot p{margin:0 0 6px}.sidebarFoot a{color:rgba(255,255,255,.72)}.mainColumn{min-height:100svh;margin-left:246px}.topbar{position:sticky;z-index:20;top:0;height:70px;display:flex;align-items:center;justify-content:flex-end;gap:18px;padding:0 3.5vw;background:rgba(247,244,235,.94);backdrop-filter:blur(18px);border-bottom:1px solid var(--app-line)}.network{margin-right:auto;display:flex;align-items:center;gap:9px;font:10px "Courier New",monospace;letter-spacing:.09em;text-transform:uppercase}.network i{width:7px;height:7px;border-radius:50%;background:var(--app-gold);box-shadow:0 0 0 4px rgba(201,171,96,.15)}.topActions{display:flex;gap:10px;align-items:center}.topbar button,.outlineButton,.primaryButton{min-height:39px;padding:0 17px;border:1px solid var(--app-line);background:transparent;color:var(--app-navy);cursor:pointer;font:10px "Courier New",monospace;letter-spacing:.08em;text-transform:uppercase}.primaryButton{display:inline-flex;align-items:center;justify-content:center;background:var(--app-gold)!important;border-color:var(--app-gold)!important;color:var(--app-ink)!important;font-weight:700}.wallet span{margin-left:16px}.menuButton{display:none}.content{width:min(1500px,100%);margin:0 auto;padding:52px 3.5vw 80px}.pageHeading{display:flex;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:36px}.pageHeading>div{max-width:850px}.eyebrow{color:#687486}.pageHeading h1,.sectionHeading h2,.panel h2,.vaultHero h1,.modal h2,.privacyBand h2,.prizeHero h2,.helpCta h2{margin:10px 0 13px;font:400 clamp(42px,4.25vw,68px)/.99 Georgia,serif;letter-spacing:-.04em}.pageHeading h1 em,.sectionHeading h2 em,.vaultHero h1 em,.modal h2 em{color:var(--app-gold);font-style:normal}.pageHeading>div>p:last-child{max-width:700px;margin:0;color:#637083;font-size:14px;line-height:1.65}.alert{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px;padding:16px 18px;background:#eee5cf;border:1px solid rgba(152,120,50,.28)}.alert div{display:grid;gap:4px}.alert b{font:16px Georgia,serif}.alert span{color:#6f6247;font-size:12px}.alert button{padding:10px 14px;border:1px solid currentColor;background:transparent;color:#6f5c2d;font:10px "Courier New",monospace;text-transform:uppercase;cursor:pointer}.metrics{display:grid;grid-template-columns:1.35fr 1fr 1fr;border:1px solid var(--app-line);background:var(--app-white)}.metrics article{min-height:260px;display:flex;flex-direction:column;padding:24px;border-right:1px solid var(--app-line)}.metrics article:last-child{border-right:0}.metrics article>div:first-child{display:flex;justify-content:space-between;gap:10px;color:#687486;font:10px "Courier New",monospace;letter-spacing:.09em;text-transform:uppercase}.metrics strong{margin:42px 0 14px;font:400 clamp(36px,4vw,58px)/1 Georgia,serif}.metrics strong small{font:10px "Courier New",monospace;letter-spacing:.09em}.metrics .metricName{font-size:32px}.metrics p{max-width:390px;margin:0;color:#6c7787;font-size:12px;line-height:1.55}.metrics a,.metrics button{width:max-content;margin-top:auto;padding:0 0 5px;border:0;border-bottom:1px solid currentColor;background:none;color:var(--app-navy);font:10px "Courier New",monospace;text-transform:uppercase}.metrics button:disabled,.frame button:disabled{opacity:.43;cursor:not-allowed}.metricHero{background:var(--app-navy);color:var(--app-white)}.metricHero p{color:rgba(255,255,255,.53)}.metricHero a,.metricHero button{color:var(--app-white)}.status{display:inline-flex;align-items:center;width:max-content;padding:5px 7px;border:1px solid var(--app-line);font:8px "Courier New",monospace;letter-spacing:.1em}.statusgold{background:rgba(201,171,96,.18);border-color:rgba(201,171,96,.5);color:#735f2f}.statusgood{background:#e1e9dc;border-color:#b6c4ae;color:#40533c}.metricHero .status{border-color:rgba(255,255,255,.2)}.section{margin-top:72px}.sectionHeading{display:flex;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:25px}.sectionHeading h2{font-size:clamp(34px,3.2vw,50px);margin-bottom:0}.sectionHeading>a,.panelTitle a{padding-bottom:5px;border-bottom:1px solid currentColor;font:10px "Courier New",monospace;text-transform:uppercase}.vaultGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.vaultGridLarge{grid-template-columns:repeat(2,1fr);gap:18px}.vaultCard{min-width:0;display:block;background:var(--app-white);border:1px solid var(--app-line);transition:transform .2s,box-shadow .2s}.vaultCard:hover{transform:translateY(-4px);box-shadow:0 16px 35px rgba(16,37,64,.1)}.vaultCard figure{position:relative;height:160px;margin:0;overflow:hidden;background:var(--app-blue)}.vaultGridLarge .vaultCard figure{height:225px}.vaultCard figure img{object-fit:cover;filter:grayscale(1) sepia(.24) hue-rotate(168deg) saturate(.47) contrast(.98)}.vaultCard figure:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,37,64,.05),rgba(16,37,64,.48))}.vaultCard figure>span{position:absolute;z-index:2;left:16px;top:14px;color:var(--app-white);font:22px Georgia,serif}.vaultCard figure .status{position:absolute;z-index:2;right:12px;top:12px;background:rgba(247,244,235,.92)}.vaultCard>div{padding:18px}.vaultCard h3{margin:0 0 18px;font:400 29px Georgia,serif}.vaultCard dl{display:grid;gap:7px;margin:0 0 20px;padding:14px 0;border-top:1px solid var(--app-line);border-bottom:1px solid var(--app-line)}.vaultCard dl div{display:flex;justify-content:space-between;gap:12px}.vaultCard dt{color:#718095;font:9px "Courier New",monospace;text-transform:uppercase}.vaultCard dd{margin:0;font-size:11px}.vaultCard p{display:grid;gap:5px;margin:0 0 16px}.vaultCard p span{color:#718095;font:9px "Courier New",monospace;text-transform:uppercase}.vaultCard p strong{font:18px Georgia,serif}.vaultCard>div>b{font:9px "Courier New",monospace;text-transform:uppercase}.recommended{box-shadow:inset 0 3px var(--app-gold)}.twoColumns,.prizeGrid,.detailGrid,.profileGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:68px}.panel{padding:25px;background:var(--app-white);border:1px solid var(--app-line)}.panelTitle{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}.panel h2{margin:7px 0 18px;font-size:30px}.empty{min-height:180px;display:grid;align-content:center;justify-items:center;padding:30px;text-align:center;background:rgba(16,37,64,.025);border:1px dashed var(--app-line)}.empty>span{color:var(--app-gold);font-size:24px}.empty h3{margin:12px 0 6px;font:23px Georgia,serif}.empty p{max-width:430px;margin:0;color:#718095;font-size:12px;line-height:1.5}.empty a{margin-top:17px;padding-bottom:5px;border-bottom:1px solid;font:9px "Courier New",monospace;text-transform:uppercase}.filterBar{display:flex;align-items:center;justify-content:space-between;margin:0 0 18px;padding:11px 14px;border-top:1px solid var(--app-line);border-bottom:1px solid var(--app-line);font:9px "Courier New",monospace;text-transform:uppercase}.filterBar div,.tabRow{display:flex;gap:4px}.filterBar button,.tabRow button{padding:8px 11px;border:0;background:transparent;color:#6d7888;font:9px "Courier New",monospace;text-transform:uppercase;cursor:pointer}.filterBar .selected,.tabRow .selected{background:var(--app-navy);color:var(--app-white)}.privacyBand{margin-top:65px;padding:48px;background:var(--app-navy);color:var(--app-white)}.privacyBand h2{font-size:42px}.privacyBand>p:not(.eyebrow){max-width:720px;color:rgba(255,255,255,.65);font-size:14px;line-height:1.65}.privacyBand a{display:inline-block;margin-top:20px;padding-bottom:5px;border-bottom:1px solid;font:9px "Courier New",monospace;text-transform:uppercase}.back{display:inline-block;margin-bottom:22px;font:10px "Courier New",monospace;text-transform:uppercase}.vaultHero{display:grid;grid-template-columns:1.05fr .95fr;min-height:420px;background:var(--app-navy);color:var(--app-white)}.vaultHero>div{display:flex;flex-direction:column;justify-content:center;padding:48px}.vaultHero h1{font-size:clamp(52px,5vw,78px)}.vaultHero>div>p:not(.eyebrow){max-width:620px;color:rgba(255,255,255,.65);font-size:14px;line-height:1.6}.vaultHero figure{position:relative;margin:0;overflow:hidden}.vaultHero figure img{object-fit:cover;filter:grayscale(1) sepia(.28) hue-rotate(168deg) saturate(.55);opacity:.82}.vaultHero figure:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,var(--app-navy),transparent 45%)}.vaultHero figure span{position:absolute;z-index:2;right:30px;bottom:20px;font:80px Georgia,serif;color:rgba(255,255,255,.5)}.heroActions,.buttonRow{display:flex;gap:9px;margin-top:24px}.vaultHero .outlineButton{color:var(--app-white);border-color:rgba(255,255,255,.25)}.detailMetrics{display:grid;grid-template-columns:repeat(4,1fr);background:var(--app-white);border:1px solid var(--app-line);border-top:0}.detailMetrics div{display:grid;gap:8px;padding:20px;border-right:1px solid var(--app-line)}.detailMetrics div:last-child{border:0}.detailMetrics span{color:#718095;font:9px "Courier New",monospace;text-transform:uppercase}.detailMetrics strong{font:24px Georgia,serif}.detailMetrics small{color:#7f8996;font-size:10px}.timeline{margin:15px 0 0;padding:0;list-style:none}.timeline li{display:grid;grid-template-columns:45px 1fr;gap:15px;padding:16px 0;border-top:1px solid var(--app-line)}.timeline li>b{color:var(--app-gold);font:22px Georgia,serif}.timeline li>div{display:grid;gap:4px}.timeline strong{font:16px Georgia,serif}.timeline span{color:#718095;font-size:11px}.privateValue{margin:30px 0;font:48px Georgia,serif}.privateValue small{font:10px "Courier New",monospace}.fine{color:#7b8594;font:9px/1.55 "Courier New",monospace}.modalBackdrop{position:fixed;z-index:100;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(3,9,16,.7);backdrop-filter:blur(6px)}.modal{position:relative;width:min(620px,100%);max-height:calc(100svh - 30px);overflow:auto;padding:38px;background:var(--app-paper);box-shadow:0 30px 90px rgba(0,0,0,.4)}.drawer{margin-left:auto;margin-right:0;width:min(570px,100%);height:100%;max-height:none}.close{position:absolute;right:17px;top:15px;width:34px;height:34px;border:1px solid var(--app-line);background:transparent;color:var(--app-navy);cursor:pointer;font-size:20px}.modal h2{font-size:43px}.modal>p:not(.eyebrow):not(.fine){color:#687486;font-size:13px;line-height:1.6}.flowSteps,.stateRail{display:grid;grid-template-columns:repeat(3,1fr);margin:25px 0;border-top:1px solid var(--app-line);border-bottom:1px solid var(--app-line)}.flowSteps div,.stateRail div{display:grid;gap:6px;padding:15px 10px;border-right:1px solid var(--app-line)}.flowSteps div:last-child,.stateRail div:last-child{border:0}.flowSteps b,.stateRail b{color:var(--app-gold);font:20px Georgia,serif}.flowSteps span,.stateRail span{font:13px Georgia,serif}.flowSteps small{color:#788392;font-size:9px}.flowActive,.currentState{background:rgba(201,171,96,.09)}.notice{display:grid;gap:5px;margin:20px 0;padding:14px;background:#eee5cf;border-left:2px solid var(--app-gold)}.notice strong{font:14px Georgia,serif}.notice span{color:#70664e;font-size:10px;line-height:1.5}.inputLabel{display:flex;justify-content:space-between;margin:22px 0 7px;font:9px "Courier New",monospace;text-transform:uppercase}.amountInput{display:flex;align-items:center;border:1px solid var(--app-line);background:var(--app-white)}.amountInput input{min-width:0;flex:1;padding:15px;border:0;outline:0;background:transparent;font:27px Georgia,serif}.amountInput b{font:9px "Courier New",monospace}.amountInput button{margin:0 10px;padding:6px;border:0;background:var(--app-paper);font-size:8px}.transactionPreview{margin:20px 0;border-top:1px solid var(--app-line)}.transactionPreview div{display:flex;justify-content:space-between;gap:20px;padding:10px 0;border-bottom:1px solid var(--app-line);font-size:10px}.transactionPreview span{color:#768293}.prizeHero{min-height:340px;display:grid;grid-template-columns:1.25fr .75fr;background:var(--app-navy);color:var(--app-white)}.prizeHero>div:first-child{display:flex;flex-direction:column;justify-content:center;padding:45px}.prizeHero h2{font-size:43px}.prizeHero p{max-width:600px;color:rgba(255,255,255,.63);font-size:13px;line-height:1.6}.prizeHero a{width:max-content;margin-top:18px;padding-bottom:5px;border-bottom:1px solid;font:9px "Courier New",monospace;text-transform:uppercase}.orbit{position:relative;display:grid;place-items:center;overflow:hidden;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:36px 36px}.orbit:before,.orbit:after{content:"";position:absolute;width:230px;height:230px;border:1px solid rgba(255,255,255,.16);border-radius:50%;animation:orbit 8s linear infinite}.orbit:after{width:140px;height:140px;animation-direction:reverse;animation-duration:5s}.orbit i{position:absolute;width:6px;height:6px;background:var(--app-gold);transform:rotate(45deg)}.orbit i:nth-child(1){top:23%;left:28%}.orbit i:nth-child(2){top:61%;left:71%}.orbit i:nth-child(3){top:73%;left:38%}.orbit span{z-index:2;font:60px Georgia,serif}.orbit small{position:absolute;top:62%;font:8px "Courier New",monospace;letter-spacing:.12em}.tabRow{margin:18px 0}.stateRail{grid-template-columns:repeat(4,1fr)}.tableHead{display:grid;grid-template-columns:2fr 1.2fr .8fr .8fr;padding:0 0 12px;border-bottom:1px solid var(--app-line);color:#748092;font:8px "Courier New",monospace;text-transform:uppercase}.listRow{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:16px;padding:15px 0;border-bottom:1px solid var(--app-line)}.listRow>div{display:grid;gap:3px}.listRow>div strong{font:15px Georgia,serif}.listRow>div span{color:#718095;font-size:10px}.listRow>span{font:10px "Courier New",monospace;text-transform:uppercase}.listRow button{padding:7px 10px;border:1px solid var(--app-line);background:transparent;font:8px "Courier New",monospace;text-transform:uppercase}.profileGrid{margin-top:0}.walletCard{display:grid;gap:7px;margin:18px 0;padding:22px;background:var(--app-navy);color:var(--app-white)}.walletCard span,.walletCard small{color:rgba(255,255,255,.53);font:8px "Courier New",monospace;text-transform:uppercase}.walletCard strong{font:24px Georgia,serif}.stateList{display:flex;flex-wrap:wrap;gap:5px}.stateList span{padding:6px 8px;background:rgba(16,37,64,.06);font:8px "Courier New",monospace;text-transform:uppercase}.helpGrid{display:grid;grid-template-columns:260px 1fr;gap:55px}.helpGrid aside{display:grid;align-content:start;position:sticky;top:100px}.helpGrid aside a{padding:12px 0;border-bottom:1px solid var(--app-line);color:#667387;font:10px "Courier New",monospace}.helpGrid details{border-top:1px solid var(--app-line)}.helpGrid details:last-child{border-bottom:1px solid var(--app-line)}.helpGrid summary{display:grid;grid-template-columns:45px 1fr auto;align-items:center;padding:22px 0;cursor:pointer;list-style:none;font:23px Georgia,serif}.helpGrid summary span{color:var(--app-gold)}.helpGrid summary b{font-weight:400}.helpGrid details p{max-width:720px;margin:0 0 25px 45px;color:#687486;font-size:13px;line-height:1.65}.helpCta{display:flex;align-items:center;justify-content:space-between;gap:30px;margin-top:65px;padding:35px;background:var(--app-navy);color:var(--app-white)}.helpCta h2{max-width:650px;margin-bottom:0;font-size:35px}@keyframes orbit{to{transform:rotate(360deg)}}
+@media(max-width:1100px){.vaultGrid{grid-template-columns:repeat(2,1fr)}.metrics{grid-template-columns:1fr 1fr}.metrics article{border-bottom:1px solid var(--app-line)}.metrics article:first-child{grid-column:span 2}.vaultHero{grid-template-columns:1.15fr .85fr}.detailMetrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:800px){.sidebar{transform:translateX(-102%);transition:transform .25s}.sidebarOpen{transform:translateX(0);box-shadow:20px 0 60px rgba(0,0,0,.35)}.mainColumn{margin-left:0}.menuButton{display:block!important}.topbar{height:62px;padding:0 16px}.network span{display:none}.wallet{display:none}.content{padding:34px 16px 60px}.pageHeading,.sectionHeading{align-items:flex-start;flex-direction:column}.pageHeading h1{font-size:46px}.metrics,.vaultGrid,.vaultGridLarge,.twoColumns,.prizeGrid,.detailGrid,.profileGrid,.vaultHero,.prizeHero,.helpGrid{grid-template-columns:1fr}.metrics article:first-child{grid-column:auto}.metrics article{border-right:0}.vaultHero figure{min-height:290px}.vaultHero figure:after{background:linear-gradient(180deg,var(--app-navy),transparent 50%)}.detailMetrics{grid-template-columns:1fr 1fr}.prizeHero .orbit{min-height:300px}.helpGrid aside{display:none}.helpCta{align-items:flex-start;flex-direction:column}.filterBar{align-items:flex-start;flex-direction:column;gap:10px}.filterBar div{max-width:100%;overflow:auto}.modal{padding:31px 22px}.stateRail{grid-template-columns:repeat(2,1fr)}.tableHead{display:none}}
+@media(max-width:520px){.topActions .primaryButton{padding:0 11px}.vaultGrid{grid-template-columns:1fr}.detailMetrics{grid-template-columns:1fr}.detailMetrics div{border-right:0;border-bottom:1px solid var(--app-line)}.vaultHero>div{padding:35px 24px}.vaultHero h1{font-size:55px}.pageHeading h1{font-size:42px}.privacyBand{padding:32px 24px}.flowSteps{grid-template-columns:1fr}.flowSteps div{border-right:0;border-bottom:1px solid var(--app-line)}}
+@media(prefers-reduced-motion:reduce){.vaultCard,.sidebar{transition:none}.orbit:before,.orbit:after{animation:none}}
+
+/* Desktop hover rail: compact at rest, full navigation on pointer or keyboard focus. */
+@media(min-width:801px){
+  .sidebar{width:72px;padding-inline:10px;overflow:hidden;transition:width .26s cubic-bezier(.22,.61,.36,1),padding .26s cubic-bezier(.22,.61,.36,1),box-shadow .26s ease}
+  .sidebar:hover,.sidebar:focus-within{width:246px;padding-inline:20px;box-shadow:18px 0 45px rgba(3,9,16,.28)}
+  .mainColumn{margin-left:72px;transition:margin-left .26s cubic-bezier(.22,.61,.36,1)}
+  .brand{min-width:205px}
+  .brand img{flex:0 0 auto}
+  .brand>span,.navLabel,.nav a>span,.nav b,.sidebarFoot{opacity:0;white-space:nowrap;transition:opacity .12s ease}
+  .brand>span,.sidebarFoot{transform:translateX(-5px);transition:opacity .12s ease,transform .2s ease}
+  .navLabel{height:14px}
+  .nav{min-width:205px}
+  .nav a{width:50px;padding-inline:10px}
+  .sidebar:hover .nav a,.sidebar:focus-within .nav a{width:auto;padding-inline:12px}
+  .sidebar:hover .brand>span,.sidebar:hover .navLabel,.sidebar:hover .nav a>span,.sidebar:hover .nav b,.sidebar:hover .sidebarFoot,
+  .sidebar:focus-within .brand>span,.sidebar:focus-within .navLabel,.sidebar:focus-within .nav a>span,.sidebar:focus-within .nav b,.sidebar:focus-within .sidebarFoot{opacity:1;transform:translateX(0);transition-delay:.08s}
+  .sidebarFoot{min-width:205px;pointer-events:none}
+  .sidebar:hover .sidebarFoot,.sidebar:focus-within .sidebarFoot{pointer-events:auto}
+}
+
+:global(html[data-leopold-theme="dark"]) .frame{--app-ink:#030811;--app-navy:#f7f4eb;--app-blue:#1b2c44;--app-paper:#07101d;--app-white:#0d1a2b;--app-line:rgba(255,255,255,.13);background-color:#07101d;background-image:radial-gradient(rgba(255,255,255,.045) .55px,transparent .55px);color:#f7f4eb}
+:global(html[data-leopold-theme="dark"]) .sidebar{background:#030811;border-color:rgba(255,255,255,.08)}
+:global(html[data-leopold-theme="dark"]) .topbar{background:rgba(7,16,29,.94);border-color:rgba(255,255,255,.11);box-shadow:0 5px 22px rgba(0,0,0,.22)}
+:global(html[data-leopold-theme="dark"]) .networkBrand{color:#fffef9}
+:global(html[data-leopold-theme="dark"]) .networkBrand img{filter:brightness(0) saturate(100%) invert(76%) sepia(35%) saturate(706%) hue-rotate(4deg) brightness(90%) contrast(86%)}
+:global(html[data-leopold-theme="dark"]) .wallet,:global(html[data-leopold-theme="dark"]) .outlineButton{background:linear-gradient(180deg,#1d3049,#101f33)!important;border-color:rgba(255,255,255,.17)!important;color:#f7f4eb!important;box-shadow:inset 0 1px rgba(255,255,255,.09),0 7px 18px rgba(0,0,0,.23)}
+:global(html[data-leopold-theme="dark"]) .metrics article,:global(html[data-leopold-theme="dark"]) .panel,:global(html[data-leopold-theme="dark"]) .vaultCard{background:rgba(13,26,43,.94);border-color:rgba(255,255,255,.13);box-shadow:inset 0 1px rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.2)}
+:global(html[data-leopold-theme="dark"]) .metrics .metricHero,:global(html[data-leopold-theme="dark"]) .privacyBand,:global(html[data-leopold-theme="dark"]) .vaultHero,:global(html[data-leopold-theme="dark"]) .prizeHero,:global(html[data-leopold-theme="dark"]) .walletCard,:global(html[data-leopold-theme="dark"]) .helpCta{background:linear-gradient(145deg,#101f34,#172e4c);color:#fffef9}
+:global(html[data-leopold-theme="dark"]) .pageHeading>div>p:last-child,:global(html[data-leopold-theme="dark"]) .metrics p,:global(html[data-leopold-theme="dark"]) .empty p,:global(html[data-leopold-theme="dark"]) .vaultCard dt,:global(html[data-leopold-theme="dark"]) .vaultCard p span,:global(html[data-leopold-theme="dark"]) .detailMetrics span,:global(html[data-leopold-theme="dark"]) .detailMetrics small,:global(html[data-leopold-theme="dark"]) .timeline span,:global(html[data-leopold-theme="dark"]) .fine,:global(html[data-leopold-theme="dark"]) .modal>p:not(.eyebrow):not(.fine),:global(html[data-leopold-theme="dark"]) .listRow>div span,:global(html[data-leopold-theme="dark"]) .helpGrid aside a,:global(html[data-leopold-theme="dark"]) .helpGrid details p{color:#9fabb9}
+:global(html[data-leopold-theme="dark"]) .eyebrow,:global(html[data-leopold-theme="dark"]) .metrics article>div:first-child,:global(html[data-leopold-theme="dark"]) .filterBar,:global(html[data-leopold-theme="dark"]) .tableHead{color:#aab4c1}
+:global(html[data-leopold-theme="dark"]) .detailMetrics,:global(html[data-leopold-theme="dark"]) .amountInput,:global(html[data-leopold-theme="dark"]) .modal{background:#0d1a2b;border-color:rgba(255,255,255,.13);color:#f7f4eb}
+:global(html[data-leopold-theme="dark"]) .amountInput input{color:#f7f4eb}
+:global(html[data-leopold-theme="dark"]) .amountInput button{background:#17273c;color:#f7f4eb}
+:global(html[data-leopold-theme="dark"]) .empty,:global(html[data-leopold-theme="dark"]) .stateList span{background:rgba(255,255,255,.035)}
+:global(html[data-leopold-theme="dark"]) .alert,:global(html[data-leopold-theme="dark"]) .notice{background:rgba(201,171,96,.12);border-color:rgba(201,171,96,.35)}
+:global(html[data-leopold-theme="dark"]) .alert span,:global(html[data-leopold-theme="dark"]) .notice span{color:#c6b78f}
+:global(html[data-leopold-theme="dark"]) .statusgood{background:#183023;border-color:#355744;color:#b9d3bd}
+:global(html[data-leopold-theme="dark"]) .statusgold{background:rgba(201,171,96,.15);color:#d8bd78}
+:global(html[data-leopold-theme="dark"]) .frame button:disabled{background:#142236;color:#758296;border-color:rgba(255,255,255,.1);box-shadow:none}
+:global(html[data-leopold-theme="dark"]) .close{color:#f7f4eb}
+
+@media(prefers-reduced-motion:reduce){.sidebar,.mainColumn,.sidebar *{transition:none!important}}
+
+/* Refined app rail proportions and brand-mark rendering. */
+.brand img{width:28px;height:28px;filter:brightness(0) saturate(100%) invert(76%) sepia(35%) saturate(706%) hue-rotate(4deg) brightness(90%) contrast(86%)}
+@media(min-width:801px){
+  .sidebar{width:56px;padding-inline:8px}
+  .sidebar:hover,.sidebar:focus-within{width:218px;padding-inline:16px}
+  .mainColumn{margin-left:56px}
+  .brand{width:40px;min-width:185px;justify-content:center}
+  .sidebar:hover .brand,.sidebar:focus-within .brand{width:auto;justify-content:flex-start}
+  .nav{min-width:185px}
+  .nav a{width:40px;grid-template-columns:24px 1fr 16px;padding-inline:8px}
+  .sidebar:hover .nav a,.sidebar:focus-within .nav a{padding-inline:10px}
+  .sidebarFoot{min-width:185px}
+}
+
+/* Keep the complete monogram inside the compact rail instead of centering the expanded brand row. */
+.brand img{box-sizing:border-box;width:30px;height:30px;padding:4px;background:var(--app-white);filter:none;object-fit:contain}
+@media(min-width:801px){
+  .brand{width:40px;min-width:0;justify-content:center;overflow:visible}
+  .sidebar:hover .brand,.sidebar:focus-within .brand{width:185px;min-width:185px;justify-content:flex-start}
+}
+
+/* Final transparent gold monogram treatment. */
+.brand img{width:30px;height:30px;padding:0;background:transparent;filter:brightness(0) saturate(100%) invert(76%) sepia(35%) saturate(706%) hue-rotate(4deg) brightness(90%) contrast(86%)}
+
+/* Premium authenticated-app surface study: soft depth, familiar controls, Leopold materials. */
+.topbar{height:54px;padding-inline:2.7vw;box-shadow:0 5px 18px rgba(16,37,64,.045)}
+.content{padding-top:38px}
+.nav i{display:grid;place-items:center}
+.nav i svg{display:block;width:18px;height:18px}
+.nav a{border-radius:9px}
+.nav a.active{background:linear-gradient(180deg,rgba(255,255,255,.085),rgba(255,255,255,.045));border-color:rgba(255,255,255,.15);box-shadow:inset 0 1px rgba(255,255,255,.06),0 6px 16px rgba(0,0,0,.12)}
+.brand img{transform:scale(1.34);transform-origin:center}
+.topbar button,.outlineButton,.primaryButton{min-height:36px;border-radius:9px;box-shadow:inset 0 1px rgba(255,255,255,.7),0 5px 13px rgba(16,37,64,.07);transition:transform .16s ease,box-shadow .16s ease,background .16s ease}
+.topbar button:hover,.outlineButton:hover,.primaryButton:hover{transform:translateY(-1px);box-shadow:inset 0 1px rgba(255,255,255,.75),0 8px 18px rgba(16,37,64,.11)}
+.primaryButton{background:linear-gradient(180deg,#d1b66f,#c4a356)!important}
+.wallet{background:rgba(255,254,249,.72)!important}
+.metrics{gap:12px;border:0;background:transparent}
+.metrics article{border:1px solid var(--app-line);border-radius:14px;background:rgba(255,254,249,.88);box-shadow:inset 0 1px rgba(255,255,255,.9),0 9px 28px rgba(16,37,64,.07)}
+.metrics article:last-child{border-right:1px solid var(--app-line)}
+.metrics .metricHero{background:linear-gradient(145deg,#102540,#172e4c);border-color:rgba(255,255,255,.08);box-shadow:inset 0 1px rgba(255,255,255,.1),0 12px 30px rgba(7,16,29,.17)}
+.panel,.vaultCard{border-radius:14px;border-color:rgba(16,37,64,.14);background:rgba(255,254,249,.9);box-shadow:inset 0 1px rgba(255,255,255,.95),0 9px 28px rgba(16,37,64,.065)}
+.vaultCard{overflow:hidden}
+.vaultCard:hover{transform:translateY(-3px);box-shadow:inset 0 1px rgba(255,255,255,.95),0 14px 34px rgba(16,37,64,.11)}
+.vaultCard figure{border-radius:13px 13px 0 0}
+.alert,.notice,.privacyBand,.prizeHero,.vaultHero,.helpCta,.opsTop,.walletCard{border-radius:14px}
+.empty{border-radius:11px;background:rgba(16,37,64,.018)}
+.filterBar,.tabRow{border-radius:11px;background:rgba(255,254,249,.65)}
+.filterBar button,.tabRow button{border-radius:7px}
+.modal{border-radius:18px;box-shadow:inset 0 1px rgba(255,255,255,.9),0 35px 100px rgba(0,0,0,.42)}
+.amountInput{border-radius:10px;overflow:hidden;box-shadow:inset 0 1px 4px rgba(16,37,64,.04)}
+.close{border-radius:8px}
+
+@media(max-width:800px){.topbar{height:54px}.content{padding-top:30px}.metrics{gap:10px}}
+@media(prefers-reduced-motion:reduce){.topbar button,.outlineButton,.primaryButton{transform:none!important}}
+
+/* Direct local image rendering for Sites: preserve the original fill behavior. */
+.vaultCard figure img,.vaultHero figure img{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* Branded app bar and premium control language. */
+.networkBrand{margin-right:auto;display:inline-flex;align-items:center;gap:9px;color:var(--app-navy);font:700 17px Georgia,serif;letter-spacing:-.025em}
+.networkBrand img{width:24px;height:24px;object-fit:contain;filter:sepia(1) saturate(2.2) hue-rotate(358deg) brightness(.86)}
+.networkBrand>span>span{color:var(--app-gold)}
+.vaultCard figure>span,.vaultCard figure .status{color:var(--app-ink);text-shadow:-.5px -.5px 0 rgba(255,255,255,.95),.5px -.5px 0 rgba(255,255,255,.95),-.5px .5px 0 rgba(255,255,255,.95),.5px .5px 0 rgba(255,255,255,.95)}
+.vaultCard figure .status{background:rgba(255,254,249,.84);border-color:rgba(255,255,255,.82);font-weight:700;box-shadow:0 5px 16px rgba(7,16,29,.16)}
+.frame button:not(.menuButton),.outlineButton,.primaryButton{border-radius:9px;box-shadow:inset 0 1px rgba(255,255,255,.72),0 5px 13px rgba(16,37,64,.08);transition:transform .18s ease,box-shadow .18s ease,background .18s ease,border-color .18s ease,color .18s ease}
+.frame button:not(:disabled):not(.menuButton):hover,.outlineButton:hover,.primaryButton:hover{transform:translateY(-1px);box-shadow:inset 0 1px rgba(255,255,255,.8),0 9px 20px rgba(16,37,64,.13)}
+.primaryButton{background:linear-gradient(180deg,#d6b96e 0%,var(--app-gold) 100%)!important}
+.alert button,.filterBar button,.tabRow button,.listRow button,.amountInput button{border-radius:7px}
+.metrics a,.empty a,.sectionHeading>a,.panelTitle a,.privacyBand a,.prizeHero a{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;border:1px solid currentColor;border-radius:8px;text-decoration:none;box-shadow:inset 0 1px rgba(255,255,255,.2);transition:transform .18s ease,background .18s ease,color .18s ease}
+.metrics a:hover,.empty a:hover,.sectionHeading>a:hover,.panelTitle a:hover,.privacyBand a:hover,.prizeHero a:hover{transform:translateY(-1px);background:var(--app-gold);border-color:var(--app-gold);color:var(--app-ink)}
+@media(max-width:520px){.networkBrand{font-size:15px}.networkBrand img{width:21px;height:21px}.networkBrand>span{display:none}}
+.vaultCard figure .status{padding:0;background:transparent;border-color:transparent;box-shadow:none}
+.vaultTitleRow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 18px}
+.vaultTitleRow h3{margin:0}
+.vaultTitleRow>span{flex:0 0 auto;color:rgba(16,37,64,.48);font:8px "Courier New",monospace;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+
+/* High-contrast premium action hierarchy across the authenticated app. */
+.outlineButton{background:linear-gradient(180deg,#fffef9 0%,#f0ede4 100%);border-color:rgba(16,37,64,.36);color:var(--app-navy);font-weight:700}
+.pageHeading>.outlineButton{background:linear-gradient(180deg,#1c3554 0%,var(--app-navy) 100%);border-color:var(--app-navy);color:var(--app-white)}
+.wallet{background:linear-gradient(180deg,#fffef9 0%,#eeebe2 100%)!important;border-color:rgba(16,37,64,.34)!important;color:var(--app-navy)!important;font-weight:700}
+.alert button{background:linear-gradient(180deg,#d8bd78 0%,var(--app-gold) 100%);border-color:#9e803c;color:var(--app-ink);font-weight:700;box-shadow:inset 0 1px rgba(255,255,255,.5),0 6px 15px rgba(16,37,64,.12)}
+.metrics a,.metrics button,.empty a,.sectionHeading>a,.panelTitle a,.privacyBand a,.prizeHero a{min-height:38px;padding:0 14px;border:1px solid var(--app-navy);border-radius:9px;background:linear-gradient(180deg,#1c3554 0%,var(--app-navy) 100%);color:var(--app-white);font-weight:700;box-shadow:inset 0 1px rgba(255,255,255,.14),0 6px 15px rgba(16,37,64,.13)}
+.metricHero a,.metricHero button,.privacyBand a,.prizeHero a{background:linear-gradient(180deg,#d8bd78 0%,var(--app-gold) 100%);border-color:var(--app-gold);color:var(--app-ink)}
+.metrics button:disabled,.frame button:disabled{opacity:.68;background:#e7e3d9;color:#657083;border:1px solid rgba(16,37,64,.22);box-shadow:inset 0 1px rgba(255,255,255,.72);text-decoration:none}
+.filterBar{padding:7px 9px;background:rgba(255,254,249,.86);border:1px solid var(--app-line);box-shadow:0 5px 14px rgba(16,37,64,.05)}
+.filterBar button,.tabRow button{min-height:34px;padding:0 12px;border:1px solid rgba(16,37,64,.14);background:#fffef9;color:#586579;font-weight:700;box-shadow:inset 0 1px rgba(255,255,255,.8),0 3px 8px rgba(16,37,64,.05)}
+.filterBar .selected,.tabRow .selected{background:linear-gradient(180deg,#1c3554 0%,var(--app-navy) 100%);border-color:var(--app-navy);color:var(--app-white)}
+.listRow button,.amountInput button{background:#fffef9;border-color:rgba(16,37,64,.3);color:var(--app-navy);font-weight:700;box-shadow:0 4px 10px rgba(16,37,64,.08)}
+.heroActions .outlineButton{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.48);color:var(--app-white)}
+.buttonRow .outlineButton:hover,.heroActions .outlineButton:hover{background:var(--app-gold);border-color:var(--app-gold);color:var(--app-ink)}
+.close{background:#fffef9;border-color:rgba(16,37,64,.32);box-shadow:0 5px 14px rgba(16,37,64,.1)}
+.frame button,.outlineButton,.primaryButton,.metrics a,.empty a,.sectionHeading>a,.panelTitle a,.privacyBand a,.prizeHero a{align-items:center;justify-content:center;line-height:1;text-align:center}
+.outlineButton,.primaryButton,.metrics a,.empty a,.sectionHeading>a,.panelTitle a,.privacyBand a,.prizeHero a{display:inline-flex}
+.profileGrid .amountInput+.outlineButton{width:100%;min-height:44px;margin-top:16px}
+@media(min-width:801px){
+  .sidebarFoot{width:100%;min-width:0;visibility:hidden;white-space:normal;overflow-wrap:break-word}
+  .sidebarFoot p,.sidebarFoot a{white-space:normal}
+  .sidebar:hover .sidebarFoot,.sidebar:focus-within .sidebarFoot{visibility:visible}
+}
+
+/* Final dark-mode contrast corrections. These intentionally follow all light-theme component rules. */
+:global(html[data-leopold-theme="dark"]) .nav a{color:#aeb8c5}
+:global(html[data-leopold-theme="dark"]) .nav a:hover,
+:global(html[data-leopold-theme="dark"]) .nav a.active{background:rgba(201,171,96,.1);border-color:rgba(201,171,96,.28);color:#fffef9}
+:global(html[data-leopold-theme="dark"]) .nav a.active b{color:#d8bd78}
+:global(html[data-leopold-theme="dark"]) .vaultTitleRow>span{color:#9ba8b8}
+:global(html[data-leopold-theme="dark"]) .vaultCard figure .status{color:#d8bd78;text-shadow:none}
+:global(html[data-leopold-theme="dark"]) .eyebrow,
+:global(html[data-leopold-theme="dark"]) .metrics article>div:first-child{color:#aeb9c8}
+
+:global(html[data-leopold-theme="dark"]) .filterBar,
+:global(html[data-leopold-theme="dark"]) .tabRow{background:transparent;border-color:transparent;box-shadow:none}
+:global(html[data-leopold-theme="dark"]) .filterBar{padding:8px 0}
+:global(html[data-leopold-theme="dark"]) .filterBar button,
+:global(html[data-leopold-theme="dark"]) .tabRow button{background:#132238;border-color:transparent;color:#c5ced9;box-shadow:0 5px 14px rgba(0,0,0,.18)}
+:global(html[data-leopold-theme="dark"]) .filterBar button:hover,
+:global(html[data-leopold-theme="dark"]) .tabRow button:hover{background:#1b304d;color:#fffef9}
+:global(html[data-leopold-theme="dark"]) .filterBar .selected,
+:global(html[data-leopold-theme="dark"]) .tabRow .selected{background:linear-gradient(180deg,#d8bd78,var(--app-gold));border-color:transparent;color:#07101d;box-shadow:0 7px 18px rgba(0,0,0,.22)}
+
+:global(html[data-leopold-theme="dark"]) .frame button:not(.menuButton),
+:global(html[data-leopold-theme="dark"]) .outlineButton,
+:global(html[data-leopold-theme="dark"]) .metrics a,
+:global(html[data-leopold-theme="dark"]) .empty a,
+:global(html[data-leopold-theme="dark"]) .sectionHeading>a,
+:global(html[data-leopold-theme="dark"]) .panelTitle a,
+:global(html[data-leopold-theme="dark"]) .privacyBand a,
+:global(html[data-leopold-theme="dark"]) .prizeHero a{box-shadow:0 6px 16px rgba(0,0,0,.22)}
+:global(html[data-leopold-theme="dark"]) .frame button:not(:disabled):not(.menuButton):hover,
+:global(html[data-leopold-theme="dark"]) .outlineButton:hover,
+:global(html[data-leopold-theme="dark"]) .metrics a:hover,
+:global(html[data-leopold-theme="dark"]) .empty a:hover{box-shadow:0 10px 22px rgba(0,0,0,.28)}
+:global(html[data-leopold-theme="dark"]) .metrics a,
+:global(html[data-leopold-theme="dark"]) .metrics button,
+:global(html[data-leopold-theme="dark"]) .empty a,
+:global(html[data-leopold-theme="dark"]) .sectionHeading>a,
+:global(html[data-leopold-theme="dark"]) .panelTitle a{background:linear-gradient(180deg,#223956,#14263e);border-color:transparent;color:#f7f4eb}
+:global(html[data-leopold-theme="dark"]) .metrics button:disabled,
+:global(html[data-leopold-theme="dark"]) .frame button:disabled{background:#101d2f;color:#718095;border-color:transparent;box-shadow:none}
+:global(html[data-leopold-theme="dark"]) .wallet,
+:global(html[data-leopold-theme="dark"]) .outlineButton{border-color:transparent!important}
+
+:global(html[data-leopold-theme="dark"]) .metrics+ .panel{margin-top:18px}
+:global(html[data-leopold-theme="dark"]) .metrics article,
+:global(html[data-leopold-theme="dark"]) .panel,
+:global(html[data-leopold-theme="dark"]) .vaultCard{border-color:rgba(90,119,151,.28);box-shadow:0 10px 28px rgba(0,0,0,.2)}
+:global(html[data-leopold-theme="dark"]) .amountInput{padding-right:4px;overflow:hidden}
+:global(html[data-leopold-theme="dark"]) .amountInput input{width:0;color:#f7f4eb}
+:global(html[data-leopold-theme="dark"]) .amountInput b{flex:0 0 auto;padding:0 14px 0 10px;color:#f7f4eb;white-space:nowrap}
+:global(html[data-leopold-theme="dark"]) .amountInput button{flex:0 0 auto;margin:0 7px 0 0;background:#1c304a;border-color:transparent;color:#f7f4eb;box-shadow:none}
+
+/* Shared amount-field geometry: keeps the currency suffix inside the field in both themes. */
+.amountInput{padding-right:4px}
+.amountInput input{width:0}
+.amountInput b{flex:0 0 auto;padding:0 14px 0 10px;white-space:nowrap}
+.sidebarThemeToggle{width:100%;margin-top:8px;justify-content:flex-start!important;background:transparent!important;border:0!important;box-shadow:none!important}
+
+@media(max-width:1280px) and (min-width:801px){.content{padding-inline:3vw}.pageHeading h1{font-size:clamp(45px,4.5vw,61px)}.metrics article{padding:21px}.vaultGrid{gap:14px}}
+@media(max-width:700px){.topbar{gap:8px}.topActions{gap:6px}.topActions .primaryButton{padding-inline:12px;font-size:8px}.filterBar div,.tabRow,.buttonRow,.heroActions{flex-wrap:wrap}.filterBar button,.tabRow button{flex:1 1 auto}.metrics article{min-height:230px}.panel{padding:20px}.pageHeading{margin-bottom:27px}.section{margin-top:52px}.modal{width:100%}}
+@media(max-width:420px){.content{padding-inline:12px}.pageHeading h1{font-size:38px}.topActions .primaryButton{max-width:108px;white-space:normal}.vaultHero h1{font-size:48px}.privacyBand{padding:28px 20px}.detailMetrics{grid-template-columns:1fr}.listRow{grid-template-columns:1fr}.listRow>span,.listRow>button{justify-self:start}}
+
+/* Final compact application shell review. */
+@media(min-width:801px){
+  .sidebar{width:48px;padding:20px 6px}
+  .sidebar:hover,.sidebar:focus-within{width:202px;padding-inline:14px}
+  .mainColumn{margin-left:48px}
+  .sidebar .brand{width:36px;min-width:36px}
+  .sidebar:hover .brand,.sidebar:focus-within .brand{width:174px;min-width:174px}
+  .sidebar .nav a{width:36px;min-height:40px;padding-inline:7px}
+  .sidebar:hover .nav a,.sidebar:focus-within .nav a{padding-inline:9px}
+  .sidebarFoot{padding-inline:8px;padding-top:13px;gap:7px;font-size:10px}
+  .sidebarThemeToggle{margin-top:3px}
+}
+.topbar{height:48px;padding-inline:2.2vw}
+.topbar button,.outlineButton,.primaryButton{min-height:34px}
+.content{padding:24px 2.4vw 56px}
+.pageHeading{margin-bottom:24px}
+.section{margin-top:44px}
+.twoColumns,.prizeGrid,.detailGrid,.profileGrid{margin-top:44px}
+.privacyBand,.helpCta{margin-top:44px}
+:global(html[data-leopold-theme="dark"]) .brand>span{color:#fffef9}
+
+@media(max-height:820px) and (min-width:801px){
+  .navLabel{margin-top:28px}
+  .nav{gap:1px}
+  .nav a{min-height:37px}
+  .sidebarFoot p{display:none}
+}
+@media(max-height:700px) and (min-width:801px){
+  .sidebar{padding-block:14px}
+  .brand img{width:26px;height:26px}
+  .navLabel{margin-top:18px;margin-bottom:8px}
+  .nav a{min-height:34px}
+  .sidebarFoot{padding-top:8px;gap:5px}
+}
+@media(max-width:800px){
+  .topbar{height:50px}
+  .content{padding:24px 14px 48px}
+}
+
+/* Muted-gold footing gives selected financial surfaces a clear premium edge. */
+.metrics article,.vaultCard,.panel,.profileCard{border-bottom:3px solid rgba(201,171,96,.72)}
+:global(html[data-leopold-theme="dark"]) .metrics article,
+:global(html[data-leopold-theme="dark"]) .vaultCard,
+:global(html[data-leopold-theme="dark"]) .panel,
+:global(html[data-leopold-theme="dark"]) .profileCard{border-bottom-color:#c9ab60}

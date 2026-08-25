@@ -5,6 +5,7 @@ import { leopoldConfig } from "@/lib/leopold/config";
 import { ConfigurationStatus, FixtureStatus } from "@/components/configuration-status";
 import { useFinancial } from "@/components/financial-provider";
 import { transactionIsBusy } from "@/lib/leopold/transactions";
+import styles from "@/components/full-site/leopold-app-ui.module.css";
 
 export default function RewardsPage() {
   const financial = useFinancial();
@@ -28,25 +29,26 @@ export default function RewardsPage() {
     0n,
   );
   return (
-    <div className="content">
+    <div className={styles.content}>
       <FixtureStatus />
       <ConfigurationStatus />
-      <div className="page-heading">
+      <div className={styles.pageHeading}>
         <div>
-          <h1>Rewards</h1>
+          <p className={styles.eyebrow}>Public reward accounting</p>
+          <h1>Rewards, kept <em>distinct.</em></h1>
           <p>Refundable bonds and settlement rewards are separate from prizes and savings.</p>
         </div>
       </div>
-      <div className="grid two">
-        <article className="card">
-          <div className="card-label">Bond refunds</div>
-          <div className="stat">{refundAmount === undefined ? "Unavailable" : `${formatEther(refundAmount)} ETH`}</div>
-          <p className="subtle">
+      <div className={styles.metrics}>
+        <article className={styles.metricHero}>
+          <div><span>Bond refunds</span><span className={styles.status}>Availability</span></div>
+          <strong>{refundAmount === undefined ? "—" : formatEther(refundAmount)} <small>ETH</small></strong>
+          <p>
             Available after the round’s public bond accounting is finalized. Winner and loser refunds follow identical
             public logic.
           </p>
           <button
-            className="button secondary"
+            className={styles.outlineButton}
             data-testid="claim-refund"
             disabled={busy || !financial.financialActionsEnabled || !refundVault || refundAmount === undefined}
             onClick={() => {
@@ -56,24 +58,22 @@ export default function RewardsPage() {
             Claim refund
           </button>
         </article>
-        <article className="card">
-          <div className="card-label">Settlement rewards</div>
-          <div className="stat">
-            {financial.fixture ? "0 ETH" : leopoldConfig.ready ? `${formatEther(rewardTotal)} ETH` : "Unavailable"}
-          </div>
-          <p className="subtle">
+        <article>
+          <div><span>Settlement rewards</span><span className={styles.status}>Availability</span></div>
+          <strong>{financial.fixture ? "0" : leopoldConfig.ready ? formatEther(rewardTotal) : "—"} <small>ETH</small></strong>
+          <p>
             Credited only when this address performs permissionless draw-finalization work. This is not prize winnings,
             yield, or a bond refund.
           </p>
         </article>
       </div>
-      <section className="section card">
-        <h2>By vault</h2>
+      <section className={styles.panel}>
+        <p className={styles.eyebrow}>By vault</p><h2>Reward availability.</h2>
         {leopoldConfig.vaults.map((vault) => {
           const reward = financial.publicVaultState[vault.slug]?.settlementReward;
           return (
-            <div className="list-row" key={vault.slug}>
-              <div className="list-main">
+            <div className={styles.listRow} key={vault.slug}>
+              <div>
                 <strong>{vault.name}</strong>
                 <span>Settlement reward credit</span>
               </div>
@@ -81,7 +81,7 @@ export default function RewardsPage() {
                 <span>{reward === undefined ? "Unavailable" : `${formatEther(reward)} ETH`}</span>
                 {reward && reward > 0n ? (
                   <button
-                    className="button secondary small"
+                    className={styles.outlineButton}
                     disabled={busy || !financial.financialActionsEnabled}
                     onClick={() => {
                       void financial.claimRewards(vault.slug).catch(() => undefined);

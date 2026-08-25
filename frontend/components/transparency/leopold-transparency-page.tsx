@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ThemeToggle } from "../theme-toggle";
-import styles from "./leopold-transparency-page.module.css";
+import styles from "@/components/full-site/public-pages.module.css";
 
 const confidential = ["Individual savings positions", "Exact prize weight and odds", "Encrypted random ticket", "Winner and winnings"];
 const publicFacts = ["Prize-round entry and public ETH bond", "Initial amount at the Make Private boundary", "Aggregate vault strategy and Compound position", "Round and finalization state"];

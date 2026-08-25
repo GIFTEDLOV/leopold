@@ -5,20 +5,23 @@ import { leopoldConfig } from "@/lib/leopold/config";
 import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { ConfigurationStatus, FixtureStatus } from "@/components/configuration-status";
 import { useFinancial } from "@/components/financial-provider";
+import styles from "@/components/full-site/leopold-app-ui.module.css";
 
 export default function PrizesPage() {
   const financial = useFinancial();
   return (
-    <div className="content">
+    <div className={styles.content}>
       <FixtureStatus />
       <ConfigurationStatus />
-      <div className="page-heading">
+      <div className={styles.pageHeading}>
         <div>
-          <h1>Prizes</h1>
+          <p className={styles.eyebrow}>Private prize center</p>
+          <h1>Every round, in one <em>place.</em></h1>
           <p>Prize entry is public. Your exact chances, result, and winnings stay private.</p>
         </div>
       </div>
-      <div className="grid two">
+      <section className={styles.tabRow}><button className={styles.selected}>Current</button><button>Upcoming</button><button>Completed</button></section>
+      <div className={styles.prizeGrid}>
         {leopoldConfig.vaults.map((vault) => {
           const entered = financial.enteredVaults.has(vault.slug);
           const state = financial.publicVaultState[vault.slug];
@@ -27,27 +30,27 @@ export default function PrizesPage() {
           const revealed = financial.revealedResults.has(vault.slug);
           const result = financial.privateResults[vault.slug];
           return (
-            <article className="card" key={vault.slug}>
-              <div className="vault-head">
+            <article className={styles.panel} key={vault.slug}>
+              <div className={styles.panelTitle}>
                 <div>
-                  <span className="subtle">
+                  <span className={styles.eyebrow}>
                     {vault.name} Vault · Round {state?.roundId.toString() ?? "—"}
                   </span>
                   <h2>
                     {financial.fixture && !state ? (entered ? "Result ready" : "Round active") : roundStatus.label}
                   </h2>
                 </div>
-                <span className={`badge ${entered ? "" : "neutral"}`}>{entered ? "Entered" : "Not entered"}</span>
+                <span className={styles.status}>{entered ? "Entered" : "Not entered"}</span>
               </div>
-              <div className="list-row">
-                <div className="list-main">
+              <div className={styles.listRow}>
+                <div>
                   <strong>Prize</strong>
                   <span>Public round reserve</span>
                 </div>
                 <strong>{state ? `${formatUsdcAmount(state.publicPrize)} USDC` : "Unavailable"}</strong>
               </div>
-              <div className="list-row">
-                <div className="list-main">
+              <div className={styles.listRow}>
+                <div>
                   <strong>Private result</strong>
                   <span>
                     {!entered
@@ -68,7 +71,7 @@ export default function PrizesPage() {
                 </strong>
               </div>
               <button
-                className="button secondary"
+                className={styles.outlineButton}
                 data-testid={`reveal-result-${vault.slug}`}
                 disabled={!financial.financialActionsEnabled || !resultReady}
                 onClick={() => {
@@ -81,9 +84,10 @@ export default function PrizesPage() {
           );
         })}
       </div>
-      <section className="section card">
+      <section className={styles.privacyBand}>
+        <p className={styles.eyebrow}>Encrypted draw</p>
         <h2>Why a draw can take time</h2>
-        <p className="privacy-callout">
+        <p>
           When a round closes, Leopold may show “Finalizing private draw.” Permissionless participants complete the
           private draw in bounded steps. Progress never reveals the winner, accepted ticket, or participant balances.
         </p>

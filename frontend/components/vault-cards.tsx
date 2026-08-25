@@ -5,6 +5,7 @@ import Image from "next/image";
 import { leopoldConfig, type VaultId } from "@/lib/leopold/config";
 import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { useFinancial } from "./financial-provider";
+import styles from "@/components/full-site/leopold-app-ui.module.css";
 
 const descriptions: Record<VaultId, string> = {
   daily: "Fast rhythm",
@@ -31,11 +32,11 @@ export function VaultCards() {
   return (
     <>
       {allRoundsKnown && !statuses.some((status) => status.depositOpen) ? (
-        <div className="inline-notice" role="status" data-testid="no-open-vaults">
+        <div className={styles.alert} role="status" data-testid="no-open-vaults">
           No vault round is currently open for deposits.
         </div>
       ) : null}
-      <div className="vault-grid">
+      <div className={`${styles.vaultGrid} ${styles.vaultGridLarge}`}>
         {leopoldConfig.vaults.map((vault, index) => {
           const entered = financial.enteredVaults.has(vault.slug);
           const state = financial.publicVaultState[vault.slug];
@@ -43,41 +44,41 @@ export function VaultCards() {
           const saveEnabled = financial.fixture || (financial.financialActionsEnabled && status.depositOpen);
           return (
             <article
-              className={`vault-card ${vault.slug === "weekly" ? "recommended" : ""}`}
+              className={`${styles.vaultCard} ${vault.slug === "weekly" ? styles.recommended : ""}`}
               key={vault.slug}
               data-testid={`vault-${vault.slug}`}
             >
-              <figure className="vault-image">
+              <figure>
                 <Image src={images[vault.slug]} alt={`${vault.name} prize-saving vault`} fill sizes="(max-width: 760px) 100vw, (max-width: 1100px) 50vw, 25vw" />
                 <span>{String(index + 1).padStart(2, "0")}</span>
               </figure>
-              <div className="vault-card-body">
-              <div className="vault-head">
+              <div>
+              <div className={styles.vaultTitleRow}>
                 <div>
                   <h3>{vault.name}</h3>
-                  <span className="vault-note">{descriptions[vault.slug]}</span>
+                  <span>{descriptions[vault.slug]}</span>
                 </div>
                 {vault.slug === "weekly" ? (
-                  <span className="badge">Recommended</span>
+                  <span className={styles.status}>Recommended</span>
                 ) : entered ? (
-                  <span className="badge">Entered</span>
+                  <span className={styles.status}>Entered</span>
                 ) : null}
               </div>
-              <div className="vault-meta">
-                <span>Round duration · {durations[vault.slug]}</span>
-                <span>Prize · {state ? `${Number(state.publicPrize) / 1_000_000} USDC` : "Unavailable"}</span>
-                <span>Status · {financial.fixture && !state ? "Open" : status.label}</span>
-              </div>
-              <div className="vault-actions">
-                <Link className="button secondary" href={`/app/vaults/${vault.slug}`}>
+              <dl>
+                <div><dt>Cadence</dt><dd>{durations[vault.slug]}</dd></div>
+                <div><dt>Prize</dt><dd>{state ? `${Number(state.publicPrize) / 1_000_000} USDC` : "Unavailable"}</dd></div>
+                <div><dt>Status</dt><dd>{financial.fixture && !state ? "Open" : status.label}</dd></div>
+              </dl>
+              <div className={styles.buttonRow}>
+                <Link className={styles.outlineButton} href={`/app/vaults/${vault.slug}`}>
                   View
                 </Link>
                 {saveEnabled ? (
-                  <Link className="button" href={`/app/vaults/${vault.slug}#save`}>
+                  <Link className={styles.primaryButton} href={`/app/vaults/${vault.slug}#save`}>
                     Save
                   </Link>
                 ) : (
-                  <button className="button" disabled type="button">
+                  <button className={styles.primaryButton} disabled type="button">
                     Save
                   </button>
                 )}
