@@ -228,15 +228,32 @@ export function LeopoldMarketingHome() {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const hero = heroRef.current;
     const heroTitle = heroTitleRef.current;
-    if (!hero || !heroTitle || reducedMotion.matches) return;
+    const heroCopy = hero?.querySelector<HTMLElement>(`.${styles["hero-copy"]}`);
+    if (!hero || !heroTitle || !heroCopy) return;
 
     let animationFrame = 0;
+    let currentCopyOffset = 0;
+    let copyOffsetInitialized = false;
     const updateScrollEffect = () => {
       animationFrame = 0;
       const heroRect = hero.getBoundingClientRect();
       const progress = Math.min(1, Math.max(0, -heroRect.top / Math.max(heroRect.height, 1)));
-      heroTitle.style.setProperty("--hero-scroll-scale", (1 + progress * 0.55).toFixed(3));
+      const viewportHeight = window.innerHeight;
+      const targetCopyOffset = -Math.max(0, heroRect.bottom - viewportHeight);
+      if (!copyOffsetInitialized || reducedMotion.matches) {
+        currentCopyOffset = targetCopyOffset;
+        copyOffsetInitialized = true;
+      } else {
+        currentCopyOffset += (targetCopyOffset - currentCopyOffset) * 0.2;
+      }
+      heroCopy.style.setProperty("--hero-copy-pin", `${currentCopyOffset.toFixed(2)}px`);
+      if (reducedMotion.matches) return;
+      const growthCap = viewportHeight < 660 ? 0.22 : viewportHeight < 780 ? 0.34 : 0.55;
+      heroTitle.style.setProperty("--hero-scroll-scale", (1 + progress * growthCap).toFixed(3));
       heroTitle.style.setProperty("--hero-scroll-lift", `${(-progress * 12).toFixed(1)}px`);
+      if (Math.abs(targetCopyOffset - currentCopyOffset) > 0.1) {
+        animationFrame = window.requestAnimationFrame(updateScrollEffect);
+      }
     };
     const requestUpdate = () => {
       if (animationFrame) return;
