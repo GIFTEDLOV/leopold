@@ -8,9 +8,9 @@ import { useWalletIdentity } from "./wallet-identity-provider";
 import { normalizeEmail } from "@/lib/auth/email";
 import { LoginShell } from "./login/login-shell";
 
-function AuthFrame({ eyebrow, title, children }: { eyebrow: string; title: ReactNode; children: ReactNode }) {
+function AuthFrame({ eyebrow, title, children, profileLayout = false }: { eyebrow: string; title: ReactNode; children: ReactNode; profileLayout?: boolean }) {
   return (
-    <LoginShell eyebrow={eyebrow} title={title}>
+    <LoginShell eyebrow={eyebrow} title={title} profileLayout={profileLayout}>
       {children}
     </LoginShell>
   );
@@ -197,7 +197,7 @@ export function OnboardingClient() {
   }
 
   return (
-    <AuthFrame eyebrow="Welcome to Leopold" title={<>Finish your<br /><span>profile</span></>}>
+    <AuthFrame eyebrow="Welcome to Leopold" title={<>Finish your<br /><span>profile</span></>} profileLayout>
       <p className="subtle">
         Your email identity and external financial wallet remain separate by design. Verify the wallet that will control your savings.
       </p>
