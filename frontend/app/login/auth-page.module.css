@@ -575,3 +575,36 @@
   .formContent h1 { font-size:42px; }
   .formContent :global(.profile-actions) { grid-template-columns:1fr; }
 }
+
+.profileContent .eyebrow {
+  margin-bottom: 22px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.profileContent h1 {
+  line-height: 1.02;
+}
+
+.profileContent > :global(.subtle):first-of-type {
+  margin-top: 30px;
+  margin-bottom: 28px;
+  line-height: 1.62;
+}
+
+.profileContent :global(.profile-actions) {
+  margin-top: 22px;
+}
+
+@media (max-width: 820px) {
+  .profileContent .eyebrow {
+    margin-bottom: 12px;
+    font-size: 9px;
+  }
+
+  .profileContent > :global(.subtle):first-of-type {
+    margin-top: 16px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+}
