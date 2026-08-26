@@ -784,6 +784,17 @@ input:focus-visible {
   padding-left: 18px;
 }
 
+/* Keep the vault status and prize-result action visually separated. */
+.app-frame .vault-meta {
+  border-bottom: 1px solid var(--app-line, var(--line));
+  border-top: 0;
+  padding-bottom: 15px;
+  padding-top: 0;
+}
+.app-frame .card > [data-testid^="reveal-result-"] {
+  margin-top: 18px;
+}
+
 @media (max-width: 1100px) {
   .app-frame {
     grid-template-columns: 210px minmax(0, 1fr);

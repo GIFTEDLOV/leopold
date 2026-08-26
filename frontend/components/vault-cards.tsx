@@ -54,7 +54,7 @@ export function VaultCards() {
               <div className="vault-meta">
                 <span>Round duration · {durations[vault.slug]}</span>
                 <span>Prize · {state ? `${Number(state.publicPrize) / 1_000_000} USDC` : "Unavailable"}</span>
-                <span>Status · {financial.fixture && !state ? "Open" : status.label}</span>
+                <span>{financial.fixture && !state ? "Open" : status.label}</span>
               </div>
               <div className="vault-actions">
                 <Link className="button secondary" href={`/app/vaults/${vault.slug}`}>
