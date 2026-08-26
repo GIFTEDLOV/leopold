@@ -93,7 +93,7 @@ export function DashboardExperience() {
   };
 
   const transactionState = controller.transactions.current.state;
-  const showTransactionBanner = transactionState !== "idle" && transactionState !== "complete" && transactionState !== "success";
+  const showTransactionBanner = transactionState !== "idle" && transactionState !== "success";
 
   return (
     <div className={styles.content}>
