@@ -1,11 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { PublicClient } from "viem";
 
 import {
   canPrepareVaultWithdrawal,
+  getEffectiveVaultPublicPrize,
   getEffectiveVaultRoundStatus,
   isVaultRoundOpen,
+  readVaultPublicState,
   type VaultPublicState,
 } from "../lib/leopold/reads";
+import { leopoldConfig } from "../lib/leopold/config";
 
 function round(overrides: Partial<Pick<VaultPublicState, "state" | "opensAt" | "closesAt" | "stateLabel">> = {}) {
   return {
@@ -37,6 +41,53 @@ describe("effective vault round state", () => {
       label: "Checking round",
       depositOpen: false,
     });
+  });
+
+  it("projects an open round's sponsored prize into the UI reserve", () => {
+    const state = {
+      ...round(),
+      publicPrize: 0n,
+      publicSponsoredPrize: 100_000n,
+    };
+
+    expect(getEffectiveVaultPublicPrize(state, 150n)).toBe(100_000n);
+    expect(getEffectiveVaultPublicPrize(state, 200n)).toBe(0n);
+  });
+
+  it("reads the sponsored accumulator that the controller uses for the card reserve", async () => {
+    const readContract = vi.fn(async ({ functionName }: { functionName: string }) => {
+      switch (functionName) {
+        case "activeRoundId":
+          return 1n;
+        case "roundInfo":
+          return [100n, 200n, 1, 0n, 0n, 0n, 0n, 0n] as const;
+        case "publicSponsoredPrize":
+          return 100_000n;
+        case "isRegistered":
+        case "refundClaimed":
+          return false;
+        case "eligibilityStart":
+          return 0n;
+        case "BOND_AMOUNT":
+          return 5_000_000_000_000_000n;
+        case "REFUND_PER_COMPLETED_PARTICIPANT":
+          return 0n;
+        case "settlementRewardCredit":
+          return 0n;
+        default:
+          throw new Error(`Unexpected read: ${functionName}`);
+      }
+    });
+    const state = await readVaultPublicState(
+      { readContract } as unknown as PublicClient,
+      leopoldConfig.vaults[0],
+      "0x1111111111111111111111111111111111111111",
+      123n,
+    );
+
+    expect(state.publicPrize).toBe(0n);
+    expect(state.publicSponsoredPrize).toBe(100_000n);
+    expect(getEffectiveVaultPublicPrize(state, 150n)).toBe(100_000n);
   });
 
   it("does not call an expired round open when every overview card is expired", () => {

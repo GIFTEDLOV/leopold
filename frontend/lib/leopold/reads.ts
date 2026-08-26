@@ -30,6 +30,7 @@ export type VaultPublicState = {
   state: number;
   stateLabel: string;
   publicPrize: bigint;
+  publicSponsoredPrize: bigint;
   participantCount: bigint;
   selectionCursor: bigint;
   allocationCursor: bigint;
@@ -70,6 +71,26 @@ export function isVaultRoundOpen(
   blockTimestamp: bigint,
 ): boolean {
   return getEffectiveVaultRoundStatus({ ...state, stateLabel: "" }, blockTimestamp).depositOpen;
+}
+
+/**
+ * The stored round prize is finalized when the round closes. While the active
+ * round is open, sponsorship is held in a separate public accumulator and is
+ * part of the user-facing prize preview. It must not be added after the round
+ * leaves the open interval because closeRound snapshots that amount into the
+ * stored prize.
+ */
+export function getEffectiveVaultPublicPrize(
+  state: Pick<
+    VaultPublicState,
+    "state" | "stateLabel" | "opensAt" | "closesAt" | "publicPrize" | "publicSponsoredPrize"
+  > | undefined,
+  blockTimestamp: bigint | null,
+): bigint | null {
+  if (!state) return null;
+  const status = getEffectiveVaultRoundStatus(state, blockTimestamp);
+  if (status.code === "UNAVAILABLE") return null;
+  return state.publicPrize + (status.code === "OPEN" ? state.publicSponsoredPrize : 0n);
 }
 
 export function canPrepareVaultWithdrawal(
@@ -204,9 +225,16 @@ async function readVaultPublicStateOnce(
     functionName: "activeRoundId",
     ...blockTag,
   });
-  const [round, entered, eligibilityStart, bondAmount, refundAmount, refundClaimed, settlementReward] =
+  const [round, sponsoredPrize, entered, eligibilityStart, bondAmount, refundAmount, refundClaimed, settlementReward] =
     await Promise.all([
       client.readContract({ address: vault, abi: vaultAbi, functionName: "roundInfo", args: [roundId], ...blockTag }),
+      client.readContract({
+        address: vault,
+        abi: vaultAbi,
+        functionName: "publicSponsoredPrize",
+        args: [roundId],
+        ...blockTag,
+      }),
       client.readContract({
         address: escrow,
         abi: bondEscrowAbi,
@@ -251,6 +279,7 @@ async function readVaultPublicStateOnce(
     state,
     stateLabel: ROUND_STATE_LABELS[state] ?? "Finalizing private draw",
     publicPrize: round[4],
+    publicSponsoredPrize: sponsoredPrize,
     participantCount: round[5],
     selectionCursor: round[6],
     allocationCursor: round[7],

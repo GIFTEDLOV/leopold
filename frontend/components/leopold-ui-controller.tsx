@@ -8,7 +8,7 @@ import { useFinancial } from "@/components/financial-provider";
 import { useWalletSessionController } from "@/components/wallet-identity-provider";
 import type { LeopoldRecoveryAction } from "@/lib/auth/recovery";
 import { type LeopoldErrorCode } from "@/lib/leopold/errors";
-import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
+import { getEffectiveVaultPublicPrize, getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { leopoldConfig, type VaultId } from "@/lib/leopold/config";
 import { loadSafeTransactions, transactionStageLabel, type SafeTransactionRecord } from "@/lib/leopold/transactions";
 import {
@@ -268,7 +268,7 @@ export function useLeopoldUiController(): LeopoldUiController {
           opensAt: publicState?.opensAt ?? null,
           closesAt: publicState?.closesAt ?? null,
           label: effectiveRound.label,
-          publicPrizeReserve: publicState?.publicPrize ?? null,
+          publicPrizeReserve: getEffectiveVaultPublicPrize(publicState, financial.latestBlockTimestamp),
           entered,
           participantCount: publicState?.participantCount ?? null,
           settlementProgress: publicState

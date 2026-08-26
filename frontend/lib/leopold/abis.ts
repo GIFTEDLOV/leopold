@@ -164,6 +164,13 @@ export const vaultAbi = [
       { name: "allocationCursor", type: "uint256" },
     ],
   },
+  {
+    type: "function",
+    name: "publicSponsoredPrize",
+    stateMutability: "view",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint64" }],
+  },
   { type: "function", name: "closeRound", stateMutability: "nonpayable", inputs: [], outputs: [] },
   {
     type: "function",
