@@ -12,8 +12,12 @@ export default function ProfilePage() {
   const auth = useAuth();
   const walletIdentity = useWalletIdentity();
   const router = useRouter();
-  const [amount, setAmount] = useState("1");
+  const [privateAmount, setPrivateAmount] = useState("1");
+  const [publicAmount, setPublicAmount] = useState("1");
   const session = walletIdentity.walletSession;
+  const canTransact = session.status === "CONNECTED" && financial.financialActionsEnabled;
+  const showTxStatus = financial.txStage !== "ready" && financial.txStage !== "complete";
+
   return (
     <div className={styles.content}>
       <div className={styles.pageHeading}>
@@ -71,6 +75,7 @@ export default function ProfilePage() {
             </button>
           </div>
         </article>
+
         <article className={styles.panel}>
           <p className={styles.eyebrow}>Linked accounts</p><h2>Optional identity.</h2>
           <div className={styles.listRow}>
@@ -89,12 +94,9 @@ export default function ProfilePage() {
               <span className={styles.status}>Unavailable</span>
             )}
           </div>
-          {auth.authError ? (
-            <div className={styles.notice} role="alert">
-              {auth.authError}
-            </div>
-          ) : null}
+          {auth.authError ? <div className={styles.notice} role="alert">{auth.authError}</div> : null}
         </article>
+
         <article className={styles.panel}>
           <p className={styles.eyebrow}>Privacy preferences</p><h2>Reveal deliberately.</h2>
           <div className={styles.listRow}>
@@ -108,6 +110,34 @@ export default function ProfilePage() {
             Decrypted balances and results are kept only in client memory and cleared on wallet or network change.
           </p>
         </article>
+
+        <article className={styles.panel}>
+          <p className={styles.eyebrow}>Make private</p><h2>Convert public USDC.</h2>
+          <p>
+            Convert canonical public USDC into Private USDC. Your wallet may request an approval first, followed by the
+            Make Private transaction.
+          </p>
+          <div className={styles.amountInput}>
+            <input
+              aria-label="Public USDC amount to make private"
+              value={privateAmount}
+              onChange={(event) => setPrivateAmount(event.target.value)}
+              inputMode="decimal"
+            />
+            <b>USDC</b>
+          </div>
+          <button
+            className={styles.primaryButton}
+            style={{ width: "100%", marginTop: 24 }}
+            disabled={!canTransact}
+            onClick={() => {
+              void financial.makePrivate(privateAmount).catch(() => undefined);
+            }}
+          >
+            Make Private
+          </button>
+        </article>
+
         <article className={styles.panel}>
           <p className={styles.eyebrow}>Make public</p><h2>Return to public USDC.</h2>
           <p>
@@ -117,24 +147,27 @@ export default function ProfilePage() {
           <div className={styles.amountInput}>
             <input
               aria-label="Private USDC amount to make public"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              value={publicAmount}
+              onChange={(event) => setPublicAmount(event.target.value)}
               inputMode="decimal"
             />
             <b>USDC</b>
           </div>
           <button
             className={styles.outlineButton}
-            disabled={session.status !== "CONNECTED" || !financial.financialActionsEnabled}
+            style={{ width: "100%", marginTop: 24 }}
+            disabled={!canTransact}
             onClick={() => {
-              void financial.makePublic(amount).catch(() => undefined);
+              void financial.makePublic(publicAmount).catch(() => undefined);
             }}
           >
             Make Public
           </button>
-          {financial.txStage !== "ready" ? <div className={styles.notice}>{financial.txLabel}</div> : null}
         </article>
       </div>
+
+      {showTxStatus ? <div className={styles.notice} role="status">{financial.txLabel}</div> : null}
+      {financial.error ? <div className={styles.notice} role="alert">{financial.error.message}</div> : null}
     </div>
   );
 }
