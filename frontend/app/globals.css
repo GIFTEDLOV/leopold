@@ -1133,8 +1133,9 @@ input:focus-visible {
 .app-frame .vault-head > div { display: flex; align-items: baseline; justify-content: space-between; width: 100%; gap: 12px; }
 .app-frame .vault-card h3 { color: var(--app-navy); font: 400 29px/1 Georgia,serif; letter-spacing: -.03em; }
 .app-frame .vault-note { flex: 0 0 auto; color: rgba(16,37,64,.48); font: 8px "Courier New",monospace; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
-.app-frame .vault-meta { border-color: var(--app-line); color: #718095; font: 9px/1.45 "Courier New",monospace; text-transform: uppercase; }
+.app-frame .vault-meta { border-color: var(--app-line); border-top: 0; border-bottom: 1px solid var(--app-line); color: #718095; font: 9px/1.45 "Courier New",monospace; padding-top: 0; padding-bottom: 15px; text-transform: uppercase; }
 .app-frame .vault-actions { margin-top: auto; }
+.app-frame .card > [data-testid^="reveal-result-"] { margin-top: 18px; }
 .app-frame .vault-actions .button { min-height: 39px; }
 .app-frame .form-row { align-items: stretch; margin-top: 16px; }
 .app-frame .form-row .button { min-width: max-content; }
