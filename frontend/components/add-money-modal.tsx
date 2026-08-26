@@ -14,6 +14,7 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState("10");
   const busy = transactionIsBusy(financial.txStage);
+  const showTxStatus = financial.txStage !== "ready" && financial.txStage !== "complete";
   const healthState = walletIdentity.identity.networkHealth.state;
   const walletState = walletIdentity.walletSession.status;
   const canUseWrapper = walletIdentity.walletSession.canUseFinancialActions && financial.connected;
@@ -72,17 +73,13 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
           <div className="card" role="status" data-testid="network-checking">
             <span className="badge neutral">Checking wallet network</span>
             <h3>Confirm Ethereum Sepolia</h3>
-            <p className="subtle">
-              Financial actions remain disabled until Leopold confirms the active signing wallet.
-            </p>
+            <p className="subtle">Financial actions remain disabled until Leopold confirms the active signing wallet.</p>
           </div>
         ) : walletState === "WRONG_NETWORK" ? (
           <div className="card" role="alert" data-testid="wrong-network">
             <span className="badge neutral">Wrong network</span>
             <h3>Switch to Ethereum Sepolia</h3>
-            <p className="subtle">
-              No financial transaction will be simulated or sent while your wallet is on another chain.
-            </p>
+            <p className="subtle">No financial transaction will be simulated or sent while your wallet is on another chain.</p>
             <button className="button" disabled={busy} onClick={() => void walletIdentity.switchToSepolia()}>
               Switch to Sepolia
             </button>
@@ -90,11 +87,7 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
         ) : walletState === "CONNECTING" ? (
           <div className="card" role="status" data-testid="wallet-connecting">
             <span className="badge neutral">Connecting wallet</span>
-            <h3>
-              {walletIdentity.walletSession.reason === "ACCOUNT_SELECTION_REQUIRED"
-                ? "Select your verified account"
-                : "Connecting your verified wallet"}
-            </h3>
+            <h3>{walletIdentity.walletSession.reason === "ACCOUNT_SELECTION_REQUIRED" ? "Select your verified account" : "Connecting your verified wallet"}</h3>
             <p className="subtle">
               {walletIdentity.walletSession.reason === "ACCOUNT_SELECTION_REQUIRED"
                 ? "Choose the verified account in Rabby or MetaMask, then continue."
@@ -110,9 +103,7 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
           <div className="card" role="alert" data-testid="wallet-rpc-unavailable">
             <span className="badge neutral">Wallet RPC unavailable</span>
             <h3>Your wallet&apos;s Sepolia connection isn&apos;t working</h3>
-            <p className="subtle">
-              Leopold is online, but your wallet cannot currently reach Ethereum Sepolia. Financial actions are paused.
-            </p>
+            <p className="subtle">Leopold is online, but your wallet cannot currently reach Ethereum Sepolia. Financial actions are paused.</p>
             <button className="button" onClick={() => void financial.retryNetworkHealth()} disabled={busy}>
               Retry network
             </button>
@@ -154,9 +145,7 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
           <div className="card" role="status">
             <span className="badge neutral">Wallet authorization required</span>
             <h3>Connect your financial wallet</h3>
-            <p className="subtle">
-              Your wallet controls your savings. Leopold does not hold your funds or create an embedded wallet.
-            </p>
+            <p className="subtle">Your wallet controls your savings. Leopold does not hold your funds or create an embedded wallet.</p>
             {auth.financialWalletMetadata.status === "NONE" ? (
               auth.canConfirmCurrentWalletAsFinancial ? (
                 <button className="button" onClick={() => void auth.confirmCurrentWalletAsFinancial()}>
@@ -174,29 +163,16 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             ) : (
               <span className="subtle">Wallet recovery is not available in this state.</span>
             )}
-            {auth.authError ? (
-              <div className="error" role="alert">
-                {auth.authError}
-              </div>
-            ) : null}
+            {auth.authError ? <div className="error" role="alert">{auth.authError}</div> : null}
           </div>
         ) : null}
         {canUseWrapper && step === 1 ? (
           <>
             <p className="subtle">Public USDC balance</p>
-            <div className="stat">
-              {financial.usdcBalance === null ? "Unavailable" : `${formatUsdcAmount(financial.usdcBalance)} USDC`}
-            </div>
+            <div className="stat">{financial.usdcBalance === null ? "Unavailable" : `${formatUsdcAmount(financial.usdcBalance)} USDC`}</div>
             <p className="subtle">Need funds? The official Compound Sepolia faucet supplies canonical Circle USDC.</p>
             <div className="form-row">
-              <button
-                className="button secondary"
-                data-testid="get-usdc"
-                disabled={busy}
-                onClick={() => {
-                  void financial.acquireUsdc().catch(() => undefined);
-                }}
-              >
+              <button className="button secondary" data-testid="get-usdc" disabled={busy} onClick={() => void financial.acquireUsdc().catch(() => undefined)}>
                 Get Test USDC
               </button>
               <button className="button" onClick={() => setStep(2)} disabled={!canUseWrapper || busy}>
@@ -207,22 +183,10 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
         ) : null}
         {canUseWrapper && step === 2 ? (
           <>
-            <label className="card-label" htmlFor="private-amount">
-              Amount
-            </label>
-            <input
-              id="private-amount"
-              className="input"
-              inputMode="decimal"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-            />
-            <p className="subtle">
-              USDC uses 6 decimal places. Leopold approves only this exact amount when approval is needed.
-            </p>
-            <button className="button" onClick={() => setStep(3)}>
-              Review
-            </button>
+            <label className="card-label" htmlFor="private-amount">Amount</label>
+            <input id="private-amount" className="input" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
+            <p className="subtle">USDC uses 6 decimal places. Leopold approves only this exact amount when approval is needed.</p>
+            <button className="button" onClick={() => setStep(3)}>Review</button>
           </>
         ) : null}
         {canUseWrapper && step === 3 ? (
@@ -234,14 +198,10 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             </div>
             <button
               className="button"
+              style={{ marginTop: 18 }}
               data-testid="make-private"
               disabled={busy}
-              onClick={() => {
-                void financial
-                  .makePrivate(amount)
-                  .then(() => setStep(4))
-                  .catch(() => undefined);
-              }}
+              onClick={() => void financial.makePrivate(amount).then(() => setStep(4)).catch(() => undefined)}
             >
               Make Private
             </button>
@@ -252,30 +212,19 @@ export function AddMoneyModal({ onClose }: { onClose(): void }) {
             <div className="card">
               <span className="badge">Ready</span>
               <h3>Private USDC is ready</h3>
-              <p className="subtle">
-                Choose a vault whenever you’re ready. Saving and entering a prize round are separate actions.
-              </p>
+              <p className="subtle">Choose a vault whenever you’re ready. Saving and entering a prize round are separate actions.</p>
             </div>
-            <button className="button" onClick={onClose}>
+            <button className="button" style={{ marginTop: 18 }} onClick={onClose}>
               Choose a vault
             </button>
           </>
         ) : null}
-        {financial.txStage !== "ready" ? (
-          <div className="tx-status" role="status" aria-live="polite">
-            {financial.txLabel}
-          </div>
-        ) : null}
+        {showTxStatus ? <div className="tx-status" role="status" aria-live="polite">{financial.txLabel}</div> : null}
         {financial.error ? (
           <>
-            <div className="error" role="alert">
-              {financial.error.message}
-            </div>
+            <div className="error" role="alert">{financial.error.message}</div>
             {financial.error.technicalDetail ? (
-              <details className="subtle">
-                <summary>Technical detail</summary>
-                <code>{financial.error.technicalDetail}</code>
-              </details>
+              <details className="subtle"><summary>Technical detail</summary><code>{financial.error.technicalDetail}</code></details>
             ) : null}
           </>
         ) : null}
