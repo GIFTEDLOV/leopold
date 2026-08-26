@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { leopoldConfig, type VaultId } from "@/lib/leopold/config";
-import { getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
+import { getEffectiveVaultPublicPrize, getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { useFinancial } from "./financial-provider";
 import styles from "@/components/full-site/leopold-app-ui.module.css";
 
@@ -41,6 +41,7 @@ export function VaultCards() {
           const entered = financial.enteredVaults.has(vault.slug);
           const state = financial.publicVaultState[vault.slug];
           const status = statuses[index];
+          const publicPrize = getEffectiveVaultPublicPrize(state, financial.latestBlockTimestamp);
           const saveEnabled = financial.fixture || (financial.financialActionsEnabled && status.depositOpen);
           return (
             <article
@@ -66,7 +67,7 @@ export function VaultCards() {
               </div>
               <dl>
                 <div><dt>Cadence</dt><dd>{durations[vault.slug]}</dd></div>
-                <div><dt>Prize</dt><dd>{state ? `${Number(state.publicPrize) / 1_000_000} USDC` : "Unavailable"}</dd></div>
+                <div><dt>Prize</dt><dd>{publicPrize !== null ? `${Number(publicPrize) / 1_000_000} USDC` : "Unavailable"}</dd></div>
                 <div><dt>Status</dt><dd>{financial.fixture && !state ? "Open" : status.label}</dd></div>
               </dl>
               <div className={styles.buttonRow}>
