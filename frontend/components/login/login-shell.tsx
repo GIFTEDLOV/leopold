@@ -99,6 +99,9 @@ export function LoginShell({
   return (
     <main className={styles.login}>
       <style jsx global>{`
+        #login-title {
+          line-height: 1.02 !important;
+        }
         .profile-primary,
         .profile-primary:hover,
         .profile-primary:focus-visible {
