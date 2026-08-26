@@ -172,7 +172,7 @@ export function DashboardExperience() {
                   <h3>{vault.name}</h3>
                   <span>{vaultPresentation[vault.id].note}</span>
                 </div>
-                <div>
+                <div className={styles.vaultMeta}>
                   <span>{vaultStatus(vault)}</span>
                   <span>{vault.round.label}</span>
                 </div>
