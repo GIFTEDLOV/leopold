@@ -92,6 +92,9 @@ export function DashboardExperience() {
     await controller.balances.actions.revealPrivateUsdc();
   };
 
+  const transactionState = controller.transactions.current.state;
+  const showTransactionBanner = transactionState !== "idle" && transactionState !== "complete" && transactionState !== "success";
+
   return (
     <div className={styles.content}>
       <section className={styles.pageHeading}>
@@ -107,7 +110,7 @@ export function DashboardExperience() {
         </div>
       </section>
 
-      {controller.transactions.current.state !== "idle" ? (
+      {showTransactionBanner ? (
         <section className={styles.alert} aria-live="polite">
           <span>LIVE</span>
           <div>
