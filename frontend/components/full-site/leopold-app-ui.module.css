@@ -121,6 +121,8 @@
 .vaultTitleRow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 18px}
 .vaultTitleRow h3{margin:0}
 .vaultTitleRow>span{flex:0 0 auto;color:rgba(16,37,64,.48);font:8px "Courier New",monospace;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.vaultMeta{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:0 0 11px;border-bottom:1px solid var(--app-line);color:var(--app-navy);font:10px "Courier New",monospace;letter-spacing:.08em;text-transform:uppercase}
+.vaultMeta span:last-child{text-align:right}
 
 /* High-contrast premium action hierarchy across the authenticated app. */
 .outlineButton{background:linear-gradient(180deg,#fffef9 0%,#f0ede4 100%);border-color:rgba(16,37,64,.36);color:var(--app-navy);font-weight:700}
