@@ -52,6 +52,14 @@ function vaultStatus(vault: UiVaultSummary): string {
   return "Unavailable";
 }
 
+function shouldShowRoundLabel(status: string, roundLabel: string): boolean {
+  const normalizedStatus = status.trim().toLowerCase();
+  const normalizedRound = roundLabel.trim().toLowerCase();
+  if (normalizedStatus === normalizedRound) return false;
+  if (normalizedStatus === "closed" && normalizedRound === "round ended") return false;
+  return true;
+}
+
 export function DashboardExperience() {
   const controller = useLeopoldUiController();
   const privateUsdc = controller.balances.privateUsdc;
@@ -161,33 +169,36 @@ export function DashboardExperience() {
         </div>
 
         <div className={styles.vaultGrid}>
-          {controller.vaults.map((vault, index) => (
-            <Link className={`${styles.vaultCard} ${vault.recommended ? styles.recommended : ""}`} href={`/app/vaults/${vault.id}`} key={vault.id}>
-              <figure>
-                <Image src={vaultPresentation[vault.id].image} alt={`${vault.name} prize-saving vault`} fill sizes="(max-width: 760px) 100vw, (max-width: 1200px) 50vw, 25vw" />
-                <span>{String(index + 1).padStart(2, "0")}</span>
-              </figure>
-              <div>
-                <div className={styles.vaultTitleRow}>
-                  <h3>{vault.name}</h3>
-                  <span>{vaultPresentation[vault.id].note}</span>
+          {controller.vaults.map((vault, index) => {
+            const status = vaultStatus(vault);
+            return (
+              <Link className={`${styles.vaultCard} ${vault.recommended ? styles.recommended : ""}`} href={`/app/vaults/${vault.id}`} key={vault.id}>
+                <figure>
+                  <Image src={vaultPresentation[vault.id].image} alt={`${vault.name} prize-saving vault`} fill sizes="(max-width: 760px) 100vw, (max-width: 1200px) 50vw, 25vw" />
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                </figure>
+                <div>
+                  <div className={styles.vaultTitleRow}>
+                    <h3>{vault.name}</h3>
+                    <span>{vaultPresentation[vault.id].note}</span>
+                  </div>
+                  <div className={styles.vaultMeta}>
+                    <span>{status}</span>
+                    {shouldShowRoundLabel(status, vault.round.label) ? <span>{vault.round.label}</span> : null}
+                  </div>
+                  <dl style={{ borderTop: 0 }}>
+                    <div><dt>Cadence</dt><dd>{durationLabel(vault.durationSeconds)}</dd></div>
+                    <div><dt>Round</dt><dd>{vault.round.id?.toString() ?? "—"}</dd></div>
+                    <div><dt>Prize reserve</dt><dd>{vault.round.publicPrizeReserve !== null ? `${formatUsdc(vault.round.publicPrizeReserve)} USDC` : "—"}</dd></div>
+                  </dl>
+                  <p>
+                    <span>Your savings</span>
+                    <strong>{protectedAmount(vault.privateSavings)}</strong>
+                  </p>
                 </div>
-                <div className={styles.vaultMeta}>
-                  <span>{vaultStatus(vault)}</span>
-                  {vault.round.label !== vaultStatus(vault) ? <span>{vault.round.label}</span> : null}
-                </div>
-                <dl>
-                  <div><dt>Cadence</dt><dd>{durationLabel(vault.durationSeconds)}</dd></div>
-                  <div><dt>Round</dt><dd>{vault.round.id?.toString() ?? "—"}</dd></div>
-                  <div><dt>Prize reserve</dt><dd>{vault.round.publicPrizeReserve !== null ? `${formatUsdc(vault.round.publicPrizeReserve)} USDC` : "—"}</dd></div>
-                </dl>
-                <p>
-                  <span>Your savings</span>
-                  <strong>{protectedAmount(vault.privateSavings)}</strong>
-                </p>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </section>
 
