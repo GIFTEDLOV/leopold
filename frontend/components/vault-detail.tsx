@@ -17,8 +17,10 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
   const state = financial.publicVaultState[slug];
   const entered = financial.enteredVaults.has(slug);
   const revealed = financial.revealedVaults.has(slug);
+  const eligibility = financial.privateEligibility[slug];
   const bond = state?.bondAmount ?? (financial.fixture ? 5_000_000_000_000_000n : undefined);
   const busy = transactionIsBusy(financial.txStage);
+  const showTxStatus = financial.txStage !== "ready" && financial.txStage !== "complete";
   const roundStatus = getEffectiveVaultRoundStatus(state, financial.latestBlockTimestamp);
   const roundOpen = roundStatus.depositOpen;
   const canPrepareWithdrawal = financial.fixture || canPrepareVaultWithdrawal(state, financial.latestBlockTimestamp);
@@ -31,9 +33,10 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
       return false;
     }
   })();
+
   return (
     <div className={styles.content}>
-      <div className={styles.pageHeading}>
+      <div className={styles.pageHeading} style={{ marginBottom: 12 }}>
         <div>
           <span className={styles.eyebrow}>{slug === "weekly" ? "Recommended vault" : "Private savings vault"}</span>
           <h1>{vault.name} Vault</h1>
@@ -43,7 +46,8 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
         </div>
         {entered ? <span className={styles.status}>Entered current round</span> : null}
       </div>
-      <div className={styles.detailGrid}>
+
+      <div className={styles.detailGrid} style={{ marginTop: 24 }}>
         <div className={styles.profileGrid}>
           <article className={styles.panel}>
             <div className={styles.eyebrow}>Your private savings</div>
@@ -62,6 +66,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               {revealed ? "Hide" : "Reveal"}
             </button>
           </article>
+
           <article className={styles.panel} id="save">
             <h2>Save privately</h2>
             <p className={styles.fine}>
@@ -99,6 +104,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               <p className={styles.fine}>This vault round is not open for deposits.</p>
             ) : null}
           </article>
+
           <article className={styles.panel}>
             <h2>Withdraw savings</h2>
             <p className={styles.fine}>
@@ -128,6 +134,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
             ) : null}
           </article>
         </div>
+
         <aside className={styles.profileGrid}>
           <article className={styles.panel}>
             <div className={styles.eyebrow}>Current prize round</div>
@@ -135,20 +142,22 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
             <p className={styles.fine}>
               Your prize chances start when you enter this round and grow while your savings remain in the vault.
             </p>
-            <div className={styles.notice}>
-              <strong>
+            <div
+              className={styles.notice}
+              style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 18, lineHeight: 1.35 }}
+            >
+              <strong style={{ display: "block", marginBottom: 18, fontFamily: 'Georgia, "Times New Roman", serif' }}>
                 Refundable settlement bond
                 <br />
                 {bond === undefined ? "Unavailable" : `${formatEther(bond)} ETH`}
               </strong>
-              <br />
               This public ETH bond is separate from your private savings. Unused collateral is refundable; a fixed
               portion compensates permissionless private draw finalization.
             </div>
             <button
               className={styles.primaryButton}
               data-testid="enter-round"
-              style={{ width: "100%", marginTop: 14 }}
+              style={{ width: "100%", marginTop: 24 }}
               disabled={
                 busy ||
                 !financial.financialActionsEnabled ||
@@ -163,20 +172,22 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               {entered ? "Entered" : "Enter Prize Round"}
             </button>
           </article>
+
           <article className={styles.panel}>
             <div className={styles.eyebrow}>Prize eligibility</div>
             <div className="stat">
-              {financial.privateEligibility[slug] === undefined
+              {eligibility === undefined
                 ? entered
                   ? "Active · private"
                   : "Not active"
-                : financial.privateEligibility[slug] === 0n
+                : eligibility === 0n
                   ? "No eligible savings yet"
-                  : "Revealed · active"}
+                  : `Weight ${eligibility.toLocaleString()}`}
             </div>
             <p className={styles.fine}>
-              Exact eligibility remains private. Earlier savings history before registration does not count for this
-              round.
+              {eligibility === undefined
+                ? "Exact eligibility remains private. Earlier savings history before registration does not count for this round."
+                : "Eligibility weight revealed for this browser session. It will be cleared on wallet or network change."}
             </p>
             <button
               className={styles.outlineButton}
@@ -185,12 +196,13 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
                 void financial.revealEligibility(slug).catch(() => undefined);
               }}
             >
-              Reveal private eligibility
+              {eligibility === undefined ? "Reveal private eligibility" : "Reveal eligibility again"}
             </button>
           </article>
         </aside>
       </div>
-      {financial.txStage !== "ready" ? (
+
+      {showTxStatus ? (
         <div className={styles.notice} role="status">
           {financial.txLabel}
         </div>
