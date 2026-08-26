@@ -581,3 +581,32 @@
   .formContent h1 { font-size:42px; }
   .formContent :global(.profile-actions) { grid-template-columns:1fr; }
 }
+
+/* Keep the authenticated profile hierarchy clear after all generic and
+   short-viewport login rules have been applied. */
+.formContent.profileContent .eyebrow {
+  margin-bottom: 24px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.formContent.profileContent h1 {
+  line-height: 1.02;
+}
+
+.formContent.profileContent h1 + :global(.subtle) {
+  margin: 32px 0 30px;
+  line-height: 1.62;
+}
+
+@media (max-width: 760px) {
+  .formContent.profileContent .eyebrow {
+    margin-bottom: 16px;
+    font-size: 11px;
+  }
+
+  .formContent.profileContent h1 + :global(.subtle) {
+    margin: 20px 0 18px;
+    line-height: 1.5;
+  }
+}
