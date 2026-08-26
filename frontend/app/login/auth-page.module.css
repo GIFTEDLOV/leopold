@@ -610,3 +610,16 @@
     line-height: 1.5;
   }
 }
+
+/* Short viewports must not collapse the primary login heading into its copy. */
+.formContent:not(.profileContent) h1 + :global(.subtle) {
+  margin: 28px 0 25px;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .formContent:not(.profileContent) h1 + :global(.subtle) {
+    margin: 18px 0 16px;
+    line-height: 1.48;
+  }
+}
