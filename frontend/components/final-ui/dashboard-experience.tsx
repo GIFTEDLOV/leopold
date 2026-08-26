@@ -174,7 +174,7 @@ export function DashboardExperience() {
                 </div>
                 <div className={styles.vaultMeta}>
                   <span>{vaultStatus(vault)}</span>
-                  <span>{vault.round.label}</span>
+                  {vault.round.label !== vaultStatus(vault) ? <span>{vault.round.label}</span> : null}
                 </div>
                 <dl>
                   <div><dt>Cadence</dt><dd>{durationLabel(vault.durationSeconds)}</dd></div>
