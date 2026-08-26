@@ -71,7 +71,7 @@ export default function PrizesPage() {
                 </strong>
               </div>
               <button
-                className={styles.outlineButton}
+                className={`${styles.outlineButton} ${styles.prizeRevealButton}`}
                 data-testid={`reveal-result-${vault.slug}`}
                 disabled={!financial.financialActionsEnabled || !resultReady}
                 onClick={() => {
