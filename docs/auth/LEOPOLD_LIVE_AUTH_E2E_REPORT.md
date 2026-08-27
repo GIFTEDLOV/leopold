@@ -1,5 +1,11 @@
 # Leopold Live Dynamic Auth E2E Report
 
+> Historical checkpoint note: the interactive-auth and authenticated-browser gaps described below were subsequently
+> completed manually. See
+> [`docs/release/LEOPOLD_CURRENT_MANUAL_E2E_EVIDENCE.md`](../release/LEOPOLD_CURRENT_MANUAL_E2E_EVIDENCE.md) for the
+> current operator-reported status. The original checkpoint text and its evidence classification are retained below for
+> provenance.
+
 ## Status
 
 `BLOCKED — interactive Sandbox identity and external wallet signer required`
