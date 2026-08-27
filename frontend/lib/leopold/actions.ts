@@ -372,12 +372,17 @@ export async function claimSettlementRewards(clients: ActionClients, escrow: Add
 }
 
 export async function materializeEligibility(clients: ActionClients, vault: Address, roundId: bigint) {
-  return writeAndConfirm(clients, {
-    account: clients.account,
-    chain: undefined,
-    address: vault,
-    abi: vaultAbi,
-    functionName: "materializeMyRoundWeight",
-    args: [roundId],
-  });
+  return writeAndConfirm(
+    clients,
+    {
+      account: clients.account,
+      chain: undefined,
+      address: vault,
+      abi: vaultAbi,
+      functionName: "materializeMyRoundWeight",
+      args: [roundId],
+    },
+    "materializeMyRoundWeight",
+    true,
+  );
 }

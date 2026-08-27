@@ -193,7 +193,7 @@ export function VaultDetail({ slug }: { slug: VaultId }) {
               className={styles.outlineButton}
               disabled={busy || !financial.financialActionsEnabled || !entered}
               onClick={() => {
-                void financial.revealEligibility(slug).catch(() => undefined);
+                void financial.revealEligibility(slug);
               }}
             >
               {eligibility === undefined ? "Reveal private eligibility" : "Reveal eligibility again"}

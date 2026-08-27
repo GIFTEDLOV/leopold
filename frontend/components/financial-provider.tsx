@@ -804,35 +804,46 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setRevealedResults((items) => new Set(items).add(vaultSlug));
       },
       revealEligibility: async (vaultSlug) => {
-        await ensurePrivateRevealAccess();
-        if (!enteredVaults.has(vaultSlug)) throw new Error("NOT_ENTERED");
-        if (fixtureEnabled) {
-          setPrivateEligibility((items) => ({ ...items, [vaultSlug]: 1n }));
-          return;
+        try {
+          await ensurePrivateRevealAccess();
+          if (!enteredVaults.has(vaultSlug)) throw new Error("NOT_ENTERED");
+          if (fixtureEnabled) {
+            setPrivateEligibility((items) => ({ ...items, [vaultSlug]: 1n }));
+            return;
+          }
+          await execute("reveal-eligibility", async (onHash, onStage) => {
+            const vault = getVaultConfig(vaultSlug);
+            const state = publicVaultState[vaultSlug];
+            if (!vault || !state) throw new Error("ROUND_STATE_UNAVAILABLE");
+            requireVerified();
+            const liveClients = clients(onHash, true, onStage);
+            const vaultAddress = requireConfiguredAddress(vault.vault, `${vault.name} vault`);
+            const hash = await materializeEligibility(liveClients, vaultAddress, state.roundId);
+            const receipt = await liveClients.publicClient.getTransactionReceipt({ hash });
+            const { parseEventLogs } = await import("viem");
+            const { vaultAbi } = await import("@/lib/leopold/abis");
+            const event = parseEventLogs({
+              abi: vaultAbi,
+              eventName: "RoundWeightMaterialized",
+              logs: receipt.logs,
+            }).find(
+              (log) =>
+                log.args.roundId === state.roundId &&
+                log.args.account.toLowerCase() === liveClients.account.toLowerCase(),
+            );
+            if (!event) throw new Error("PRIVATE_ELIGIBILITY_HANDLE_UNAVAILABLE");
+            const clear = await decryptPrivateValue(
+              liveClients.ethereum,
+              liveClients.account,
+              vaultAddress,
+              event.args.handle,
+              liveClients.walletClient,
+            );
+            setPrivateEligibility((items) => ({ ...items, [vaultSlug]: clear }));
+          });
+        } catch (caught) {
+          setError(classifyLeopoldError(caught));
         }
-        const vault = getVaultConfig(vaultSlug);
-        const state = publicVaultState[vaultSlug];
-        if (!vault || !state) throw new Error("ROUND_STATE_UNAVAILABLE");
-        requireVerified();
-        const liveClients = clients();
-        const vaultAddress = requireConfiguredAddress(vault.vault, `${vault.name} vault`);
-        const hash = await materializeEligibility(liveClients, vaultAddress, state.roundId);
-        const receipt = await liveClients.publicClient.getTransactionReceipt({ hash });
-        const { parseEventLogs } = await import("viem");
-        const { vaultAbi } = await import("@/lib/leopold/abis");
-        const event = parseEventLogs({ abi: vaultAbi, eventName: "RoundWeightMaterialized", logs: receipt.logs }).find(
-          (log) =>
-            log.args.roundId === state.roundId && log.args.account.toLowerCase() === liveClients.account.toLowerCase(),
-        );
-        if (!event) throw new Error("PRIVATE_ELIGIBILITY_HANDLE_UNAVAILABLE");
-        const clear = await decryptPrivateValue(
-          liveClients.ethereum,
-          liveClients.account,
-          vaultAddress,
-          event.args.handle,
-          liveClients.walletClient,
-        );
-        setPrivateEligibility((items) => ({ ...items, [vaultSlug]: clear }));
       },
       withdraw: async (vaultSlug, input) =>
         execute("withdraw", async (onHash, onStage) => {
