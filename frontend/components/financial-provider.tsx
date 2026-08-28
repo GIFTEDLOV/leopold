@@ -30,6 +30,7 @@ import { getPublicReadAccount } from "@/lib/leopold/network";
 import { classifyLeopoldError, sanitizeTechnicalDetail, type LeopoldError } from "@/lib/leopold/errors";
 import {
   readPrivateHandle,
+  readSettlementRewardCredit,
   readUsdcBalance,
   readLatestBlock,
   getEffectiveVaultRoundStatus,
@@ -161,6 +162,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const walletClientRef = useRef(walletClient.data);
   const publicClientRef = useRef(publicClient);
   const accountRef = useRef<Address | null>(null);
+  const publicReadVersionRef = useRef(0);
   const walletClientId = walletClient.data?.uid ?? null;
 
   const connected = fixtureEnabled
@@ -440,17 +442,21 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (!publicReadAccount) return;
     if (fixtureEnabled) return;
     if (!publicClient) return;
+    const readVersion = ++publicReadVersionRef.current;
     try {
       const latestBlock = await readLatestBlock(publicClient);
-      setUsdcBalance(await readUsdcBalance(publicClient, CANONICAL_USDC, publicReadAccount));
+      const nextUsdcBalance = await readUsdcBalance(publicClient, CANONICAL_USDC, publicReadAccount);
+      if (readVersion !== publicReadVersionRef.current) return;
+      setUsdcBalance(nextUsdcBalance);
       if (leopoldConfig.ready) {
         await validateConfiguredDeployment(publicClient, leopoldConfig);
-        setDeploymentVerified(true);
         const vaultRounds = await Promise.all(
           leopoldConfig.vaults.map(
             async (vault) => [vault.slug, await readVaultPublicHistory(publicClient, vault, publicReadAccount, latestBlock.number)] as const,
           ),
         );
+        if (readVersion !== publicReadVersionRef.current) return;
+        setDeploymentVerified(true);
         const currentStates = vaultRounds.flatMap(([slug, rounds]) => {
           const current = rounds.at(-1);
           return current ? ([[slug, current]] as const) : [];
@@ -463,11 +469,43 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         );
         setEnteredVaults(new Set(currentStates.filter(([, state]) => state.entered).map(([slug]) => slug)));
       }
+      if (readVersion !== publicReadVersionRef.current) return;
       setLatestBlockTimestamp(latestBlock.timestamp);
     } catch (caught) {
-      if (networkHealth.state === "HEALTHY" && financialAuthorized) setError(classifyLeopoldError(caught));
+      if (readVersion === publicReadVersionRef.current && networkHealth.state === "HEALTHY" && financialAuthorized) {
+        setError(classifyLeopoldError(caught));
+      }
     }
   }, [financialAuthorized, networkHealth.state, publicClient, publicReadAccount]);
+
+  const refreshSettlementRewardCredit = useCallback(
+    async (vaultSlug: VaultId, liveClients: Pick<ActionClients, "publicClient" | "account">): Promise<void> => {
+      const vault = getVaultConfig(vaultSlug);
+      if (!vault) throw new Error("CONFIGURATION_MISSING:vault");
+      const escrow = requireConfiguredAddress(vault.bondEscrow, `${vault.name} escrow`);
+      const readVersion = ++publicReadVersionRef.current;
+      const latestBlock = await readLatestBlock(liveClients.publicClient);
+      const settlementReward = await readSettlementRewardCredit(
+        liveClients.publicClient,
+        escrow,
+        liveClients.account,
+        latestBlock.number,
+      );
+      if (readVersion !== publicReadVersionRef.current) return;
+      setPublicVaultState((states) => {
+        const current = states[vaultSlug];
+        return current ? { ...states, [vaultSlug]: { ...current, settlementReward } } : states;
+      });
+      setHistoricalVaultRounds((rounds) => {
+        const history = rounds[vaultSlug];
+        return history
+          ? { ...rounds, [vaultSlug]: history.map((state) => ({ ...state, settlementReward })) }
+          : rounds;
+      });
+      setLatestBlockTimestamp(latestBlock.timestamp);
+    },
+    [],
+  );
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       if (fixtureEnabled && !auth.authenticated) setFixtureConnected(false);
@@ -1002,6 +1040,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           );
           addActivity("Claimed bond refund", vault.name);
           await refresh();
+          try {
+            await readSpecifiedVaultRound(vaultSlug, targetRoundId, liveClients);
+          } catch (caught) {
+            setError(classifyLeopoldError(caught));
+          }
         }),
       claimRewards: async (vaultSlug) =>
         execute("claim-reward", async (onHash) => {
@@ -1009,10 +1052,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           if (!vault) throw new Error("CONFIGURATION_MISSING:vault");
           if (!fixtureEnabled) {
             requireVerified();
+            const liveClients = clients(onHash);
             await claimSettlementRewards(
-              clients(onHash),
+              liveClients,
               requireConfiguredAddress(vault.bondEscrow, `${vault.name} escrow`),
             );
+            addActivity("Claimed settlement reward", vault.name);
+            await refresh();
+            try {
+              await refreshSettlementRewardCredit(vaultSlug, liveClients);
+            } catch (caught) {
+              setError(classifyLeopoldError(caught));
+            }
+            return;
           }
           addActivity("Claimed settlement reward", vault.name);
           await refresh();
@@ -1040,6 +1092,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       publicVaultState,
       latestBlockTimestamp,
       refresh,
+      refreshSettlementRewardCredit,
       requireVerified,
       revealedResults,
       revealedVaults,

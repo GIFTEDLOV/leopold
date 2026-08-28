@@ -225,6 +225,32 @@ export async function readVaultPublicStateForRound(
 }
 
 /**
+ * Settlement rewards are account-level escrow credit, not round-local state.
+ * Keep this read explicit so confirmed reward claims can refresh the exact
+ * authority that drives the Rewards page, even when a broader vault-history
+ * refresh is stale or partially unavailable.
+ */
+export async function readSettlementRewardCredit(
+  client: PublicClient,
+  escrow: Address,
+  account: Address,
+  blockNumber?: bigint,
+): Promise<bigint> {
+  const blockTag = blockNumber === undefined ? {} : { blockNumber };
+  return withReadReliability(
+    () =>
+      client.readContract({
+        address: escrow,
+        abi: bondEscrowAbi,
+        functionName: "settlementRewardCredit",
+        args: [account],
+        ...blockTag,
+      }),
+    { operation: "VAULT_READ" },
+  );
+}
+
+/**
  * Reads every initialized round through the active round cursor. The round
  * records and account-specific registration/refund reads remain authoritative
  * contract state; no browser-side round history is used.
@@ -321,13 +347,7 @@ async function readVaultPublicStateForRoundOnce(
         args: [roundId, account],
         ...blockTag,
       }),
-      client.readContract({
-        address: escrow,
-        abi: bondEscrowAbi,
-        functionName: "settlementRewardCredit",
-        args: [account],
-        ...blockTag,
-      }),
+      readSettlementRewardCredit(client, escrow, account, blockNumber),
     ]);
   const state = Number(round[2]);
   return {

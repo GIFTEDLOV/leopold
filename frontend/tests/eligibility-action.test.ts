@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { materializeEligibility, type ActionClients } from "../lib/leopold/actions";
+import { claimSettlementRewards, materializeEligibility, type ActionClients } from "../lib/leopold/actions";
 
 const ACCOUNT = "0x1111111111111111111111111111111111111111" as const;
 const VAULT = "0x2222222222222222222222222222222222222222" as const;
@@ -56,6 +56,30 @@ describe("private eligibility materialization safety", () => {
 
     await expect(materializeEligibility(probe.clients, VAULT, 1n)).rejects.toThrow(
       "ACTION_REVERTED:materializeMyRoundWeight",
+    );
+    expect(probe.writeContract).toHaveBeenCalledOnce();
+  });
+});
+
+describe("settlement reward claim safety", () => {
+  const ESCROW = "0x3333333333333333333333333333333333333333" as const;
+
+  it("confirms one successful reward claim without retrying the write", async () => {
+    const probe = makeClients();
+
+    await expect(claimSettlementRewards(probe.clients, ESCROW)).resolves.toBe(HASH);
+
+    expect(probe.writeContract).toHaveBeenCalledOnce();
+    expect(probe.waitForTransactionReceipt).toHaveBeenCalledOnce();
+  });
+
+  it("reports a reverted reward claim without automatically retrying", async () => {
+    const probe = makeClients({
+      waitForTransactionReceipt: vi.fn(async () => ({ status: "reverted" as const })),
+    });
+
+    await expect(claimSettlementRewards(probe.clients, ESCROW)).rejects.toThrow(
+      "ACTION_REVERTED:withdrawSettlementRewards",
     );
     expect(probe.writeContract).toHaveBeenCalledOnce();
   });
