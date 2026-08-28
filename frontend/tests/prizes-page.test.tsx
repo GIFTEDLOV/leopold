@@ -10,6 +10,14 @@ const actions = vi.hoisted(() => ({
   claimBondRefund: vi.fn<(roundId?: bigint) => Promise<void>>().mockResolvedValue(undefined),
 }));
 
+const historicalEligibility = vi.hoisted(() => ({
+  available: true,
+  state: "hidden" as "hidden" | "revealing" | "revealed" | "reveal-failed",
+  value: null as bigint | null,
+}));
+
+const transactionState = vi.hoisted(() => ({ error: null as { message: string } | null }));
+
 const controller = vi.hoisted(() => ({
   vaults: [
     {
@@ -44,7 +52,7 @@ const controller = vi.hoisted(() => ({
         entered: true as const,
         participantCount: 2n,
       },
-      eligibility: { available: true, state: "hidden" as const },
+      eligibility: historicalEligibility,
       privateResult: { available: true, state: "hidden" as const, value: null },
       rewards: { bondRefund: 0n, bondRefundClaimed: false, settlementReward: 0n },
       actions: {
@@ -55,6 +63,7 @@ const controller = vi.hoisted(() => ({
     },
   ],
   wallet: { canUseFinancialActions: true },
+  transactions: { current: transactionState },
 }));
 
 vi.mock("@/components/leopold-ui-controller", () => ({
@@ -73,6 +82,9 @@ describe("historical prize round navigation", () => {
     actions.revealEligibility.mockClear();
     actions.revealResult.mockClear();
     actions.claimBondRefund.mockClear();
+    historicalEligibility.state = "hidden";
+    historicalEligibility.value = null;
+    transactionState.error = null;
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -99,6 +111,7 @@ describe("historical prize round navigation", () => {
 
     expect(container.textContent).toContain("Weekly Vault · Round 1");
     expect(container.textContent).toContain("0.1 USDC");
+    expect(container.textContent).toContain("Ready");
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="reveal-eligibility-weekly-1"]')?.click();
@@ -107,5 +120,20 @@ describe("historical prize round navigation", () => {
 
     expect(actions.revealEligibility).toHaveBeenCalledWith(1n);
     expect(actions.revealResult).toHaveBeenCalledWith(1n);
+
+    historicalEligibility.state = "revealing";
+    await act(async () => root?.render(<PrizesPage />));
+    expect(container.textContent).toContain("Revealing…");
+
+    historicalEligibility.state = "revealed";
+    historicalEligibility.value = 711_888_000_000n;
+    await act(async () => root?.render(<PrizesPage />));
+    expect(container.textContent).toContain("Weight 711,888,000,000");
+
+    historicalEligibility.state = "reveal-failed";
+    transactionState.error = { message: "The eligibility reveal could not be completed." };
+    await act(async () => root?.render(<PrizesPage />));
+    expect(container.textContent).toContain("Reveal failed");
+    expect(container.textContent).toContain("The eligibility reveal could not be completed.");
   });
 });

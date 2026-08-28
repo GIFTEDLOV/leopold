@@ -89,9 +89,27 @@ function completedRoundCard(round: UiHistoricalRoundSummary, canUseFinancialActi
       <div className={styles.listRow}>
         <div>
           <strong>Private eligibility</strong>
-          <span>{round.eligibility.state === "revealed" ? "Revealed only in this browser session" : "Hidden"}</span>
+          <span>
+            {round.eligibility.state === "revealing"
+              ? "Decrypting for this browser session"
+              : round.eligibility.state === "revealed"
+                ? "Eligibility weight revealed for this browser session"
+                : round.eligibility.state === "reveal-failed"
+                  ? "Eligibility reveal failed. See the transaction status above."
+                  : "Exact weight stays private until you reveal it"}
+          </span>
         </div>
-        <strong>{round.eligibility.available ? "Ready" : "Unavailable"}</strong>
+        <strong>
+          {round.eligibility.state === "revealing"
+            ? "Revealing…"
+            : round.eligibility.state === "revealed" && round.eligibility.value !== null
+              ? `Weight ${round.eligibility.value.toLocaleString()}`
+              : round.eligibility.state === "reveal-failed"
+                ? "Reveal failed"
+                : round.eligibility.available
+                  ? "Ready"
+                  : "Unavailable"}
+        </strong>
       </div>
       <div className={styles.listRow}>
         <div>
@@ -110,9 +128,9 @@ function completedRoundCard(round: UiHistoricalRoundSummary, canUseFinancialActi
         <button
           className={styles.outlineButton}
           data-testid={`reveal-eligibility-${round.vaultId}-${round.round.id.toString()}`}
-          disabled={!canUseFinancialActions || !round.eligibility.available}
+          disabled={!canUseFinancialActions || !round.eligibility.available || round.eligibility.state === "revealing"}
           onClick={() => {
-            void round.actions.revealEligibility().catch(() => undefined);
+            void round.actions.revealEligibility();
           }}
         >
           Reveal Private Eligibility
@@ -160,6 +178,11 @@ export default function PrizesPage() {
           <p>Prize entry is public. Your exact chances, result, and winnings stay private.</p>
         </div>
       </div>
+      {controller.transactions.current.error ? (
+        <div className={styles.notice} role="alert">
+          {controller.transactions.current.error.message}
+        </div>
+      ) : null}
       <section className={styles.tabRow} aria-label="Prize round views">
         {(["current", "upcoming", "completed"] as const).map((value) => (
           <button

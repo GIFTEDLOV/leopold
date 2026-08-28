@@ -922,6 +922,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           });
         } catch (caught) {
           setError(classifyLeopoldError(caught));
+          throw caught;
         }
       },
       withdraw: async (vaultSlug, input) =>

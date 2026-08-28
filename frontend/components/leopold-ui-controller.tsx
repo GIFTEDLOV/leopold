@@ -8,7 +8,11 @@ import { useFinancial } from "@/components/financial-provider";
 import { useWalletSessionController } from "@/components/wallet-identity-provider";
 import type { LeopoldRecoveryAction } from "@/lib/auth/recovery";
 import { type LeopoldErrorCode } from "@/lib/leopold/errors";
-import { projectCompletedVaultRounds, type CompletedVaultRound } from "@/lib/leopold/history";
+import {
+  projectCompletedVaultRounds,
+  projectHistoricalEligibility,
+  type CompletedVaultRound,
+} from "@/lib/leopold/history";
 import { getEffectiveVaultPublicPrize, getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
 import { SETTLED_ROUND_STATE } from "@/lib/leopold/reads";
 import { leopoldConfig, type VaultId } from "@/lib/leopold/config";
@@ -94,7 +98,7 @@ export type UiHistoricalRoundSummary = {
     entered: true;
     participantCount: bigint;
   };
-  eligibility: { available: boolean; state: UiPrivateValueState };
+  eligibility: { available: boolean; state: UiPrivateValueState; value: bigint | null };
   privateResult: UiPrivateValue<bigint> & { available: boolean };
   rewards: {
     bondRefund: bigint;
@@ -220,6 +224,10 @@ export function useLeopoldUiController(): LeopoldUiController {
     identityKey: auth.identityKey,
     values: {},
   }));
+  const [eligibilityRevealRecord, setEligibilityRevealRecord] = useState<RevealStateRecord>(() => ({
+    identityKey: auth.identityKey,
+    values: {},
+  }));
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -270,6 +278,20 @@ export function useLeopoldUiController(): LeopoldUiController {
     [financial, updateRevealState],
   );
 
+  const revealEligibility = useCallback(
+    async (vault: VaultId, roundId: bigint) => {
+      const key = `${vault}:${roundId.toString()}`;
+      updateRevealState(setEligibilityRevealRecord, key, "revealing");
+      try {
+        await financial.revealEligibility(vault, roundId);
+        updateRevealState(setEligibilityRevealRecord, key, "revealed");
+      } catch {
+        updateRevealState(setEligibilityRevealRecord, key, "reveal-failed");
+      }
+    },
+    [financial, updateRevealState],
+  );
+
   const model = useMemo<LeopoldUiController>(() => {
     const walletSession = walletController.walletSession;
     const safeHistory = transactionItems(history);
@@ -277,6 +299,8 @@ export function useLeopoldUiController(): LeopoldUiController {
     const currentTransactionState = mapTransactionState(financial.txStage);
     const savingsRevealState = savingsRevealRecord.identityKey === auth.identityKey ? savingsRevealRecord.values : {};
     const resultRevealState = resultRevealRecord.identityKey === auth.identityKey ? resultRevealRecord.values : {};
+    const eligibilityRevealState =
+      eligibilityRevealRecord.identityKey === auth.identityKey ? eligibilityRevealRecord.values : {};
     const vaults = leopoldConfig.vaults.map<UiVaultSummary>((vault) => {
       const publicState = financial.publicVaultState[vault.slug];
       const effectiveRound = getEffectiveVaultRoundStatus(publicState, financial.latestBlockTimestamp);
@@ -332,12 +356,12 @@ export function useLeopoldUiController(): LeopoldUiController {
           withdraw: (amount) => financial.withdraw(vault.slug, amount),
           enterPrizeRound: () => financial.enterRound(vault.slug),
           revealEligibility: () =>
-            publicState
-              ? financial.revealEligibility(vault.slug, publicState.roundId)
+            publicState || financial.fixture
+              ? revealEligibility(vault.slug, publicState?.roundId ?? 1n)
               : Promise.reject(new Error("ROUND_STATE_UNAVAILABLE")),
           revealResult: () =>
-            publicState
-              ? revealResult(vault.slug, publicState.roundId)
+            publicState || financial.fixture
+              ? revealResult(vault.slug, publicState?.roundId ?? 1n)
               : Promise.reject(new Error("ROUND_STATE_UNAVAILABLE")),
           claimBondRefund: () =>
             publicState
@@ -354,7 +378,9 @@ export function useLeopoldUiController(): LeopoldUiController {
     ).map<UiHistoricalRoundSummary>((round: CompletedVaultRound) => {
       const key = `${round.vaultId}:${round.roundId.toString()}`;
       const resultRevealed = financial.revealedResultRounds.has(key);
-      const eligibilityRevealed = financial.privateEligibilityByRound[key] !== undefined;
+      const eligibilityValue = financial.privateEligibilityByRound[key];
+      const eligibilityState =
+        eligibilityRevealState[key] ?? (eligibilityValue !== undefined ? "revealed" : "hidden");
       return {
         vaultId: round.vaultId,
         vaultName: round.vaultName,
@@ -369,10 +395,7 @@ export function useLeopoldUiController(): LeopoldUiController {
           entered: true,
           participantCount: round.participantCount,
         },
-        eligibility: {
-          available: round.eligibilityRevealReady,
-          state: eligibilityRevealed ? "revealed" : "hidden",
-        },
+        eligibility: projectHistoricalEligibility(round.eligibilityRevealReady, eligibilityState, eligibilityValue),
         privateResult: {
           state: resultRevealed ? "revealed" : (resultRevealState[key] ?? "hidden"),
           value: resultRevealed ? (financial.privateResultsByRound[key] ?? 0n) : null,
@@ -384,7 +407,7 @@ export function useLeopoldUiController(): LeopoldUiController {
           settlementReward: round.settlementReward,
         },
         actions: {
-          revealEligibility: () => financial.revealEligibility(round.vaultId, round.roundId),
+          revealEligibility: () => revealEligibility(round.vaultId, round.roundId),
           revealResult: () => revealResult(round.vaultId, round.roundId),
           claimBondRefund: () => financial.claimRefund(round.vaultId, round.roundId),
         },
@@ -474,10 +497,12 @@ export function useLeopoldUiController(): LeopoldUiController {
     };
   }, [
     auth,
+    eligibilityRevealRecord,
     financial,
     history,
     resultRevealRecord,
     revealResult,
+    revealEligibility,
     revealSavings,
     savingsRevealRecord,
     updateRevealState,

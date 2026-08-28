@@ -20,6 +20,26 @@ export type CompletedVaultRound = {
   settlementReward: bigint;
 };
 
+export type HistoricalEligibilityState = "hidden" | "revealing" | "revealed" | "reveal-failed";
+
+export type HistoricalEligibilityProjection = {
+  available: boolean;
+  state: HistoricalEligibilityState;
+  value: bigint | null;
+};
+
+export function projectHistoricalEligibility(
+  available: boolean,
+  state: HistoricalEligibilityState,
+  clearValue: bigint | undefined,
+): HistoricalEligibilityProjection {
+  return {
+    available,
+    state,
+    value: state === "revealed" && clearValue !== undefined ? clearValue : null,
+  };
+}
+
 /**
  * Converts authoritative per-round reads into the privacy-safe Completed-tab
  * model. Only a connected account's settled registrations are included.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { leopoldConfig } from "../lib/leopold/config";
-import { projectCompletedVaultRounds } from "../lib/leopold/history";
+import { projectCompletedVaultRounds, projectHistoricalEligibility } from "../lib/leopold/history";
 import { SETTLED_ROUND_STATE, type VaultPublicState } from "../lib/leopold/reads";
 
 function roundState(overrides: Partial<VaultPublicState>): VaultPublicState {
@@ -27,6 +27,19 @@ function roundState(overrides: Partial<VaultPublicState>): VaultPublicState {
 }
 
 describe("completed historical round projection", () => {
+  it("keeps clear eligibility private until a successful round-scoped reveal", () => {
+    expect(projectHistoricalEligibility(true, "hidden", 711_888_000_000n)).toEqual({
+      available: true,
+      state: "hidden",
+      value: null,
+    });
+    expect(projectHistoricalEligibility(true, "revealed", 711_888_000_000n)).toEqual({
+      available: true,
+      state: "revealed",
+      value: 711_888_000_000n,
+    });
+  });
+
   it("includes entered Weekly round 1 while leaving active round 2 out", () => {
     const completed = projectCompletedVaultRounds(
       leopoldConfig.vaults,
