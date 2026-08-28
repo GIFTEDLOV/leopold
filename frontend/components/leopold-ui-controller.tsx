@@ -8,7 +8,9 @@ import { useFinancial } from "@/components/financial-provider";
 import { useWalletSessionController } from "@/components/wallet-identity-provider";
 import type { LeopoldRecoveryAction } from "@/lib/auth/recovery";
 import { type LeopoldErrorCode } from "@/lib/leopold/errors";
+import { projectCompletedVaultRounds, type CompletedVaultRound } from "@/lib/leopold/history";
 import { getEffectiveVaultPublicPrize, getEffectiveVaultRoundStatus } from "@/lib/leopold/reads";
+import { SETTLED_ROUND_STATE } from "@/lib/leopold/reads";
 import { leopoldConfig, type VaultId } from "@/lib/leopold/config";
 import { loadSafeTransactions, transactionStageLabel, type SafeTransactionRecord } from "@/lib/leopold/transactions";
 import {
@@ -71,9 +73,38 @@ export type UiVaultSummary = {
     save(amount: string): Promise<void>;
     withdraw(amount: string): Promise<void>;
     enterPrizeRound(): Promise<void>;
+    revealEligibility(): Promise<void>;
     revealResult(): Promise<void>;
     claimBondRefund(): Promise<void>;
     claimSettlementRewards(): Promise<void>;
+  };
+};
+
+export type UiHistoricalRoundSummary = {
+  vaultId: VaultId;
+  vaultName: string;
+  state: "settled";
+  round: {
+    id: bigint;
+    opensAt: bigint;
+    closesAt: bigint;
+    label: string;
+    storedPrize: bigint;
+    publicPrizeReserve: bigint;
+    entered: true;
+    participantCount: bigint;
+  };
+  eligibility: { available: boolean; state: UiPrivateValueState };
+  privateResult: UiPrivateValue<bigint> & { available: boolean };
+  rewards: {
+    bondRefund: bigint;
+    bondRefundClaimed: boolean;
+    settlementReward: bigint;
+  };
+  actions: {
+    revealEligibility(): Promise<void>;
+    revealResult(): Promise<void>;
+    claimBondRefund(): Promise<void>;
   };
 };
 
@@ -120,6 +151,7 @@ export type LeopoldUiController = {
     actions: { revealPrivateUsdc(): Promise<void>; hidePrivateUsdc(): void };
   };
   vaults: readonly UiVaultSummary[];
+  completedRounds: readonly UiHistoricalRoundSummary[];
   transactions: {
     current: {
       state: UiTransactionState;
@@ -143,7 +175,7 @@ export type LeopoldUiController = {
 
 type RevealStateRecord = {
   identityKey: string;
-  values: Partial<Record<VaultId, UiPrivateValueState>>;
+  values: Partial<Record<string, UiPrivateValueState>>;
 };
 
 function financialWalletStatus(
@@ -197,12 +229,12 @@ export function useLeopoldUiController(): LeopoldUiController {
   }, [financial.account, financial.txStage]);
 
   const updateRevealState = useCallback(
-    (setter: Dispatch<SetStateAction<RevealStateRecord>>, vault: VaultId, state: UiPrivateValueState) => {
+    (setter: Dispatch<SetStateAction<RevealStateRecord>>, key: string, state: UiPrivateValueState) => {
       setter((current) => ({
         identityKey: auth.identityKey,
         values: {
           ...(current.identityKey === auth.identityKey ? current.values : {}),
-          [vault]: state,
+          [key]: state,
         },
       }));
     },
@@ -224,13 +256,14 @@ export function useLeopoldUiController(): LeopoldUiController {
   );
 
   const revealResult = useCallback(
-    async (vault: VaultId) => {
-      updateRevealState(setResultRevealRecord, vault, "revealing");
+    async (vault: VaultId, roundId?: bigint) => {
+      const key = roundId === undefined ? vault : `${vault}:${roundId.toString()}`;
+      updateRevealState(setResultRevealRecord, key, "revealing");
       try {
-        await financial.revealResult(vault);
-        updateRevealState(setResultRevealRecord, vault, "revealed");
+        await financial.revealResult(vault, roundId);
+        updateRevealState(setResultRevealRecord, key, "revealed");
       } catch (error) {
-        updateRevealState(setResultRevealRecord, vault, "reveal-failed");
+        updateRevealState(setResultRevealRecord, key, "reveal-failed");
         throw error;
       }
     },
@@ -282,7 +315,7 @@ export function useLeopoldUiController(): LeopoldUiController {
         privateResult: {
           state: resultState,
           value: resultRevealed ? (financial.privateResults[vault.slug] ?? 0n) : null,
-          available: entered && publicState?.state === 14,
+          available: financial.fixture ? entered : entered && publicState?.state === SETTLED_ROUND_STATE,
         },
         rewards: {
           bondRefund: publicState?.refundAmount ?? null,
@@ -298,9 +331,62 @@ export function useLeopoldUiController(): LeopoldUiController {
           save: (amount) => financial.save(vault.slug, amount),
           withdraw: (amount) => financial.withdraw(vault.slug, amount),
           enterPrizeRound: () => financial.enterRound(vault.slug),
-          revealResult: () => revealResult(vault.slug),
-          claimBondRefund: () => financial.claimRefund(vault.slug),
+          revealEligibility: () =>
+            publicState
+              ? financial.revealEligibility(vault.slug, publicState.roundId)
+              : Promise.reject(new Error("ROUND_STATE_UNAVAILABLE")),
+          revealResult: () =>
+            publicState
+              ? revealResult(vault.slug, publicState.roundId)
+              : Promise.reject(new Error("ROUND_STATE_UNAVAILABLE")),
+          claimBondRefund: () =>
+            publicState
+              ? financial.claimRefund(vault.slug, publicState.roundId)
+              : Promise.reject(new Error("ROUND_STATE_UNAVAILABLE")),
           claimSettlementRewards: () => financial.claimRewards(vault.slug),
+        },
+      };
+    });
+    const completedRounds = projectCompletedVaultRounds(
+      leopoldConfig.vaults,
+      financial.historicalVaultRounds,
+      financial.latestBlockTimestamp,
+    ).map<UiHistoricalRoundSummary>((round: CompletedVaultRound) => {
+      const key = `${round.vaultId}:${round.roundId.toString()}`;
+      const resultRevealed = financial.revealedResultRounds.has(key);
+      const eligibilityRevealed = financial.privateEligibilityByRound[key] !== undefined;
+      return {
+        vaultId: round.vaultId,
+        vaultName: round.vaultName,
+        state: "settled",
+        round: {
+          id: round.roundId,
+          opensAt: round.opensAt,
+          closesAt: round.closesAt,
+          label: round.stateLabel,
+          storedPrize: round.storedPrize,
+          publicPrizeReserve: round.publicPrizeReserve,
+          entered: true,
+          participantCount: round.participantCount,
+        },
+        eligibility: {
+          available: round.eligibilityRevealReady,
+          state: eligibilityRevealed ? "revealed" : "hidden",
+        },
+        privateResult: {
+          state: resultRevealed ? "revealed" : (resultRevealState[key] ?? "hidden"),
+          value: resultRevealed ? (financial.privateResultsByRound[key] ?? 0n) : null,
+          available: round.resultRevealReady,
+        },
+        rewards: {
+          bondRefund: round.bondRefund,
+          bondRefundClaimed: round.bondRefundClaimed,
+          settlementReward: round.settlementReward,
+        },
+        actions: {
+          revealEligibility: () => financial.revealEligibility(round.vaultId, round.roundId),
+          revealResult: () => revealResult(round.vaultId, round.roundId),
+          claimBondRefund: () => financial.claimRefund(round.vaultId, round.roundId),
         },
       };
     });
@@ -365,6 +451,7 @@ export function useLeopoldUiController(): LeopoldUiController {
         },
       },
       vaults,
+      completedRounds,
       transactions: {
         current: {
           state: currentTransactionState,

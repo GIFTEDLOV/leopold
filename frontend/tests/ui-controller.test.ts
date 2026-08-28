@@ -54,7 +54,8 @@ describe("final UI controller contract", () => {
     expect(mapVaultState({ contractState: 1, depositOpen: true, entered: true })).toBe("entered");
     expect(mapVaultState({ contractState: 1, depositOpen: false, entered: true })).toBe("closed");
     expect(mapVaultState({ contractState: 8, depositOpen: false, entered: true })).toBe("settling");
-    expect(mapVaultState({ contractState: 14, depositOpen: false, entered: true })).toBe("settled");
+    expect(mapVaultState({ contractState: 10, depositOpen: false, entered: true })).toBe("settled");
+    expect(mapVaultState({ contractState: 14, depositOpen: false, entered: true })).toBe("settling");
   });
 
   it("maps public service health into the fixed UI states", () => {

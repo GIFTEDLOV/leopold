@@ -180,7 +180,7 @@ describe("Leopold frontend core", () => {
       "Failed",
     ]);
     expect(ROUND_STATE_LABELS[7]).toBe("Finalizing private draw");
-    expect(ROUND_STATE_LABELS[14]).toBe("Settled");
+    expect(ROUND_STATE_LABELS[10]).toBe("Settled");
   });
 
   it("does not render unresolved private balance as zero", () => {

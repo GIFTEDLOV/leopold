@@ -5,6 +5,7 @@ import type { PrivateBalanceStatus } from "@/lib/leopold/private-balance";
 import type { TransactionStage } from "@/lib/leopold/transactions";
 import type { HealthState, PublicHealth } from "@/lib/ops/health";
 import { HttpReadError, withReadReliability } from "@/lib/ops/reliability";
+import { SETTLED_ROUND_STATE } from "@/lib/leopold/reads";
 
 export type UiAccountState = "loading" | "signed-out" | "profile-incomplete" | "ready";
 export type UiWalletState = "disconnected" | "connecting" | "connected" | "wrong-network" | "error";
@@ -140,8 +141,8 @@ export function mapVaultState(input: {
   entered: boolean;
 }): UiVaultState {
   if (input.contractState === undefined) return "unavailable";
-  if (input.contractState === 14) return "settled";
-  if (input.contractState >= 2 && input.contractState < 14) return "settling";
+  if (input.contractState === SETTLED_ROUND_STATE) return "settled";
+  if (input.contractState >= 2) return "settling";
   if (input.contractState === 1 && input.depositOpen) return input.entered ? "entered" : "open";
   return "closed";
 }

@@ -35,6 +35,9 @@ import {
   getEffectiveVaultRoundStatus,
   canPrepareVaultWithdrawal,
   readVaultPublicState,
+  readVaultPublicStateForRound,
+  readVaultPublicHistory,
+  SETTLED_ROUND_STATE,
   validateConfiguredDeployment,
   type VaultPublicState,
 } from "@/lib/leopold/reads";
@@ -79,14 +82,18 @@ type FinancialContextValue = {
   revealedVaults: Set<VaultId>;
   enteredVaults: Set<VaultId>;
   privateResults: Partial<Record<VaultId, bigint>>;
+  privateResultsByRound: Partial<Record<string, bigint>>;
   revealedResults: Set<VaultId>;
+  revealedResultRounds: ReadonlySet<string>;
   privateEligibility: Partial<Record<VaultId, bigint>>;
+  privateEligibilityByRound: Partial<Record<string, bigint>>;
   txStage: TransactionStage;
   txLabel: string;
   txErrorStage: TransactionStage | null;
   error: LeopoldError | null;
   activity: ActivityItem[];
   publicVaultState: Partial<Record<VaultId, VaultPublicState>>;
+  historicalVaultRounds: Partial<Record<VaultId, readonly VaultPublicState[]>>;
   latestBlockTimestamp: bigint | null;
   authState: ReturnType<typeof useAuth>["readiness"];
   financialAuthorized: boolean;
@@ -104,17 +111,21 @@ type FinancialContextValue = {
   revealVault(vault: VaultId): Promise<void>;
   hideVault(vault: VaultId): void;
   enterRound(vault: VaultId): Promise<void>;
-  revealResult(vault: VaultId): Promise<void>;
-  revealEligibility(vault: VaultId): Promise<void>;
+  revealResult(vault: VaultId, roundId?: bigint): Promise<void>;
+  revealEligibility(vault: VaultId, roundId?: bigint): Promise<void>;
   withdraw(vault: VaultId, amount: string): Promise<void>;
   makePublic(amount: string): Promise<void>;
-  claimRefund(vault: VaultId): Promise<void>;
+  claimRefund(vault: VaultId, roundId?: bigint): Promise<void>;
   claimRewards(vault: VaultId): Promise<void>;
 };
 
 const FinancialContext = createContext<FinancialContextValue | null>(null);
 const fixtureEnabled = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_LEOPOLD_DEV_FIXTURE === "1";
 const fixtureAccount = "0x7E57a10D00000000000000000000000000000001" as Address;
+function roundKey(vault: VaultId, roundId: bigint): string {
+  return `${vault}:${roundId.toString()}`;
+}
+
 export function FinancialProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const walletIdentity = useWalletIdentity();
@@ -132,9 +143,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [revealedVaults, setRevealedVaults] = useState<Set<VaultId>>(new Set());
   const [enteredVaults, setEnteredVaults] = useState<Set<VaultId>>(new Set());
   const [privateResults, setPrivateResults] = useState<Partial<Record<VaultId, bigint>>>({});
+  const [privateResultsByRound, setPrivateResultsByRound] = useState<Partial<Record<string, bigint>>>({});
   const [revealedResults, setRevealedResults] = useState<Set<VaultId>>(new Set());
+  const [revealedResultRounds, setRevealedResultRounds] = useState<Set<string>>(new Set());
   const [privateEligibility, setPrivateEligibility] = useState<Partial<Record<VaultId, bigint>>>({});
+  const [privateEligibilityByRound, setPrivateEligibilityByRound] = useState<Partial<Record<string, bigint>>>({});
   const [publicVaultState, setPublicVaultState] = useState<Partial<Record<VaultId, VaultPublicState>>>({});
+  const [historicalVaultRounds, setHistoricalVaultRounds] = useState<
+    Partial<Record<VaultId, readonly VaultPublicState[]>>
+  >({});
   const [latestBlockTimestamp, setLatestBlockTimestamp] = useState<bigint | null>(null);
   const [txStage, setTxStage] = useState<TransactionStage>("ready");
   const [txErrorStage, setTxErrorStage] = useState<TransactionStage | null>(null);
@@ -224,6 +241,30 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setLatestBlockTimestamp(latestBlock.timestamp);
     return { vault, state: liveState, blockTimestamp: latestBlock.timestamp };
   }, []);
+
+  const readSpecifiedVaultRound = useCallback(
+    async (vaultSlug: VaultId, targetRoundId: bigint, liveClients: ActionClients) => {
+      const vault = getVaultConfig(vaultSlug);
+      if (!vault) throw new Error("CONFIGURATION_MISSING:vault");
+      const latestBlock = await readLatestBlock(liveClients.publicClient);
+      const state = await readVaultPublicStateForRound(
+        liveClients.publicClient,
+        vault,
+        liveClients.account,
+        targetRoundId,
+        latestBlock.number,
+      );
+      if (state.roundId !== targetRoundId) throw new Error("ROUND_STATE_ID_MISMATCH");
+      setHistoricalVaultRounds((rounds) => {
+        const existing = rounds[vaultSlug] ?? [];
+        const next = existing.filter((item) => item.roundId !== targetRoundId);
+        return { ...rounds, [vaultSlug]: [...next, state].sort((left, right) => (left.roundId < right.roundId ? -1 : 1)) };
+      });
+      setLatestBlockTimestamp(latestBlock.timestamp);
+      return { vault, state, blockTimestamp: latestBlock.timestamp };
+    },
+    [],
+  );
 
   const requireLiveOpenRound = useCallback(
     async (vaultSlug: VaultId, liveClients: ActionClients) => {
@@ -405,17 +446,22 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       if (leopoldConfig.ready) {
         await validateConfiguredDeployment(publicClient, leopoldConfig);
         setDeploymentVerified(true);
-        const states = await Promise.all(
+        const vaultRounds = await Promise.all(
           leopoldConfig.vaults.map(
-            async (vault) =>
-              [
-                vault.slug,
-                await readVaultPublicState(publicClient, vault, publicReadAccount, latestBlock.number),
-              ] as const,
+            async (vault) => [vault.slug, await readVaultPublicHistory(publicClient, vault, publicReadAccount, latestBlock.number)] as const,
           ),
         );
-        setPublicVaultState(Object.fromEntries(states));
-        setEnteredVaults(new Set(states.filter(([, state]) => state.entered).map(([slug]) => slug)));
+        const currentStates = vaultRounds.flatMap(([slug, rounds]) => {
+          const current = rounds.at(-1);
+          return current ? ([[slug, current]] as const) : [];
+        });
+        setPublicVaultState(Object.fromEntries(currentStates));
+        setHistoricalVaultRounds(
+          Object.fromEntries(
+            vaultRounds.map(([slug, rounds]) => [slug, rounds.slice(0, -1)] as const),
+          ),
+        );
+        setEnteredVaults(new Set(currentStates.filter(([, state]) => state.entered).map(([slug]) => slug)));
       }
       setLatestBlockTimestamp(latestBlock.timestamp);
     } catch (caught) {
@@ -429,8 +475,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setVaultPositions({});
       setRevealedVaults(new Set());
       setPrivateResults({});
+      setPrivateResultsByRound({});
       setRevealedResults(new Set());
+      setRevealedResultRounds(new Set());
       setPrivateEligibility({});
+      setPrivateEligibilityByRound({});
+      setHistoricalVaultRounds({});
       if (walletIdentity.walletSession.verifiedAddress) {
         const labels: Record<string, string> = {
           "get-test-usdc": "Received test USDC",
@@ -497,8 +547,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       revealedVaults,
       enteredVaults,
       privateResults,
+      privateResultsByRound,
       revealedResults,
+      revealedResultRounds,
       privateEligibility,
+      privateEligibilityByRound,
       txStage,
       txLabel:
         txStage === "failed" && txErrorStage
@@ -508,6 +561,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       error,
       activity,
       publicVaultState,
+      historicalVaultRounds,
       latestBlockTimestamp,
       authState: auth.readiness,
       financialAuthorized,
@@ -778,19 +832,28 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           addActivity(`Entered ${vault.name} prize round`, vault.name);
           await refresh();
         }),
-      revealResult: async (vaultSlug) => {
+      revealResult: async (vaultSlug, requestedRoundId) => {
         await ensurePrivateRevealAccess();
-        if (!enteredVaults.has(vaultSlug)) throw new Error("NOT_ENTERED");
+        const currentState = publicVaultState[vaultSlug];
+        const targetRoundId = requestedRoundId ?? currentState?.roundId ?? (fixtureEnabled ? 1n : undefined);
+        if (targetRoundId === undefined) throw new Error("ROUND_STATE_UNAVAILABLE");
         if (fixtureEnabled) {
-          setPrivateResults((items) => ({ ...items, [vaultSlug]: 0n }));
-          setRevealedResults((items) => new Set(items).add(vaultSlug));
+          const key = roundKey(vaultSlug, targetRoundId);
+          setPrivateResultsByRound((items) => ({ ...items, [key]: 0n }));
+          setRevealedResultRounds((items) => new Set(items).add(key));
+          if (currentState?.roundId === targetRoundId) {
+            setPrivateResults((items) => ({ ...items, [vaultSlug]: 0n }));
+            setRevealedResults((items) => new Set(items).add(vaultSlug));
+          }
           return;
         }
         const vault = getVaultConfig(vaultSlug);
         if (!vault) throw new Error("CONFIGURATION_MISSING:vault");
-        if (publicVaultState[vaultSlug]?.state !== 14) throw new Error("PRIVATE_RESULT_NOT_READY");
         requireVerified();
         const liveClients = clients();
+        const { state } = await readSpecifiedVaultRound(vaultSlug, targetRoundId, liveClients);
+        if (!state.entered) throw new Error("NOT_ENTERED");
+        if (state.state !== SETTLED_ROUND_STATE) throw new Error("PRIVATE_RESULT_NOT_READY");
         const vaultAddress = requireConfiguredAddress(vault.vault, `${vault.name} vault`);
         const handle = await readPrivateHandle(liveClients.publicClient, vaultAddress, liveClients.account, "winnings");
         const clear = await decryptPrivateValue(
@@ -800,25 +863,37 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           handle,
           liveClients.walletClient,
         );
-        setPrivateResults((items) => ({ ...items, [vaultSlug]: clear }));
-        setRevealedResults((items) => new Set(items).add(vaultSlug));
+        const key = roundKey(vaultSlug, targetRoundId);
+        setPrivateResultsByRound((items) => ({ ...items, [key]: clear }));
+        setRevealedResultRounds((items) => new Set(items).add(key));
+        if (currentState?.roundId === targetRoundId) {
+          setPrivateResults((items) => ({ ...items, [vaultSlug]: clear }));
+          setRevealedResults((items) => new Set(items).add(vaultSlug));
+        }
       },
-      revealEligibility: async (vaultSlug) => {
+      revealEligibility: async (vaultSlug, requestedRoundId) => {
         try {
           await ensurePrivateRevealAccess();
-          if (!enteredVaults.has(vaultSlug)) throw new Error("NOT_ENTERED");
+          const currentState = publicVaultState[vaultSlug];
+          const targetRoundId = requestedRoundId ?? currentState?.roundId ?? (fixtureEnabled ? 1n : undefined);
+          if (targetRoundId === undefined) throw new Error("ROUND_STATE_UNAVAILABLE");
           if (fixtureEnabled) {
-            setPrivateEligibility((items) => ({ ...items, [vaultSlug]: 1n }));
+            const key = roundKey(vaultSlug, targetRoundId);
+            setPrivateEligibilityByRound((items) => ({ ...items, [key]: 1n }));
+            if (currentState?.roundId === targetRoundId) {
+              setPrivateEligibility((items) => ({ ...items, [vaultSlug]: 1n }));
+            }
             return;
           }
           await execute("reveal-eligibility", async (onHash, onStage) => {
             const vault = getVaultConfig(vaultSlug);
-            const state = publicVaultState[vaultSlug];
-            if (!vault || !state) throw new Error("ROUND_STATE_UNAVAILABLE");
+            if (!vault) throw new Error("ROUND_STATE_UNAVAILABLE");
             requireVerified();
             const liveClients = clients(onHash, true, onStage);
+            const { state } = await readSpecifiedVaultRound(vaultSlug, targetRoundId, liveClients);
+            if (!state.entered) throw new Error("NOT_ENTERED");
             const vaultAddress = requireConfiguredAddress(vault.vault, `${vault.name} vault`);
-            const hash = await materializeEligibility(liveClients, vaultAddress, state.roundId);
+            const hash = await materializeEligibility(liveClients, vaultAddress, targetRoundId);
             const receipt = await liveClients.publicClient.getTransactionReceipt({ hash });
             const { parseEventLogs } = await import("viem");
             const { vaultAbi } = await import("@/lib/leopold/abis");
@@ -828,7 +903,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
               logs: receipt.logs,
             }).find(
               (log) =>
-                log.args.roundId === state.roundId &&
+                log.args.roundId === targetRoundId &&
                 log.args.account.toLowerCase() === liveClients.account.toLowerCase(),
             );
             if (!event) throw new Error("PRIVATE_ELIGIBILITY_HANDLE_UNAVAILABLE");
@@ -839,7 +914,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
               event.args.handle,
               liveClients.walletClient,
             );
-            setPrivateEligibility((items) => ({ ...items, [vaultSlug]: clear }));
+            const key = roundKey(vaultSlug, targetRoundId);
+            setPrivateEligibilityByRound((items) => ({ ...items, [key]: clear }));
+            if (currentState?.roundId === targetRoundId) {
+              setPrivateEligibility((items) => ({ ...items, [vaultSlug]: clear }));
+            }
           });
         } catch (caught) {
           setError(classifyLeopoldError(caught));
@@ -898,11 +977,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           addActivity("Requested public USDC");
           await refresh();
         }),
-      claimRefund: async (vaultSlug) =>
+      claimRefund: async (vaultSlug, requestedRoundId) =>
         execute("claim-refund", async (onHash) => {
           const vault = getVaultConfig(vaultSlug);
           const state = publicVaultState[vaultSlug];
-          if (!vault || !state) {
+          const targetRoundId = requestedRoundId ?? state?.roundId;
+          if (!vault || targetRoundId === undefined) {
             if (fixtureEnabled) {
               addActivity("Claimed bond refund", vault?.name);
               return;
@@ -910,10 +990,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             throw new Error("REFUND_UNAVAILABLE");
           }
           requireVerified();
+          const liveClients = clients(onHash);
+          const liveRound = await readSpecifiedVaultRound(vaultSlug, targetRoundId, liveClients);
+          if (!liveRound.state.entered) throw new Error("NOT_ENTERED");
+          if (liveRound.state.refundClaimed) throw new Error("REFUND_ALREADY_CLAIMED");
           await claimBondRefund(
-            clients(onHash),
+            liveClients,
             requireConfiguredAddress(vault.bondEscrow, `${vault.name} escrow`),
-            state.roundId,
+            targetRoundId,
           );
           addActivity("Claimed bond refund", vault.name);
           await refresh();
@@ -972,7 +1056,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       invalidatePrivateBalance,
       refreshPrivateBalanceHandle,
       requireLiveOpenRound,
+      readSpecifiedVaultRound,
       walletIdentity,
+      privateResultsByRound,
+      revealedResultRounds,
+      privateEligibilityByRound,
+      historicalVaultRounds,
     ],
   );
 

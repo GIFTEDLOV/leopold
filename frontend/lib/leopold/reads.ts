@@ -9,19 +9,21 @@ export const ROUND_STATE_LABELS = [
   "Unavailable",
   "Open",
   "Preparing draw",
-  "No eligible savings",
   "Draw ready",
+  "No eligible savings",
   "Checking ticket",
   "Checking ticket",
-  "Finalizing private draw",
-  "Finalizing private draw",
-  "Finalizing private draw",
-  "Finalizing private draw",
   "Finalizing private draw",
   "Finalizing private draw",
   "Finalizing private draw",
   "Settled",
+  "Finalizing private draw",
+  "Finalizing private draw",
+  "Preparing allocation",
+  "Finalizing private draw",
 ] as const;
+
+export const SETTLED_ROUND_STATE = 10;
 
 export type VaultPublicState = {
   roundId: bigint;
@@ -210,6 +212,50 @@ export async function readVaultPublicState(
   });
 }
 
+export async function readVaultPublicStateForRound(
+  client: PublicClient,
+  vaultConfig: LeopoldVaultConfig,
+  account: Address,
+  roundId: bigint,
+  blockNumber?: bigint,
+): Promise<VaultPublicState> {
+  return withReadReliability(() => readVaultPublicStateForRoundOnce(client, vaultConfig, account, roundId, blockNumber), {
+    operation: "VAULT_READ",
+  });
+}
+
+/**
+ * Reads every initialized round through the active round cursor. The round
+ * records and account-specific registration/refund reads remain authoritative
+ * contract state; no browser-side round history is used.
+ */
+export async function readVaultPublicHistory(
+  client: PublicClient,
+  vaultConfig: LeopoldVaultConfig,
+  account: Address,
+  blockNumber?: bigint,
+): Promise<VaultPublicState[]> {
+  return withReadReliability(
+    async () => {
+      const blockTag = blockNumber === undefined ? {} : { blockNumber };
+      const vault = requireConfiguredAddress(vaultConfig.vault, `${vaultConfig.name} vault`);
+      const activeRoundId = await client.readContract({
+        address: vault,
+        abi: vaultAbi,
+        functionName: "activeRoundId",
+        ...blockTag,
+      });
+      if (activeRoundId > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("ROUND_HISTORY_RANGE_UNSAFE");
+      return Promise.all(
+        Array.from({ length: Number(activeRoundId) }, (_, index) =>
+          readVaultPublicStateForRoundOnce(client, vaultConfig, account, BigInt(index + 1), blockNumber),
+        ),
+      );
+    },
+    { operation: "VAULT_READ" },
+  );
+}
+
 async function readVaultPublicStateOnce(
   client: PublicClient,
   vaultConfig: LeopoldVaultConfig,
@@ -217,7 +263,6 @@ async function readVaultPublicStateOnce(
   blockNumber?: bigint,
 ): Promise<VaultPublicState> {
   const vault = requireConfiguredAddress(vaultConfig.vault, `${vaultConfig.name} vault`);
-  const escrow = requireConfiguredAddress(vaultConfig.bondEscrow, `${vaultConfig.name} bond escrow`);
   const blockTag = blockNumber === undefined ? {} : { blockNumber };
   const roundId = await client.readContract({
     address: vault,
@@ -225,6 +270,19 @@ async function readVaultPublicStateOnce(
     functionName: "activeRoundId",
     ...blockTag,
   });
+  return readVaultPublicStateForRoundOnce(client, vaultConfig, account, roundId, blockNumber);
+}
+
+async function readVaultPublicStateForRoundOnce(
+  client: PublicClient,
+  vaultConfig: LeopoldVaultConfig,
+  account: Address,
+  roundId: bigint,
+  blockNumber?: bigint,
+): Promise<VaultPublicState> {
+  const vault = requireConfiguredAddress(vaultConfig.vault, `${vaultConfig.name} vault`);
+  const escrow = requireConfiguredAddress(vaultConfig.bondEscrow, `${vaultConfig.name} bond escrow`);
+  const blockTag = blockNumber === undefined ? {} : { blockNumber };
   const [round, sponsoredPrize, entered, eligibilityStart, bondAmount, refundAmount, refundClaimed, settlementReward] =
     await Promise.all([
       client.readContract({ address: vault, abi: vaultAbi, functionName: "roundInfo", args: [roundId], ...blockTag }),
