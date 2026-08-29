@@ -57,6 +57,7 @@ import {
   type PrivateBalanceStatus,
 } from "@/lib/leopold/private-balance";
 import { clearPrivateSession, decryptPrivateValue } from "@/lib/leopold/zama";
+import { createPrivateRevealAutoHide, type PrivateRevealAutoHide } from "@/lib/leopold/private-reveal-privacy";
 import { useAuth } from "@/components/auth-provider";
 import { financialControlsEnabled } from "@/lib/auth/hydration";
 import { useWalletIdentity } from "@/components/wallet-identity-provider";
@@ -170,6 +171,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const publicClientRef = useRef(publicClient);
   const accountRef = useRef<Address | null>(null);
   const publicReadVersionRef = useRef(0);
+  const privateRevealAutoHideRef = useRef<PrivateRevealAutoHide | null>(null);
+  const privatePlaintextGenerationRef = useRef(0);
   const walletClientId = walletClient.data?.uid ?? null;
 
   const connected = fixtureEnabled
@@ -319,6 +322,39 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setPrivateBalanceDiagnostic(null);
     clearPrivateSession();
   }, []);
+
+  const clearRevealedPrivateValues = useCallback((status: PrivateBalanceStatus = "NOT_REVEALED") => {
+    ++privatePlaintextGenerationRef.current;
+    ++privateRevealRunRef.current;
+    privateRevealAutoHideRef.current?.cancel();
+    setPrivateBalanceHandle(null);
+    setPrivateBalance(null);
+    setPrivateBalanceRevealed(false);
+    setPrivateBalanceStatus(status);
+    setPrivateBalanceDiagnostic(null);
+    setVaultPositions({});
+    setRevealedVaults(new Set());
+    setPrivateResults({});
+    setPrivateResultsByRound({});
+    setRevealedResults(new Set());
+    setRevealedResultRounds(new Set());
+    setPrivateEligibility({});
+    setPrivateEligibilityByRound({});
+    clearPrivateSession();
+  }, []);
+
+  const armPrivateRevealAutoHide = useCallback(() => {
+    privateRevealAutoHideRef.current?.arm();
+  }, []);
+
+  useEffect(() => {
+    const autoHide = createPrivateRevealAutoHide(() => clearRevealedPrivateValues());
+    privateRevealAutoHideRef.current = autoHide;
+    return () => {
+      autoHide.dispose();
+      if (privateRevealAutoHideRef.current === autoHide) privateRevealAutoHideRef.current = null;
+    };
+  }, [clearRevealedPrivateValues]);
 
   const refreshPrivateBalanceHandle = useCallback(async () => {
     const runId = ++privateRevealRunRef.current;
@@ -514,17 +550,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     [],
   );
   useEffect(() => {
+    // Privacy boundary: identity/session changes must clear plaintext before
+    // any subsequent browser event can observe the new session.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    clearRevealedPrivateValues("UNREAD");
     const timeout = window.setTimeout(() => {
       if (fixtureEnabled && !auth.authenticated) setFixtureConnected(false);
-      invalidatePrivateBalance();
-      setVaultPositions({});
-      setRevealedVaults(new Set());
-      setPrivateResults({});
-      setPrivateResultsByRound({});
-      setRevealedResults(new Set());
-      setRevealedResultRounds(new Set());
-      setPrivateEligibility({});
-      setPrivateEligibilityByRound({});
       setHistoricalVaultRounds({});
       if (walletIdentity.walletSession.verifiedAddress) {
         const labels: Record<string, string> = {
@@ -550,8 +581,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timeout);
   }, [
     auth.authenticated,
+    auth.financialWallet,
+    auth.financialWalletMetadata.status,
     auth.identityKey,
-    invalidatePrivateBalance,
+    clearRevealedPrivateValues,
+    financialAuthorized,
     walletIdentity.walletSession.epoch,
     walletIdentity.walletSession.status,
     walletIdentity.walletSession.verifiedAddress,
@@ -692,6 +726,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       revealPrivateBalance: async () => {
         setError(null);
         const runId = ++privateRevealRunRef.current;
+        const plaintextGeneration = privatePlaintextGenerationRef.current;
         setPrivateBalanceHandle(null);
         setPrivateBalanceStatus("READING_HANDLE");
         setPrivateBalanceDiagnostic(null);
@@ -715,6 +750,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
                 stage: "FIXTURE",
               }),
             );
+            armPrivateRevealAutoHide();
             return;
           }
           requireVerified();
@@ -754,7 +790,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
               );
             },
           });
-          if (runId !== privateRevealRunRef.current) throw new Error("PRIVATE_BALANCE:STALE_REQUEST");
+          if (runId !== privateRevealRunRef.current) return;
+          if (plaintextGeneration !== privatePlaintextGenerationRef.current) return;
           handle = result.identity.handle;
           chainId = result.identity.chainId;
           revealAccount = result.identity.account;
@@ -772,8 +809,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
               stage: "DECRYPTED",
             }),
           );
+          armPrivateRevealAutoHide();
         } catch (caught) {
-          if (runId !== privateRevealRunRef.current) throw caught;
+          if (runId !== privateRevealRunRef.current || plaintextGeneration !== privatePlaintextGenerationRef.current) {
+            return;
+          }
           const technical = sanitizeTechnicalDetail(caught);
           const diagnostic = buildPrivateBalanceDiagnostic({
             chainId,
@@ -794,6 +834,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         }
       },
       hidePrivateBalance: () => {
+        ++privateRevealRunRef.current;
+        setPrivateBalanceHandle(null);
+        setPrivateBalance(null);
         setPrivateBalanceRevealed(false);
         setPrivateBalanceStatus("NOT_REVEALED");
         setPrivateBalanceDiagnostic(null);
@@ -825,10 +868,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           await refresh();
         }),
       revealVault: async (vaultSlug) => {
+        const plaintextGeneration = privatePlaintextGenerationRef.current;
         await ensurePrivateRevealAccess();
         if (fixtureEnabled) {
+          if (plaintextGeneration !== privatePlaintextGenerationRef.current) return;
           setVaultPositions((items) => ({ ...items, [vaultSlug]: items[vaultSlug] ?? 0n }));
           setRevealedVaults((items) => new Set(items).add(vaultSlug));
+          armPrivateRevealAutoHide();
           return;
         }
         const vault = getVaultConfig(vaultSlug);
@@ -849,15 +895,23 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           handle,
           liveClients.walletClient,
         );
+        if (plaintextGeneration !== privatePlaintextGenerationRef.current) return;
         setVaultPositions((items) => ({ ...items, [vaultSlug]: clear }));
         setRevealedVaults((items) => new Set(items).add(vaultSlug));
+        armPrivateRevealAutoHide();
       },
-      hideVault: (vaultSlug) =>
+      hideVault: (vaultSlug) => {
+        setVaultPositions((items) => {
+          const next = { ...items };
+          delete next[vaultSlug];
+          return next;
+        });
         setRevealedVaults((items) => {
           const next = new Set(items);
           next.delete(vaultSlug);
           return next;
-        }),
+        });
+      },
       enterRound: async (vaultSlug) =>
         execute("enter-round", async (onHash) => {
           const vault = getVaultConfig(vaultSlug);
@@ -879,11 +933,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           await refresh();
         }),
       revealResult: async (vaultSlug, requestedRoundId) => {
+        const plaintextGeneration = privatePlaintextGenerationRef.current;
         await ensurePrivateRevealAccess();
         const currentState = publicVaultState[vaultSlug];
         const targetRoundId = requestedRoundId ?? currentState?.roundId ?? (fixtureEnabled ? 1n : undefined);
         if (targetRoundId === undefined) throw new Error("ROUND_STATE_UNAVAILABLE");
         if (fixtureEnabled) {
+          if (plaintextGeneration !== privatePlaintextGenerationRef.current) return;
           const key = roundKey(vaultSlug, targetRoundId);
           setPrivateResultsByRound((items) => ({ ...items, [key]: 0n }));
           setRevealedResultRounds((items) => new Set(items).add(key));
@@ -891,6 +947,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setPrivateResults((items) => ({ ...items, [vaultSlug]: 0n }));
             setRevealedResults((items) => new Set(items).add(vaultSlug));
           }
+          armPrivateRevealAutoHide();
           return;
         }
         const vault = getVaultConfig(vaultSlug);
@@ -909,6 +966,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           handle,
           liveClients.walletClient,
         );
+        if (plaintextGeneration !== privatePlaintextGenerationRef.current) return;
         const key = roundKey(vaultSlug, targetRoundId);
         setPrivateResultsByRound((items) => ({ ...items, [key]: clear }));
         setRevealedResultRounds((items) => new Set(items).add(key));
@@ -916,19 +974,23 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           setPrivateResults((items) => ({ ...items, [vaultSlug]: clear }));
           setRevealedResults((items) => new Set(items).add(vaultSlug));
         }
+        armPrivateRevealAutoHide();
       },
       revealEligibility: async (vaultSlug, requestedRoundId) => {
+        const plaintextGeneration = privatePlaintextGenerationRef.current;
         try {
           await ensurePrivateRevealAccess();
           const currentState = publicVaultState[vaultSlug];
           const targetRoundId = requestedRoundId ?? currentState?.roundId ?? (fixtureEnabled ? 1n : undefined);
           if (targetRoundId === undefined) throw new Error("ROUND_STATE_UNAVAILABLE");
           if (fixtureEnabled) {
+            if (plaintextGeneration !== privatePlaintextGenerationRef.current) return;
             const key = roundKey(vaultSlug, targetRoundId);
             setPrivateEligibilityByRound((items) => ({ ...items, [key]: 1n }));
             if (currentState?.roundId === targetRoundId) {
               setPrivateEligibility((items) => ({ ...items, [vaultSlug]: 1n }));
             }
+            armPrivateRevealAutoHide();
             return;
           }
           await execute("reveal-eligibility", async (onHash, onStage) => {
@@ -960,11 +1022,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
               event.args.handle,
               liveClients.walletClient,
             );
+            if (plaintextGeneration !== privatePlaintextGenerationRef.current) return;
             const key = roundKey(vaultSlug, targetRoundId);
             setPrivateEligibilityByRound((items) => ({ ...items, [key]: clear }));
             if (currentState?.roundId === targetRoundId) {
               setPrivateEligibility((items) => ({ ...items, [vaultSlug]: clear }));
             }
+            armPrivateRevealAutoHide();
           });
         } catch (caught) {
           setError(classifyLeopoldError(caught));
@@ -1116,6 +1180,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       financialActionsEnabled,
       ensurePrivateRevealAccess,
       invalidatePrivateBalance,
+      armPrivateRevealAutoHide,
       refreshPrivateBalanceHandle,
       requireLiveOpenRound,
       readSpecifiedVaultRound,

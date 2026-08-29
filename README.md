@@ -87,6 +87,9 @@ Conflicts and attempted silent wallet replacement fail closed; Leopold does not 
 Privacy is not anonymity: wallet activity, transaction timing, public entries, and aggregate protocol facts remain
 observable. A user’s browser can see values only after the user deliberately authorizes the relevant reveal.
 
+The complete judge-facing privacy/decryption matrix, architecture boundary, browser auto-hide policy, and HCU
+guardrails are in [`docs/architecture/LEOPOLD_PRIVACY_DECRYPTION.md`](docs/architecture/LEOPOLD_PRIVACY_DECRYPTION.md).
+
 ## Prize lifecycle
 
 The protocol progresses through these public and confidential boundaries:

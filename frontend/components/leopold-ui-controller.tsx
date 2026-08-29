@@ -203,6 +203,14 @@ function transactionItems(records: readonly SafeTransactionRecord[]): UiTransact
   }));
 }
 
+function effectivePrivateRevealState(
+  revealed: boolean,
+  state: UiPrivateValueState | undefined,
+): UiPrivateValueState {
+  if (revealed) return "revealed";
+  return state === "revealing" || state === "reveal-failed" ? state : "hidden";
+}
+
 /**
  * Stable presentation boundary for the final Leopold UI.
  *
@@ -307,8 +315,8 @@ export function useLeopoldUiController(): LeopoldUiController {
       const entered = financial.enteredVaults.has(vault.slug);
       const savingsRevealed = financial.revealedVaults.has(vault.slug);
       const resultRevealed = financial.revealedResults.has(vault.slug);
-      const savingsState = savingsRevealed ? "revealed" : (savingsRevealState[vault.slug] ?? "hidden");
-      const resultState = resultRevealed ? "revealed" : (resultRevealState[vault.slug] ?? "hidden");
+      const savingsState = effectivePrivateRevealState(savingsRevealed, savingsRevealState[vault.slug]);
+      const resultState = effectivePrivateRevealState(resultRevealed, resultRevealState[vault.slug]);
       return {
         id: vault.slug,
         name: vault.name,
@@ -379,8 +387,10 @@ export function useLeopoldUiController(): LeopoldUiController {
       const key = `${round.vaultId}:${round.roundId.toString()}`;
       const resultRevealed = financial.revealedResultRounds.has(key);
       const eligibilityValue = financial.privateEligibilityByRound[key];
-      const eligibilityState =
-        eligibilityRevealState[key] ?? (eligibilityValue !== undefined ? "revealed" : "hidden");
+      const eligibilityState = effectivePrivateRevealState(
+        eligibilityValue !== undefined,
+        eligibilityRevealState[key],
+      );
       return {
         vaultId: round.vaultId,
         vaultName: round.vaultName,
@@ -397,7 +407,7 @@ export function useLeopoldUiController(): LeopoldUiController {
         },
         eligibility: projectHistoricalEligibility(round.eligibilityRevealReady, eligibilityState, eligibilityValue),
         privateResult: {
-          state: resultRevealed ? "revealed" : (resultRevealState[key] ?? "hidden"),
+          state: effectivePrivateRevealState(resultRevealed, resultRevealState[key]),
           value: resultRevealed ? (financial.privateResultsByRound[key] ?? 0n) : null,
           available: round.resultRevealReady,
         },
