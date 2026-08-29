@@ -1,8 +1,18 @@
+"use client";
+
+import { useState } from "react";
 import { ConfigurationStatus, FixtureStatus } from "@/components/configuration-status";
-import { VaultCards } from "@/components/vault-cards";
+import { VaultCards, type VaultFilter } from "@/components/vault-cards";
 import styles from "@/components/full-site/leopold-app-ui.module.css";
 
 export default function VaultsPage() {
+  const [filter, setFilter] = useState<VaultFilter>("all");
+  const filters: readonly [VaultFilter, string][] = [
+    ["all", "All"],
+    ["open", "Open"],
+    ["entered", "Entered"],
+  ];
+
   return (
     <div className={styles.content}>
       <FixtureStatus />
@@ -14,8 +24,23 @@ export default function VaultsPage() {
           <p>Compare Leopold’s four official private prize-saving vaults. Weekly is the recommended first experience.</p>
         </div>
       </div>
-      <section className={styles.filterBar}><span>4 official vaults</span><div><button className={styles.selected}>All</button><button>Open</button><button>Entered</button></div></section>
-      <VaultCards />
+      <section className={styles.filterBar}>
+        <span>4 official vaults</span>
+        <div>
+          {filters.map(([value, label]) => (
+            <button
+              className={filter === value ? styles.selected : undefined}
+              key={value}
+              type="button"
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+      <VaultCards filter={filter} />
       <section className={styles.privacyBand}>
         <p className={styles.eyebrow}>What remains private</p>
         <h2>Saving and prizes are separate.</h2>

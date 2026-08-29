@@ -1,11 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import { FixtureStatus } from "@/components/configuration-status";
 import { useFinancial } from "@/components/financial-provider";
+import type { ActivityCategory } from "@/lib/leopold/activity";
 import styles from "@/components/full-site/leopold-app-ui.module.css";
+
+type ActivityFilter = "all" | Exclude<ActivityCategory, "other">;
 
 export default function ActivityPage() {
   const financial = useFinancial();
+  const [filter, setFilter] = useState<ActivityFilter>("all");
+  const filters: readonly [ActivityFilter, string][] = [
+    ["all", "All"],
+    ["deposit", "Deposits"],
+    ["withdrawal", "Withdrawals"],
+    ["prize", "Prizes"],
+  ];
+  const visibleActivity = financial.activity.filter((item) => filter === "all" || item.category === filter);
+  const activeLabel = filters.find(([value]) => value === filter)?.[1] ?? "All";
+
   return (
     <div className={styles.content}>
       <FixtureStatus />
@@ -16,13 +30,28 @@ export default function ActivityPage() {
           <p>Public transaction references for this wallet. Confidential values are never reconstructed in this view.</p>
         </div>
       </div>
-      <section className={styles.filterBar}><span>Browser session</span><div><button className={styles.selected}>All</button><button>Deposits</button><button>Withdrawals</button><button>Prizes</button></div></section>
+      <section className={styles.filterBar}>
+        <span>Browser session</span>
+        <div>
+          {filters.map(([value, label]) => (
+            <button
+              className={filter === value ? styles.selected : undefined}
+              key={value}
+              type="button"
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
       <article className={styles.panel}>
         <div className={styles.tableHead}>
           <span>Action</span><span>Vault / network</span><span>Status</span><span>Transaction</span>
         </div>
-        {financial.activity.length ? (
-          financial.activity.map((item) => (
+        {visibleActivity.length ? (
+          visibleActivity.map((item) => (
             <div className={styles.listRow} key={item.id}>
               <div>
                 <strong>{item.label}</strong>
@@ -34,7 +63,7 @@ export default function ActivityPage() {
         ) : (
           <div className={styles.empty}>
             <span>◇</span>
-            <h3>No recent Leopold activity</h3>
+            <h3>{filter === "all" ? "No recent Leopold activity" : `No ${activeLabel.toLowerCase()} activity`}</h3>
             <p>Deposits, withdrawals, entries, reveals and claims will appear after the existing actions report them.</p>
           </div>
         )}

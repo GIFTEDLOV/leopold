@@ -62,8 +62,15 @@ import { financialControlsEnabled } from "@/lib/auth/hydration";
 import { useWalletIdentity } from "@/components/wallet-identity-provider";
 import type { WalletRpcHealth } from "@/lib/auth/wallet-identity";
 import { prepareWithdrawalRound } from "@/lib/leopold/withdrawal";
+import { activityCategoryForTransaction, type ActivityCategory } from "@/lib/leopold/activity";
 
-export type ActivityItem = { id: string; label: string; status: "Confirmed" | "Processing"; vault?: string };
+export type ActivityItem = {
+  id: string;
+  label: string;
+  status: "Confirmed" | "Processing";
+  category: ActivityCategory;
+  vault?: string;
+};
 
 type FinancialContextValue = {
   fixture: boolean;
@@ -366,9 +373,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   }, [financialAuthorized, currentPrivateBalanceClients, invalidatePrivateBalance, walletChainId]);
 
-  const addActivity = useCallback((label: string, vault?: string) => {
+  const addActivity = useCallback((label: string, vault: string | undefined, category: ActivityCategory) => {
     setActivity((items) =>
-      [{ id: crypto.randomUUID(), label, status: "Confirmed" as const, vault }, ...items].slice(0, 12),
+      [{ id: crypto.randomUUID(), label, status: "Confirmed" as const, category, vault }, ...items].slice(0, 12),
     );
   }, []);
   const requireVerified = useCallback(() => {
@@ -535,6 +542,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             id: item.id,
             label: labels[item.kind] ?? "Leopold transaction",
             status: item.stage === "complete" ? "Confirmed" : "Processing",
+            category: activityCategoryForTransaction(item.kind),
           })),
         );
       } else setActivity([]);
@@ -653,7 +661,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         execute("get-test-usdc", async (onHash) => {
           if (fixtureEnabled) setUsdcBalance(2_500_000_000n);
           else await getTestUsdc(clients(onHash, false));
-          addActivity("Received test USDC");
+          addActivity("Received test USDC", undefined, "deposit");
           await refresh();
         }),
       makePrivate: async (input) =>
@@ -678,7 +686,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setPrivateBalanceStatus("NOT_REVEALED");
             setPrivateBalanceDiagnostic(null);
           }
-          addActivity("Made USDC private");
+          addActivity("Made USDC private", undefined, "deposit");
           await refresh();
         }),
       revealPrivateBalance: async () => {
@@ -812,7 +820,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
               onStage,
             );
           }
-          addActivity(`Saved to ${vault.name} Vault`, vault.name);
+          addActivity(`Saved to ${vault.name} Vault`, vault.name, "deposit");
           onStage("save-post-refresh");
           await refresh();
         }),
@@ -867,7 +875,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
               state.bondAmount,
             );
           }
-          addActivity(`Entered ${vault.name} prize round`, vault.name);
+          addActivity(`Entered ${vault.name} prize round`, vault.name, "prize");
           await refresh();
         }),
       revealResult: async (vaultSlug, requestedRoundId) => {
@@ -995,7 +1003,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             });
             await withdrawSavings(liveClients, requireConfiguredAddress(vault.vault, `${vault.name} vault`), amount);
           }
-          addActivity(`Withdrew from ${vault.name} Vault`, vault.name);
+          addActivity(`Withdrew from ${vault.name} Vault`, vault.name, "withdrawal");
           await refresh();
         }),
       makePublic: async (input) =>
@@ -1013,7 +1021,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
               amount,
             );
           }
-          addActivity("Requested public USDC");
+          addActivity("Requested public USDC", undefined, "withdrawal");
           await refresh();
         }),
       claimRefund: async (vaultSlug, requestedRoundId) =>
@@ -1023,7 +1031,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           const targetRoundId = requestedRoundId ?? state?.roundId;
           if (!vault || targetRoundId === undefined) {
             if (fixtureEnabled) {
-              addActivity("Claimed bond refund", vault?.name);
+              addActivity("Claimed bond refund", vault?.name, "prize");
               return;
             }
             throw new Error("REFUND_UNAVAILABLE");
@@ -1038,7 +1046,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             requireConfiguredAddress(vault.bondEscrow, `${vault.name} escrow`),
             targetRoundId,
           );
-          addActivity("Claimed bond refund", vault.name);
+          addActivity("Claimed bond refund", vault.name, "prize");
           await refresh();
           try {
             await readSpecifiedVaultRound(vaultSlug, targetRoundId, liveClients);
@@ -1057,7 +1065,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
               liveClients,
               requireConfiguredAddress(vault.bondEscrow, `${vault.name} escrow`),
             );
-            addActivity("Claimed settlement reward", vault.name);
+            addActivity("Claimed settlement reward", vault.name, "prize");
             await refresh();
             try {
               await refreshSettlementRewardCredit(vaultSlug, liveClients);
@@ -1066,7 +1074,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             }
             return;
           }
-          addActivity("Claimed settlement reward", vault.name);
+          addActivity("Claimed settlement reward", vault.name, "prize");
           await refresh();
         }),
     }),

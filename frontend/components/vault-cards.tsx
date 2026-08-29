@@ -21,26 +21,33 @@ const images: Record<VaultId, string> = {
   boost: "/marketing/leopold/leopold-boost.webp",
 };
 
-export function VaultCards() {
+export type VaultFilter = "all" | "open" | "entered";
+
+export function VaultCards({ filter = "all" }: { filter?: VaultFilter }) {
   const financial = useFinancial();
-  const statuses = leopoldConfig.vaults.map((vault) =>
-    getEffectiveVaultRoundStatus(financial.publicVaultState[vault.slug], financial.latestBlockTimestamp),
-  );
+  const entries = leopoldConfig.vaults.map((vault) => ({
+    vault,
+    status: getEffectiveVaultRoundStatus(financial.publicVaultState[vault.slug], financial.latestBlockTimestamp),
+    entered: financial.enteredVaults.has(vault.slug),
+  }));
+  const visibleEntries = entries.filter(({ status, entered }) => {
+    if (filter === "open") return status.depositOpen;
+    if (filter === "entered") return entered;
+    return true;
+  });
   const allRoundsKnown =
     leopoldConfig.vaults.every((vault) => financial.publicVaultState[vault.slug]) &&
     financial.latestBlockTimestamp !== null;
   return (
     <>
-      {allRoundsKnown && !statuses.some((status) => status.depositOpen) ? (
+      {allRoundsKnown && !entries.some(({ status }) => status.depositOpen) ? (
         <div className={styles.alert} role="status" data-testid="no-open-vaults">
           No vault round is currently open for deposits.
         </div>
       ) : null}
       <div className={`${styles.vaultGrid} ${styles.vaultGridLarge}`}>
-        {leopoldConfig.vaults.map((vault, index) => {
-          const entered = financial.enteredVaults.has(vault.slug);
+        {visibleEntries.map(({ vault, status, entered }, index) => {
           const state = financial.publicVaultState[vault.slug];
-          const status = statuses[index];
           const publicPrize = getEffectiveVaultPublicPrize(state, financial.latestBlockTimestamp);
           const saveEnabled = financial.fixture || (financial.financialActionsEnabled && status.depositOpen);
           return (
