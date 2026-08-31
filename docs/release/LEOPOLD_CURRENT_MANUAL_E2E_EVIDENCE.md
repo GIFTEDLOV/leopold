@@ -8,9 +8,8 @@ This record captures the manual browser proofs supplied for the current pre-rele
 result and does not replace the machine-readable evidence under `evidence/`. No OTP, email address, private key, session
 token, ciphertext handle, input proof, or decrypted private value is recorded here.
 
-Review branch: `ui/full-site-refresh`
-Review commit: `180fef455f7118d3d8ee40f400915e19265119b1`
-Network: Ethereum Sepolia (`11155111`)
+Review branch: `ui/full-site-refresh` Review commit: `180fef455f7118d3d8ee40f400915e19265119b1` Network: Ethereum
+Sepolia (`11155111`)
 
 ## Completed browser proofs
 

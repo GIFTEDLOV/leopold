@@ -21,6 +21,7 @@ export default tseslint.config(
       "**/dist/**",
       "**/node_modules/**",
       "**/types/**",
+      "packages/bigint-buffer-safe/index.d.ts",
       "*.env",
       "*.log",
       "coverage.json",

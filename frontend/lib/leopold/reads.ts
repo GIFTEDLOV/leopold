@@ -83,10 +83,9 @@ export function isVaultRoundOpen(
  * stored prize.
  */
 export function getEffectiveVaultPublicPrize(
-  state: Pick<
-    VaultPublicState,
-    "state" | "stateLabel" | "opensAt" | "closesAt" | "publicPrize" | "publicSponsoredPrize"
-  > | undefined,
+  state:
+    | Pick<VaultPublicState, "state" | "stateLabel" | "opensAt" | "closesAt" | "publicPrize" | "publicSponsoredPrize">
+    | undefined,
   blockTimestamp: bigint | null,
 ): bigint | null {
   if (!state) return null;
@@ -219,9 +218,12 @@ export async function readVaultPublicStateForRound(
   roundId: bigint,
   blockNumber?: bigint,
 ): Promise<VaultPublicState> {
-  return withReadReliability(() => readVaultPublicStateForRoundOnce(client, vaultConfig, account, roundId, blockNumber), {
-    operation: "VAULT_READ",
-  });
+  return withReadReliability(
+    () => readVaultPublicStateForRoundOnce(client, vaultConfig, account, roundId, blockNumber),
+    {
+      operation: "VAULT_READ",
+    },
+  );
 }
 
 /**

@@ -11,10 +11,15 @@ interface IMockSettlementBondEscrow {
 
 contract MockSettlementBondVault {
     IMockSettlementBondEscrow public escrow;
+    uint256 public activeRoundId = 1;
 
     function setEscrow(address escrowAddress) external {
         require(address(escrow) == address(0), "already set");
         escrow = IMockSettlementBondEscrow(escrowAddress);
+    }
+
+    function setActiveRoundId(uint256 roundId) external {
+        activeRoundId = roundId;
     }
 
     function acceptBondRegistration(uint256, address) external view {

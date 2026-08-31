@@ -52,8 +52,9 @@ export function projectCompletedVaultRounds(
   return vaults
     .flatMap((vault) =>
       (historicalRounds[vault.slug] ?? [])
-        .filter((state): state is VaultPublicState & { state: typeof SETTLED_ROUND_STATE; entered: true } =>
-          state.state === SETTLED_ROUND_STATE && state.entered,
+        .filter(
+          (state): state is VaultPublicState & { state: typeof SETTLED_ROUND_STATE; entered: true } =>
+            state.state === SETTLED_ROUND_STATE && state.entered,
         )
         .map((state) => ({
           vaultId: vault.slug,

@@ -10,6 +10,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "keeper:once": "tsx src/cli.ts --once",
+    "keeper:service": "tsx src/cli.ts --service",
     "lint": "eslint .",
     "probe": "tsx src/probe.ts",
     "probe:fixture": "tsx src/probe-fixture.ts",
@@ -18,6 +20,7 @@
   },
   "dependencies": {
     "@tanstack/query-core": "5.101.4",
+    "@zama-fhe/relayer-sdk": "0.4.1",
     "@zama-fhe/sdk": "3.4.0",
     "dotenv": "17.4.2",
     "ethers": "6.17.0",

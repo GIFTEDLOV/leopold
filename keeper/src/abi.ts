@@ -1,0 +1,31 @@
+export const LEOPOLD_VAULT_ABI = [
+  "function SETTLEMENT_BOND_ESCROW() view returns (address)",
+  "function activeRoundId() view returns (uint256)",
+  "function roundInfo(uint256) view returns (uint64,uint64,uint8,uint128,uint64,uint256,uint256,uint256)",
+  "function aggregateTwabHandle(uint256) view returns (bytes32)",
+  "function candidateValidityHandle(uint256) view returns (bytes32)",
+  "function reconciliationHandle(uint256) view returns (bytes32)",
+  "function closeRound()",
+  "function finalizeAggregate(uint256,bytes,bytes)",
+  "function settleEmptyRound(uint256)",
+  "function generateRandomCandidate(uint256)",
+  "function finalizeCandidateValidity(uint256,bytes,bytes)",
+  "function processSelection(uint256,uint256)",
+  "function finalizeSelectionReconciliation(uint256,bytes,bytes)",
+  "function recoverFailedReconciliation(uint256)",
+  "function processAllocation(uint256,uint256)",
+  "function finalizeSettlement(uint256)",
+] as const;
+
+export const LEOPOLD_BOND_ESCROW_ABI = [
+  "function VAULT() view returns (address)",
+  "function BOND_AMOUNT() view returns (uint256)",
+  "function autoEntryAccountCount() view returns (uint256)",
+  "function autoEntryAccountAt(uint256) view returns (address)",
+  "function isAutoEntryEnabled(address,uint256) view returns (bool)",
+  "function autoEntryPreference(address) view returns (bool,bool,uint256)",
+  "function automationBondCredit(address) view returns (uint256)",
+  "function isRegistered(uint256,address) view returns (bool)",
+  "function registerForRoundFor(address,uint256)",
+  "function pruneAutoEntryAccount(address)",
+] as const;

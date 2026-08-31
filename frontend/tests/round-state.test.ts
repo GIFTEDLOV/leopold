@@ -94,35 +94,33 @@ describe("effective vault round state", () => {
 
   it("reads the active round and settled historical round from authoritative state", async () => {
     const account = "0x1111111111111111111111111111111111111111" as const;
-    const readContract = vi.fn(
-      async ({ functionName, args }: { functionName: string; args?: readonly unknown[] }) => {
-        const roundId = args?.[0] as bigint | undefined;
-        switch (functionName) {
-          case "activeRoundId":
-            return 2n;
-          case "roundInfo":
-            return roundId === 1n
-              ? [100n, 200n, SETTLED_ROUND_STATE, 711_888_000_000n, 100_000n, 2n, 2n, 2n] as const
-              : [200n, 300n, 1, 0n, 0n, 0n, 0n, 0n] as const;
-          case "publicSponsoredPrize":
-            return roundId === 1n ? 100_000n : 0n;
-          case "isRegistered":
-            return roundId === 1n;
-          case "eligibilityStart":
-            return roundId === 1n ? 150n : 0n;
-          case "BOND_AMOUNT":
-            return 5_000_000_000_000_000n;
-          case "REFUND_PER_COMPLETED_PARTICIPANT":
-            return 2_500_000_000_000_000n;
-          case "refundClaimed":
-            return false;
-          case "settlementRewardCredit":
-            return 5_000_000_000_000_000n;
-          default:
-            throw new Error(`Unexpected read: ${functionName}`);
-        }
-      },
-    );
+    const readContract = vi.fn(async ({ functionName, args }: { functionName: string; args?: readonly unknown[] }) => {
+      const roundId = args?.[0] as bigint | undefined;
+      switch (functionName) {
+        case "activeRoundId":
+          return 2n;
+        case "roundInfo":
+          return roundId === 1n
+            ? ([100n, 200n, SETTLED_ROUND_STATE, 711_888_000_000n, 100_000n, 2n, 2n, 2n] as const)
+            : ([200n, 300n, 1, 0n, 0n, 0n, 0n, 0n] as const);
+        case "publicSponsoredPrize":
+          return roundId === 1n ? 100_000n : 0n;
+        case "isRegistered":
+          return roundId === 1n;
+        case "eligibilityStart":
+          return roundId === 1n ? 150n : 0n;
+        case "BOND_AMOUNT":
+          return 5_000_000_000_000_000n;
+        case "REFUND_PER_COMPLETED_PARTICIPANT":
+          return 2_500_000_000_000_000n;
+        case "refundClaimed":
+          return false;
+        case "settlementRewardCredit":
+          return 5_000_000_000_000_000n;
+        default:
+          throw new Error(`Unexpected read: ${functionName}`);
+      }
+    });
 
     const rounds = await readVaultPublicHistory(
       { readContract } as unknown as PublicClient,
