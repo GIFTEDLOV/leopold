@@ -73,6 +73,7 @@
     "cp1:compound:validate": "ts-node --transpile-only scripts/validate-leopold-compound-evidence.ts",
     "cp1:bond:smoke": "hardhat run scripts/leopold-bond-sepolia-smoke.ts --network sepolia",
     "phase2b:bytecode": "hardhat compile && node scripts/validate-leopold-auto-entry-bytecode.cjs",
+    "phase2b:compiler:validate": "node scripts/validate-leopold-v2-compiler-consistency.cjs",
     "closure:bytecode": "node scripts/validate-leopold-bytecode.cjs",
     "closure:freeze:generate": "hardhat compile --force && node scripts/generate-leopold-contract-freeze.cjs",
     "closure:freeze:validate": "hardhat compile --force && node scripts/validate-leopold-contract-freeze.cjs",

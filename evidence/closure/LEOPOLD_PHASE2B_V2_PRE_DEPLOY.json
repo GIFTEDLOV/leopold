@@ -1,0 +1,39 @@
+{
+  "schema": "leopold.phase2b-v2-pre-deploy.v2",
+  "classification": "LOCAL REVIEWED EVIDENCE — NOT A DEPLOYMENT",
+  "sourceCommit": "69b24a14cf7c9491c1fa0c30c378b8b771e6b70e",
+  "compiler": {
+    "version": "0.8.27",
+    "optimizer": { "enabled": true, "runs": 1 },
+    "viaIR": true,
+    "evmVersion": "cancun",
+    "metadata": { "bytecodeHash": "none" }
+  },
+  "contracts": {
+    "LeopoldVaultV2": {
+      "creationBytes": 38979,
+      "runtimeBytes": 23531,
+      "eip170Headroom": 1045,
+      "initcodeHeadroom": 10173,
+      "runtimeSha256": "96020d75ea78c1adb8c80f56544e7ab381934f3563242946825fe343e3ddf301",
+      "matchesFrozenV1Runtime": true
+    },
+    "LeopoldSettlementBondEscrowV2": {
+      "creationBytes": 6605,
+      "runtimeBytes": 6169,
+      "eip170Headroom": 18407,
+      "initcodeHeadroom": 42547,
+      "runtimeSha256": "a6a01e2d15d6e125d12865b831a62b1b1448a0fd1e009315fdb8829dbfd33f52",
+      "standaloneMatchesVaultCreationPath": true
+    }
+  },
+  "hcu": {
+    "fourParticipantSelectionTotal": 13089448,
+    "fourParticipantSelectionDepth": 2786064,
+    "fourParticipantAllocationTotal": 12491672,
+    "fourParticipantAllocationDepth": 2374032,
+    "totalCeiling": 15000000,
+    "depthCeiling": 3750000
+  },
+  "v1Freeze": "unchanged"
+}
