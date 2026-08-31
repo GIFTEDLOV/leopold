@@ -326,6 +326,22 @@ export class KeeperEngine {
     }
 
     const transaction = await this.#gateway.sign(action, data);
+    if (transaction.gasPolicy) {
+      this.#logger.info(
+        {
+          vault: action.vault.name,
+          round: action.roundId.toString(),
+          action: action.kind,
+          estimatedGas: transaction.gasPolicy.estimatedGas?.toString(),
+          gasFloor: transaction.gasPolicy.gasFloor?.toString(),
+          gasMultiplierBps: transaction.gasPolicy.multiplierBps,
+          gasMarginUnits: transaction.gasPolicy.additiveMargin.toString(),
+          gasLimit: transaction.gasPolicy.gasLimit.toString(),
+          estimationFallback: transaction.gasPolicy.estimationFallback ?? false,
+        },
+        "keeper gas policy applied",
+      );
+    }
     const balance = await this.#gateway.getKeeperBalance();
     assertKeeperBalanceWithinLimits(balance, this.#minimumBalanceWei, this.#maximumBalanceWei);
     if (transaction.maximumCostWei > balance - this.#minimumBalanceWei) {

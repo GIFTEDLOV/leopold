@@ -2,6 +2,8 @@ import { getAddress, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
 
+import { DEFAULT_GAS_FLOORS, DEFAULT_GAS_POLICY, parseGasFloors } from "./gas-policy.js";
+
 const privateKeySchema = z
   .string()
   .regex(/^0x[0-9a-fA-F]{64}$/u, "KEEPER_PRIVATE_KEY must be a 0x-prefixed 32-byte private key");
@@ -41,6 +43,19 @@ const rawKeeperConfigSchema = z
 
     KEEPER_HISTORICAL_SCAN_SIZE: z.coerce.number().int().min(1).max(500).default(50),
 
+    KEEPER_GAS_MULTIPLIER_BPS: z.coerce
+      .number()
+      .int()
+      .min(10_000)
+      .max(20_000)
+      .default(DEFAULT_GAS_POLICY.multiplierBps),
+
+    KEEPER_GAS_MARGIN_UNITS: z.coerce.bigint().min(0n).default(DEFAULT_GAS_POLICY.additiveMargin),
+
+    KEEPER_GAS_MAX_LIMIT: z.coerce.bigint().positive().default(DEFAULT_GAS_POLICY.maximumGasLimit),
+
+    KEEPER_GAS_FLOORS: z.string().optional(),
+
     KEEPER_JOURNAL_PATH: z.string().min(1).default("./keeper-data/lifecycle-journal.json"),
 
     KEEPER_MANIFEST_PATH: z.string().min(1).default("../config/leopold-frontend-contracts.json"),
@@ -79,6 +94,13 @@ const keeperConfigSchema = rawKeeperConfigSchema.transform((value) => ({
   DEPLOYER_ADDRESS: getAddress(value.DEPLOYER_ADDRESS),
 
   KEEPER_ADDRESS: getAddress(privateKeyToAccount(value.KEEPER_PRIVATE_KEY as Hex).address),
+
+  GAS_POLICY: {
+    multiplierBps: value.KEEPER_GAS_MULTIPLIER_BPS,
+    additiveMargin: value.KEEPER_GAS_MARGIN_UNITS,
+    maximumGasLimit: value.KEEPER_GAS_MAX_LIMIT,
+    floors: { ...DEFAULT_GAS_FLOORS, ...parseGasFloors(value.KEEPER_GAS_FLOORS) },
+  },
 }));
 
 export type KeeperConfig = z.output<typeof keeperConfigSchema>;

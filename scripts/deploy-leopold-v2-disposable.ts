@@ -3,6 +3,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { ethers, network } from "hardhat";
+import { readFileSync } from "node:fs";
+import { readGitProvenance, assertReviewedProvenance } from "./leopold-deployment-provenance.js";
 import type { TransactionResponse } from "ethers";
 
 const CHAIN_ID = 11_155_111n;
@@ -11,10 +13,19 @@ const COMET = "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e";
 const OUTPUT = path.resolve(process.env.LEOPOLD_V2_DISPOSABLE_TOPOLOGY ?? "/tmp/leopold-v2-disposable-topology.json");
 const BOND = ethers.parseEther("0.0001");
 const REWARD = ethers.parseEther("0.00002");
-const DURATION = 90;
+const DURATION = Number(process.env.LEOPOLD_DISPOSABLE_ROUND_DURATION_SECONDS ?? "300");
 
 function sha256(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function artifactBytecode(contractPath: string, field: "bytecode" | "deployedBytecode"): Uint8Array {
+  const artifact = JSON.parse(readFileSync(contractPath, "utf8")) as Record<string, unknown>;
+  const value = artifact[field];
+  if (typeof value !== "string" || !/^0x[0-9a-f]*$/iu.test(value)) {
+    throw new Error(`DISPOSABLE_ARTIFACT_${field.toUpperCase()}_MISSING:${contractPath}`);
+  }
+  return Buffer.from(value.slice(2), "hex");
 }
 
 async function record(label: string, tx: TransactionResponse) {
@@ -38,6 +49,13 @@ async function main(): Promise<void> {
   if (!deployer) throw new Error("DISPOSABLE_DEPLOYMENT_SIGNER_MISSING");
   const latest = await ethers.provider.getBlock("latest");
   if (latest === null) throw new Error("DISPOSABLE_DEPLOYMENT_LATEST_BLOCK_MISSING");
+  if (!Number.isInteger(DURATION) || DURATION < 180 || DURATION > 900) {
+    throw new Error("DISPOSABLE_ROUND_DURATION must be between 180 and 900 seconds");
+  }
+  const expectedSourceSha = process.env.LEOPOLD_REVIEWED_SOURCE_SHA;
+  if (!expectedSourceSha) throw new Error("LEOPOLD_REVIEWED_SOURCE_SHA is required for disposable deployment");
+  const provenance = readGitProvenance(process.cwd());
+  assertReviewedProvenance(provenance, expectedSourceSha, process.env.LEOPOLD_REVIEWED_SOURCE_BRANCH);
 
   const wrapperFactory = await ethers.getContractFactory("LeopoldConfidentialUSDC", deployer);
   const wrapper = await wrapperFactory.deploy();
@@ -46,7 +64,7 @@ async function main(): Promise<void> {
   const wrapperTx = await record("disposable-wrapper-deploy", wrapperDeployment);
   const wrapperAddress = await wrapper.getAddress();
 
-  const firstRoundOpensAt = BigInt(latest.timestamp) + 15n;
+  const firstRoundOpensAt = BigInt(latest.timestamp) + 45n;
   const vaultFactory = await ethers.getContractFactory("LeopoldVaultV2", deployer);
   const vault = await vaultFactory.deploy(
     1,
@@ -173,8 +191,35 @@ async function main(): Promise<void> {
     schema: "leopold.disposable-v2-topology.v1",
     classification: "DISPOSABLE V2 SEPOLIA PROOF — NOT OFFICIAL DEPLOYMENT",
     capturedUtc: new Date().toISOString(),
-    sourceCommitSha: "69b24a14cf7c9491c1fa0c30c378b8b771e6b70e",
+    sourceCommitSha: provenance.commit,
+    sourceBranch: provenance.branch,
+    sourceTree: provenance.tree,
+    artifactHashes: {
+      vault: {
+        creationBytecodeSha256: sha256(
+          artifactBytecode("artifacts/contracts/LeopoldVaultV2.sol/LeopoldVaultV2.json", "bytecode"),
+        ),
+        deployedBytecodeSha256: sha256(
+          artifactBytecode("artifacts/contracts/LeopoldVaultV2.sol/LeopoldVaultV2.json", "deployedBytecode"),
+        ),
+      },
+      escrow: {
+        creationBytecodeSha256: sha256(
+          artifactBytecode(
+            "artifacts/contracts/LeopoldSettlementBondEscrowV2.sol/LeopoldSettlementBondEscrowV2.json",
+            "bytecode",
+          ),
+        ),
+        deployedBytecodeSha256: sha256(
+          artifactBytecode(
+            "artifacts/contracts/LeopoldSettlementBondEscrowV2.sol/LeopoldSettlementBondEscrowV2.json",
+            "deployedBytecode",
+          ),
+        ),
+      },
+    },
     network: { name: network.name, chainId: chain.chainId.toString() },
+    disposableCadence: { roundDurationSeconds: DURATION, testOnly: true, productionCadenceUntouched: true },
     deployer: await deployer.getAddress(),
     constructorArguments: {
       wrapper: [],

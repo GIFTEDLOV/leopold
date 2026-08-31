@@ -37,6 +37,9 @@
     "scripts/verify-sg4-randomness-receipts.ts",
     "scripts/deploy-leopold-official.ts",
     "scripts/deploy-leopold-v2-disposable.ts",
+    "scripts/leopold-deployment-provenance.ts",
+    "scripts/leopold-fhe-retry.ts",
+    "scripts/leopold-v2-disposable-participant-setup.ts",
     "scripts/verify-leopold-p01-redeployment-preflight.ts",
     "scripts/leopold-p01-redeployment-smoke.ts"
   ]

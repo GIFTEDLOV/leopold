@@ -44,6 +44,7 @@ try {
     proofProvider,
     autoEntryScanSize: config.KEEPER_AUTO_ENTRY_SCAN_SIZE,
     historicalScanSize: config.KEEPER_HISTORICAL_SCAN_SIZE,
+    gasPolicy: config.GAS_POLICY,
     checkpoints: journal,
   });
   if (gateway.keeperAddress !== config.KEEPER_ADDRESS) throw new Error("Keeper signer address mismatch");
