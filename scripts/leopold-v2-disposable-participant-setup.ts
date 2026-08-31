@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { ethers, fhevm, network } from "hardhat";
 import type { TransactionResponse } from "ethers";
-import { retrySafeFheOperation } from "./leopold-fhe-retry.js";
+import { retrySafeFheOperation } from "./leopold-fhe-retry";
 
 const TOPOLOGY = process.env.LEOPOLD_V2_DISPOSABLE_TOPOLOGY ?? "/tmp/leopold-v2-disposable-topology-v3.json";
 const WALLETS = "/tmp/leopold-v2-disposable-wallets.json";

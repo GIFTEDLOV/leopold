@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { ethers, network } from "hardhat";
 import { readFileSync } from "node:fs";
-import { readGitProvenance, assertReviewedProvenance } from "./leopold-deployment-provenance.js";
+import { readGitProvenance, assertReviewedProvenance } from "./leopold-deployment-provenance";
 import type { TransactionResponse } from "ethers";
 
 const CHAIN_ID = 11_155_111n;
