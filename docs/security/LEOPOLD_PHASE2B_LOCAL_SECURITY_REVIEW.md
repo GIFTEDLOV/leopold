@@ -44,7 +44,8 @@ preserves every frozen FHE permission and proof check.
 No new Critical or High contract finding was identified in the local review and tests. Remaining deployment blockers and
 residuals are:
 
-- A fresh independent/external review is still required; this internal review cannot satisfy it.
+- A fresh independent/external review remains recommended for Sepolia and is mandatory for mainnet/production-capital
+  release. The current Sepolia waiver is a project-owner decision, not an external audit or certification.
 - The V2 escrow has new ABI, bytecode, storage, and native-liability semantics and therefore needs a new freeze record,
   deployment evidence, source verification, and topology checks before use.
 - Auto-entry identities and funding status are public by design. A wealthy actor can still fund many entries, but every

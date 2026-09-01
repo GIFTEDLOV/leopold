@@ -1,6 +1,7 @@
 const { createHash } = require("node:crypto");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
+const { assertReleaseReviewPolicy } = require("./leopold-release-governance.cjs");
 
 const manifestPath = resolve("config/leopold-v2-release.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -64,8 +65,33 @@ if (
 ) {
   throw new Error("V2 release manifest HCU evidence drift");
 }
-if (manifest.independentReview?.required !== true || manifest.independentReview?.status !== "PENDING") {
-  throw new Error("V2 release manifest review status must remain pending");
+const ownerAuthorizationRef = manifest.projectOwnerAuthorization;
+if (
+  ownerAuthorizationRef?.recordPath !== "evidence/governance/LEOPOLD_SEPOLIA_PROJECT_OWNER_RELEASE_DECISION.json" ||
+  !hex64.test(ownerAuthorizationRef.recordSha256 ?? "")
+) {
+  throw new Error("V2 release manifest project-owner authorization reference is incomplete");
+}
+const ownerAuthorizationPath = resolve(ownerAuthorizationRef.recordPath);
+const ownerAuthorization = JSON.parse(readFileSync(ownerAuthorizationPath, "utf8"));
+if (sha256(readFileSync(ownerAuthorizationPath)) !== ownerAuthorizationRef.recordSha256) {
+  throw new Error("V2 release manifest project-owner authorization digest drift");
+}
+assertReleaseReviewPolicy({
+  target: ownerAuthorization.target,
+  independentReview: manifest.independentReview,
+  projectOwnerAuthorization: ownerAuthorization,
+  expectedCandidateSha: manifest.reviewedCandidate.commit,
+  expectedProofSha: manifest.reviewedCandidate.disposableProofEvidenceSha256,
+});
+if (process.argv.includes("--mainnet-production-capital")) {
+  assertReleaseReviewPolicy({
+    target: "MAINNET_PRODUCTION_CAPITAL",
+    independentReview: manifest.independentReview,
+    projectOwnerAuthorization: ownerAuthorization,
+    expectedCandidateSha: manifest.reviewedCandidate.commit,
+    expectedProofSha: manifest.reviewedCandidate.disposableProofEvidenceSha256,
+  });
 }
 
 console.log(

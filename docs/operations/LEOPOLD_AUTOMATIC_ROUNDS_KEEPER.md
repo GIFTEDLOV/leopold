@@ -69,6 +69,7 @@ contract correctness dependency.
 
 ## Before any live use
 
-Do not point this worker at a new V2 Sepolia manifest until the local pre-deployment report, independent review, V2
-freeze/bytecode evidence, deployment topology, keeper funding profile, and disposable-deployment race/crash tests have
-all been reviewed. No UI depends on this worker and no frontend bundle may contain its key.
+Do not point this worker at a new V2 Sepolia manifest until the local pre-deployment report, project-owner authorization
+or recommended independent review, V2 freeze/bytecode evidence, deployment topology, keeper funding profile, and
+disposable-deployment race/crash tests have all been reviewed. No UI depends on this worker and no frontend bundle may
+contain its key.

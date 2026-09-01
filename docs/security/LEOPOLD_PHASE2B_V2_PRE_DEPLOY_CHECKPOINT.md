@@ -30,6 +30,7 @@ the V2 wallet they intend to use.
 ## Operational boundary
 
 No V2 address is added to the official V1 manifest by this checkpoint. A future disposable deployment requires a new
-manifest entry carrying both `"implementation": "v2"` and `"automaticEntry": true`, topology verification, independent
-review sign-off, a funded dedicated keeper key, and monitored crash/reorg drills. Deployment remains intentionally out
-of scope here.
+manifest entry carrying both `"implementation": "v2"` and `"automaticEntry": true`, topology verification, current
+project-owner release authorization or the recommended independent review, a funded dedicated keeper key, and monitored
+crash/reorg drills. External independent review remains mandatory for mainnet/production-capital release. Deployment
+remains intentionally out of scope here.

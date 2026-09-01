@@ -16,7 +16,7 @@
     "historicalBindingCanonicalSha256": "dc198ed1f208a1cb6a23dcb4a20ed51411f85efa199cdd46c1828b1a69b8af57"
   },
   "reviewedCandidate": {
-    "commit": "719dff15485b5144f5ad9b7a6457b7131fe261bc",
+    "commit": "7c58db1933ce93b5937db9ff8dcf89a34886a706",
     "disposableProofEvidenceSha256": "2ce8bbb22f2b74f34a324a575d5c483c43cc0bceaa2b533eb6984dac25feff1f"
   },
   "contracts": {
@@ -54,8 +54,14 @@
     "disposableTopologyOnly": true
   },
   "independentReview": {
-    "required": true,
-    "status": "PENDING",
+    "classification": "EXTERNAL_INDEPENDENT_REVIEW",
+    "required": false,
+    "status": "RECOMMENDED_NON_BLOCKING",
+    "mainnetProductionCapitalRequired": true,
     "acceptedBy": null
+  },
+  "projectOwnerAuthorization": {
+    "recordPath": "evidence/governance/LEOPOLD_SEPOLIA_PROJECT_OWNER_RELEASE_DECISION.json",
+    "recordSha256": "0429ca27e145aba156aa2ec33cfd8b60a3a27182934e7c4a906ad85a006b8586"
   }
 }

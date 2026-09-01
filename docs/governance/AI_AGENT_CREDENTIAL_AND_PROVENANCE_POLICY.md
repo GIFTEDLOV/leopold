@@ -20,7 +20,8 @@ locations. Unrelated filesystem, account, service, and repository changes are pr
 
 All code changes are attributable through Git commits and reviewable diffs. Generated evidence records the command,
 timestamp, repository base, and digest. The implementing agent must disclose its role and may not label self-review as
-independent. Final release requires the independent external audit package defined by the review policy.
+independent. For the current Sepolia/testnet release, explicit project-owner authorization may waive the otherwise
+recommended external review; mainnet or production-capital release still requires an external independent review.
 
 ## Validation
 

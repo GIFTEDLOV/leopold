@@ -27,6 +27,12 @@
 
 None.
 
+## V2 Sepolia release governance
+
+| Gate | Status | Artifact | SHA-256 | Captured UTC | Scope |
+| ---- | ------ | -------- | ------- | ------------ | ----- |
+| V2 owner authorization | PASS | `evidence/governance/LEOPOLD_SEPOLIA_PROJECT_OWNER_RELEASE_DECISION.json` | `0429ca27e145aba156aa2ec33cfd8b60a3a27182934e7c4a906ad85a006b8586` | 2026-09-01T11:20:28Z | Project-owner waiver of external independent review for the current Sepolia/testnet/hackathon release only; SG-4 A2→B, deployment, and mainnet review requirements remain mandatory. Sidecar: `evidence/governance/LEOPOLD_SEPOLIA_PROJECT_OWNER_RELEASE_DECISION.json.sha256`. |
+
 ## Integrity verification
 
 Run:

@@ -218,9 +218,6 @@ importers:
       '@tanstack/query-core':
         specifier: 5.101.4
         version: 5.101.4
-      '@zama-fhe/relayer-sdk':
-        specifier: 0.4.1
-        version: 0.4.1(bufferutil@4.1.0)(utf-8-validate@6.0.6)
       '@zama-fhe/sdk':
         specifier: 3.4.0
         version: 3.4.0(@tanstack/query-core@5.101.4)(ethers@6.17.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))(typescript@5.9.3)(viem@2.55.10(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))

@@ -1,0 +1,25 @@
+{
+  "schema": "leopold.project-owner-release-decision.v1",
+  "decision": "AUTHORIZED_FOR_SEPOLIA_TESTNET_RELEASE_PROGRESSION",
+  "decisionDate": "2026-09-01",
+  "decisionUtc": "2026-09-01T12:04:02Z",
+  "authorizedBy": "PROJECT_RELEASE_OWNER",
+  "candidateSha": "7c58db1933ce93b5937db9ff8dcf89a34886a706",
+  "candidateTree": "3fc642d8a0d12e89d5b4e1c972138d01dcf0bcc8",
+  "target": "SEPOLIA_TESTNET_HACKATHON",
+  "waiverScope": "THIS_SEPOLIA_TESTNET_RELEASE_ONLY",
+  "disposableProofEvidenceSha256": "2ce8bbb22f2b74f34a324a575d5c483c43cc0bceaa2b533eb6984dac25feff1f",
+  "automatedSecurityGateStatus": "DETERMINISTIC_GATES_PASS_SG4_A2_TO_B_AND_MAIN_BOUNDARY_PENDING",
+  "mainnetExternalReviewRequirement": "MANDATORY",
+  "noExternalAuditClaim": true,
+  "remainingRequiredGates": [
+    "SG4_V2_A2_TO_B_LIVE_READ_ONLY_AUTHORITY_VERIFICATION",
+    "OFFICIAL_SEPOLIA_DEPLOYMENT_CHECKLIST"
+  ],
+  "evidenceStandard": {
+    "repositoryPath": "evidence/governance/LEOPOLD_SEPOLIA_PROJECT_OWNER_RELEASE_DECISION.json",
+    "gitBase": "7c58db1933ce93b5937db9ff8dcf89a34886a706",
+    "commandOrDecisionId": "PROJECT_OWNER_GOVERNANCE_DECISION_2026-09-01",
+    "reviewerClassification": "PROJECT_OWNER_ACCEPTANCE"
+  }
+}
