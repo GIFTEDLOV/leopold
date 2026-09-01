@@ -98,6 +98,7 @@
     "prettier:write": "prettier --write \"**/*.{cjs,js,json,md,sol,ts,yml}\"",
     "release:validate": "node scripts/validate-leopold-production-release.cjs",
     "release:v2:validate": "node scripts/validate-leopold-v2-release-manifest.cjs",
+    "test:governance": "node --test scripts/leopold-release-governance.test.cjs",
     "sg2:deploy": "node scripts/sg2-launcher.cjs deploy",
     "sg2:preflight": "node scripts/sg2-launcher.cjs preflight",
     "sg2:prepare": "node scripts/sg2-launcher.cjs prepare --",
