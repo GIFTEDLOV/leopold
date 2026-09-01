@@ -9,6 +9,8 @@ import { vars } from "hardhat/config";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const policy = require("./leopold-v2-official-deployment-policy.cjs");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const runtimeVerifier = require("./leopold-v2-runtime-verifier.cjs");
 
 const ROOT = path.resolve(__dirname, "..");
 const KEEPER_ENV_PATH = path.join(ROOT, "keeper/.env");
@@ -22,8 +24,9 @@ const JOURNAL_PATH = path.resolve(
 );
 const DRY_RUN = process.env.LEOPOLD_V2_OFFICIAL_DRY_RUN === "1";
 
-const WRAPPER_RUNTIME_SHA256 = "3346df4a1411a5170f3a3ff189dd4828805897f85d6766970eac75b73b7ca438";
-const ADAPTER_RUNTIME_SHA256 = "ac244dfaf00045224206e4763438222c1e1336adfaac74086293e88d6872d45e";
+const WRAPPER_RUNTIME_SHA256 = policy.V2_WRAPPER_NORMALIZED_RUNTIME_SHA256;
+const ADAPTER_STANDALONE_RUNTIME_SHA256 = policy.V2_ADAPTER_STANDALONE_RUNTIME_SHA256;
+const ADAPTER_NORMALIZED_RUNTIME_SHA256 = policy.V2_ADAPTER_NORMALIZED_RUNTIME_SHA256;
 const ABI = {
   wrapper: [
     "function underlying() view returns (address)",
@@ -398,7 +401,16 @@ async function main(): Promise<void> {
     comet.baseToken(),
     comet.baseScale(),
   ]);
-  policy.assertExternalConfiguration({ usdc: underlying, comet: baseToken });
+  // `baseToken()` is the Comet's underlying asset, not the Comet address itself.
+  // Keep the two identity checks separate so a correct USDC base token cannot be
+  // accidentally compared against the expected Comet address.
+  policy.assertExternalConfiguration({ usdc: underlying, comet: adapterComet });
+  policy.assertExternalConfiguration({ usdc: baseToken, comet: policy.COMPOUND_COMET });
+  policy.assertImmutableValue(baseToken, policy.CANONICAL_USDC, "compound.baseToken");
+  policy.assertImmutableValue(baseScale, 1_000_000n, "compound.baseScale");
+  policy.assertImmutableValue(adapterAsset, policy.CANONICAL_USDC, "adapter.asset");
+  policy.assertImmutableValue(adapterComet, policy.COMPOUND_COMET, "adapter.COMET");
+  policy.assertImmutableValue(guardian, preconditions.deployer, "adapter.guardian");
   if (
     rate !== 1n ||
     decimals !== 6n ||
@@ -425,18 +437,76 @@ async function main(): Promise<void> {
   )
     throw new Error("OFFICIAL_V2_TOPOLOGY_OR_CONSTRUCTOR_MISMATCH");
 
-  const runtimeCode = async (address: string, expected: string, label: string) => {
+  const runtimeCode = async (
+    address: string,
+    expectedNormalizedSha256: string,
+    label: string,
+    sourceName: string,
+    contractName: string,
+    expectedStandaloneArtifactSha256: string,
+    buildInfoAnchor?: { sourceName: string; contractName: string },
+  ) => {
     const code = await ethers.provider.getCode(address);
-    if (code === "0x") throw new Error(`OFFICIAL_V2_RUNTIME_MISSING:${label}`);
-    const digest = sha256(Buffer.from(code.slice(2), "hex"));
-    policy.assertRuntimeHash(digest, expected, label);
-    return { address, bytes: (code.length - 2) / 2, sha256: digest, keccak256: ethers.keccak256(code) };
+    if (artifactRuntimeSha256(contractName) !== expectedStandaloneArtifactSha256) {
+      throw new Error(`OFFICIAL_V2_STANDALONE_ARTIFACT_MISMATCH:${label}`);
+    }
+    const verified = runtimeVerifier.verifyRuntimeTemplate({
+      root: ROOT,
+      liveCode: code,
+      sourceName,
+      contractName,
+      label,
+      expectedNormalizedSha256,
+      buildInfoAnchor,
+    });
+    return {
+      address,
+      bytes: verified.liveRuntimeBytes,
+      sha256: verified.liveRuntimeSha256,
+      keccak256: ethers.keccak256(code),
+      normalizedSha256: verified.normalizedRuntimeSha256,
+      expectedNormalizedSha256: verified.expectedNormalizedRuntimeSha256,
+      immutableReferences: verified.immutableReferences,
+      expectedArtifactVariant: verified.expectedArtifactVariant,
+      expectedRuntimeBytes: verified.expectedRuntimeBytes,
+      eip170Headroom: verified.eip170Headroom,
+      standaloneArtifactSha256: expectedStandaloneArtifactSha256,
+    };
   };
   const runtime = {
-    wrapper: await runtimeCode(wrapperAddress, WRAPPER_RUNTIME_SHA256, "wrapper"),
-    vault: await runtimeCode(vaultAddress, policy.V2_VAULT_RUNTIME_SHA256, "vault"),
-    escrow: await runtimeCode(escrowAddress, policy.V2_ESCROW_RUNTIME_SHA256, "escrow"),
-    adapter: await runtimeCode(adapterAddress, ADAPTER_RUNTIME_SHA256, "adapter"),
+    wrapper: await runtimeCode(
+      wrapperAddress,
+      WRAPPER_RUNTIME_SHA256,
+      "wrapper",
+      "contracts/LeopoldConfidentialUSDC.sol",
+      "LeopoldConfidentialUSDC",
+      WRAPPER_RUNTIME_SHA256,
+    ),
+    vault: await runtimeCode(
+      vaultAddress,
+      policy.V2_VAULT_RUNTIME_SHA256,
+      "vault",
+      "contracts/LeopoldVaultV2.sol",
+      "LeopoldVaultV2",
+      policy.V2_VAULT_RUNTIME_SHA256,
+    ),
+    escrow: await runtimeCode(
+      escrowAddress,
+      policy.V2_ESCROW_RUNTIME_SHA256,
+      "escrow",
+      "contracts/LeopoldSettlementBondEscrowV2.sol",
+      "LeopoldSettlementBondEscrowV2",
+      policy.V2_ESCROW_RUNTIME_SHA256,
+    ),
+    adapter: await runtimeCode(
+      adapterAddress,
+      ADAPTER_NORMALIZED_RUNTIME_SHA256,
+      "adapter",
+      "contracts/LeopoldCompoundAdapter.sol",
+      "LeopoldCompoundAdapter",
+      ADAPTER_STANDALONE_RUNTIME_SHA256,
+      { sourceName: "contracts/LeopoldVaultV2.sol", contractName: "LeopoldVaultV2" },
+    ),
   };
   policy.assertV1ManifestUntouched(preconditions.v1ManifestBytes, readFileSync(V1_MANIFEST_PATH));
 
@@ -465,7 +535,13 @@ async function main(): Promise<void> {
     compoundComet: policy.COMPOUND_COMET,
     deployments: { wrapper: wrapperDeployment, vault: vaultDeployment },
     constructorArguments,
-    runtimeHashes: { wrapper: runtime.wrapper, vault: runtime.vault, escrow: runtime.escrow, adapter: runtime.adapter },
+    runtimeHashes: {
+      wrapper: runtime.wrapper.normalizedSha256,
+      vault: runtime.vault.normalizedSha256,
+      escrow: runtime.escrow.normalizedSha256,
+      adapter: runtime.adapter.normalizedSha256,
+      records: runtime,
+    },
     compiler: { version: "0.8.27", optimizerRuns: 1, viaIR: true, evmVersion: "cancun", metadataBytecodeHash: "none" },
     deployment: {
       blockNumber: vaultDeployment.blockNumber,
@@ -496,6 +572,7 @@ async function main(): Promise<void> {
     },
     sourceProvenance: {
       branchAtPreparation: "v2/official-deployment-prep",
+      deploymentPreparationCommit: policy.OFFICIAL_V2_DEPLOYMENT_PREP_SHA,
       candidateCommit: policy.OFFICIAL_V2_CANDIDATE_SHA,
       candidateTree: preconditions.candidateTree,
     },

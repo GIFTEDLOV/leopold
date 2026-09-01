@@ -1,7 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 
 const policy = require("./leopold-v2-official-deployment-policy.cjs");
+const runtimeVerifier = require("./leopold-v2-runtime-verifier.cjs");
 
 const validKey = "0x" + "11".repeat(32);
 const validEnvironment = {
@@ -67,6 +69,134 @@ test("rejects runtime, USDC, and Compound identity drift", () => {
         comet: "0x0000000000000000000000000000000000000001",
       }),
     /OFFICIAL_V2_COMPOUND_COMET_MISMATCH/u,
+  );
+});
+
+test("reproduces the historical Comet/base-token argument mix-up and accepts only the corrected mapping", () => {
+  assert.throws(
+    () =>
+      policy.assertExternalConfiguration({
+        usdc: policy.CANONICAL_USDC,
+        comet: policy.CANONICAL_USDC,
+      }),
+    /OFFICIAL_V2_COMPOUND_COMET_MISMATCH/u,
+  );
+  assert.doesNotThrow(() =>
+    policy.assertExternalConfiguration({ usdc: policy.CANONICAL_USDC, comet: policy.COMPOUND_COMET }),
+  );
+});
+
+test("the official runner keeps the configured Comet address separate from Comet baseToken", () => {
+  const runner = fs.readFileSync(`${process.cwd()}/scripts/deploy-leopold-v2-official.ts`, "utf8");
+  assert.match(runner, /assertExternalConfiguration\(\{ usdc: underlying, comet: adapterComet \}\)/u);
+  assert.match(runner, /assertExternalConfiguration\(\{ usdc: baseToken, comet: policy\.COMPOUND_COMET \}\)/u);
+  assert.doesNotMatch(runner, /assertExternalConfiguration\(\{ usdc: underlying, comet: baseToken \}\)/u);
+  assert.match(runner, /verifyRuntimeTemplate/u);
+});
+
+test("normalizes constructor immutables while requiring exact immutable values", () => {
+  const variants = runtimeVerifier
+    .buildInfoVariants(process.cwd(), "contracts/LeopoldVaultV2.sol", "LeopoldVaultV2")
+    .filter((variant) => variant.deployedBytecode.length === 23_531);
+  assert.ok(variants.length > 0);
+  const template = variants[0];
+  const live = Buffer.from(template.deployedBytecode);
+  for (const reference of template.immutableReferences)
+    live.fill(0xab, reference.start, reference.start + reference.length);
+  const result = runtimeVerifier.verifyRuntimeTemplate({
+    root: process.cwd(),
+    liveCode: `0x${live.toString("hex")}`,
+    sourceName: "contracts/LeopoldVaultV2.sol",
+    contractName: "LeopoldVaultV2",
+    label: "vault",
+    expectedNormalizedSha256: policy.V2_VAULT_RUNTIME_SHA256,
+  });
+  assert.equal(result.normalizedRuntimeSha256, policy.V2_VAULT_RUNTIME_SHA256);
+  assert.doesNotThrow(() => policy.assertImmutableValue(policy.COMPOUND_COMET, policy.COMPOUND_COMET, "vault.comet"));
+  assert.throws(
+    () =>
+      policy.assertImmutableValue("0x0000000000000000000000000000000000000001", policy.COMPOUND_COMET, "vault.comet"),
+    /OFFICIAL_V2_IMMUTABLE_MISMATCH:vault\.comet/u,
+  );
+  assert.throws(
+    () =>
+      policy.assertImmutableValue("0x0000000000000000000000000000000000000001", policy.CANONICAL_USDC, "vault.usdc"),
+    /OFFICIAL_V2_IMMUTABLE_MISMATCH:vault\.usdc/u,
+  );
+  assert.doesNotThrow(() =>
+    policy.assertImmutableValue(policy.CANONICAL_USDC.toLowerCase(), policy.CANONICAL_USDC, "vault.usdc"),
+  );
+});
+
+test("fails closed for wrong normalized runtime, malformed bytecode, and short bytecode", () => {
+  const variants = runtimeVerifier
+    .buildInfoVariants(process.cwd(), "contracts/LeopoldVaultV2.sol", "LeopoldVaultV2")
+    .filter((variant) => variant.deployedBytecode.length === 23_531);
+  const template = variants[0];
+  const wrong = Buffer.from(template.deployedBytecode);
+  const nonImmutableOffset = [...Array(wrong.length).keys()].find(
+    (offset) =>
+      !template.immutableReferences.some(
+        (reference) => offset >= reference.start && offset < reference.start + reference.length,
+      ),
+  );
+  wrong[nonImmutableOffset] ^= 0xff;
+  assert.throws(
+    () =>
+      runtimeVerifier.verifyRuntimeTemplate({
+        root: process.cwd(),
+        liveCode: `0x${wrong.toString("hex")}`,
+        sourceName: "contracts/LeopoldVaultV2.sol",
+        contractName: "LeopoldVaultV2",
+        label: "vault",
+        expectedNormalizedSha256: policy.V2_VAULT_RUNTIME_SHA256,
+      }),
+    /OFFICIAL_V2_RUNTIME_TEMPLATE_MISMATCH:vault/u,
+  );
+  assert.throws(
+    () =>
+      runtimeVerifier.verifyRuntimeTemplate({
+        root: process.cwd(),
+        liveCode: "0x",
+        sourceName: "contracts/LeopoldVaultV2.sol",
+        contractName: "LeopoldVaultV2",
+        label: "vault",
+        expectedNormalizedSha256: policy.V2_VAULT_RUNTIME_SHA256,
+      }),
+    /OFFICIAL_V2_RUNTIME_BYTECODE_EMPTY:vault/u,
+  );
+  assert.throws(
+    () =>
+      runtimeVerifier.verifyRuntimeTemplate({
+        root: process.cwd(),
+        liveCode: "0x00",
+        sourceName: "contracts/LeopoldVaultV2.sol",
+        contractName: "LeopoldVaultV2",
+        label: "vault",
+        expectedNormalizedSha256: policy.V2_VAULT_RUNTIME_SHA256,
+      }),
+    /OFFICIAL_V2_RUNTIME_SIZE_MISMATCH:vault/u,
+  );
+  assert.throws(
+    () =>
+      runtimeVerifier.verifyRuntimeTemplate({
+        root: process.cwd(),
+        liveCode: "0x0",
+        sourceName: "contracts/LeopoldVaultV2.sol",
+        contractName: "LeopoldVaultV2",
+        label: "vault",
+        expectedNormalizedSha256: policy.V2_VAULT_RUNTIME_SHA256,
+      }),
+    /OFFICIAL_V2_RUNTIME_BYTECODE_MALFORMED:vault/u,
+  );
+});
+
+test("validates unresolved deployment attempt records without declaring adoption", () => {
+  const record = require("/tmp/leopold-v2-official-attempt-unresolved.json");
+  assert.equal(policy.validateUnresolvedAttemptRecord(record), true);
+  assert.throws(
+    () => policy.validateUnresolvedAttemptRecord({ ...record, status: "OFFICIAL_V2_DEPLOYED" }),
+    /OFFICIAL_V2_UNRESOLVED_ATTEMPT_STATUS_INVALID/u,
   );
 });
 

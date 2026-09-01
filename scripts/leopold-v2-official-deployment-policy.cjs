@@ -3,12 +3,16 @@ const { Wallet, formatEther, getCreateAddress, getAddress, parseEther } = requir
 
 const OFFICIAL_V2_CANDIDATE_SHA = "d6ebae63cec660fc5f11bd84e4b581980d3e12f7";
 const OFFICIAL_V2_CANDIDATE_TREE = "359fc8c74413ec1c8705fa84149fc396be9f388e";
+const OFFICIAL_V2_DEPLOYMENT_PREP_SHA = "6a1c4bcc9ab30530b3675b9a9d3b3d18af405195";
 const SEPOLIA_CHAIN_ID = 11_155_111n;
 const EXPECTED_DEPLOYER = "0x57357D26D1f56eca4556d271078A0239a7696Bbf";
 const CANONICAL_USDC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
 const COMPOUND_COMET = "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e";
+const V2_WRAPPER_NORMALIZED_RUNTIME_SHA256 = "3346df4a1411a5170f3a3ff189dd4828805897f85d6766970eac75b73b7ca438";
 const V2_VAULT_RUNTIME_SHA256 = "96020d75ea78c1adb8c80f56544e7ab381934f3563242946825fe343e3ddf301";
 const V2_ESCROW_RUNTIME_SHA256 = "a6a01e2d15d6e125d12865b831a62b1b1448a0fd1e009315fdb8829dbfd33f52";
+const V2_ADAPTER_NORMALIZED_RUNTIME_SHA256 = "afc94be1c1a32fbe66aab9ffb54275dcfce5e1b260a526f50c425c7ad39d9392";
+const V2_ADAPTER_STANDALONE_RUNTIME_SHA256 = "ac244dfaf00045224206e4763438222c1e1336adfaac74086293e88d6872d45e";
 const V2_BINDING_FILE_SHA256 = "7225aff365e8965d4ac0f51769cf0fbbe6a738ab409abbc041c8425909175c6f";
 const V2_BINDING_CANONICAL_SHA256 = "c219d034aa295a7abe5584dc0b9f5f4c8738e53733d64afc9fb0cde0e6f5be3c";
 const HISTORICAL_BINDING_FILE_SHA256 = "4fa8642b9f1be977d9e8ca41c6ea9abfbfdda0c8d5e7160150dd76bb6036265c";
@@ -82,6 +86,56 @@ function assertExternalConfiguration({ usdc, comet }) {
   if (lowerAddress(comet, "OFFICIAL_V2_COMET") !== COMPOUND_COMET.toLowerCase()) {
     throw new Error("OFFICIAL_V2_COMPOUND_COMET_MISMATCH");
   }
+}
+
+function assertImmutableValue(actual, expected, label) {
+  if (typeof actual === "string" && typeof expected === "string" && /^0x[0-9a-fA-F]{40}$/u.test(actual)) {
+    if (lowerAddress(actual, label) !== lowerAddress(expected, label)) {
+      throw new Error(`OFFICIAL_V2_IMMUTABLE_MISMATCH:${label}`);
+    }
+    return;
+  }
+  if (typeof actual === "string" && typeof expected === "string" && /^0x[0-9a-fA-F]+$/u.test(actual)) {
+    if (actual.toLowerCase() !== expected.toLowerCase()) {
+      throw new Error(`OFFICIAL_V2_IMMUTABLE_MISMATCH:${label}`);
+    }
+    return;
+  }
+  if (BigInt(actual) !== BigInt(expected)) throw new Error(`OFFICIAL_V2_IMMUTABLE_MISMATCH:${label}`);
+}
+
+function validateUnresolvedAttemptRecord(record) {
+  if (record?.schema !== "leopold.official-v2-deployment-attempt-unresolved.v1") {
+    throw new Error("OFFICIAL_V2_UNRESOLVED_ATTEMPT_SCHEMA_MISMATCH");
+  }
+  if (record.status !== "OFFICIAL_V2_DEPLOYMENT_ATTEMPT_UNRESOLVED") {
+    throw new Error("OFFICIAL_V2_UNRESOLVED_ATTEMPT_STATUS_INVALID");
+  }
+  assertCandidateIdentity(record.sourceCandidateSha, OFFICIAL_V2_CANDIDATE_TREE);
+  if (record.deploymentPrepSha !== OFFICIAL_V2_DEPLOYMENT_PREP_SHA) {
+    throw new Error("OFFICIAL_V2_UNRESOLVED_ATTEMPT_PREP_SHA_MISMATCH");
+  }
+  if (record.noParticipantOrKeeperActivityDuringUnresolvedState !== true) {
+    throw new Error("OFFICIAL_V2_UNRESOLVED_ATTEMPT_ACTIVITY_NOT_CLEARED");
+  }
+  const wrapper = record.deploymentTransactions?.wrapper;
+  const vault = record.deploymentTransactions?.vault;
+  for (const [label, transaction] of Object.entries({ wrapper, vault })) {
+    if (
+      !transaction ||
+      !/^0x[0-9a-f]{64}$/u.test(transaction.hash) ||
+      transaction.status !== 1 ||
+      !Number.isInteger(transaction.nonce) ||
+      !Number.isInteger(transaction.blockNumber) ||
+      !/^0x[0-9a-fA-F]{40}$/u.test(transaction.address)
+    ) {
+      throw new Error(`OFFICIAL_V2_UNRESOLVED_ATTEMPT_TRANSACTION_INVALID:${label}`);
+    }
+  }
+  for (const [label, address] of Object.entries(record.derivedAddresses ?? {})) {
+    lowerAddress(address, `OFFICIAL_V2_UNRESOLVED_ATTEMPT_${label.toUpperCase()}`);
+  }
+  return true;
 }
 
 function parseRpcUrls(primary, fallbackList) {
@@ -211,12 +265,16 @@ function calculateFundingPlan({ feePerGasWei, keeperGasTransactions = 20, partic
 module.exports = {
   OFFICIAL_V2_CANDIDATE_SHA,
   OFFICIAL_V2_CANDIDATE_TREE,
+  OFFICIAL_V2_DEPLOYMENT_PREP_SHA,
   SEPOLIA_CHAIN_ID,
   EXPECTED_DEPLOYER,
   CANONICAL_USDC,
   COMPOUND_COMET,
+  V2_WRAPPER_NORMALIZED_RUNTIME_SHA256,
   V2_VAULT_RUNTIME_SHA256,
   V2_ESCROW_RUNTIME_SHA256,
+  V2_ADAPTER_NORMALIZED_RUNTIME_SHA256,
+  V2_ADAPTER_STANDALONE_RUNTIME_SHA256,
   V2_BINDING_FILE_SHA256,
   V2_BINDING_CANONICAL_SHA256,
   HISTORICAL_BINDING_FILE_SHA256,
@@ -230,12 +288,14 @@ module.exports = {
   assertArtifactHashes,
   assertBindingHashes,
   assertExternalConfiguration,
+  assertImmutableValue,
   parseRpcUrls,
   assertKeeperConfiguration,
   assertFreshAddresses,
   assertRuntimeHash,
   assertV1ManifestUntouched,
   validateOfficialManifest,
+  validateUnresolvedAttemptRecord,
   deploymentAddressPlan,
   calculateFundingPlan,
 };

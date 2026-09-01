@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://leopold.invalid/schema/official-v2-adoption-recovery-v1.json",
+  "title": "Leopold official V2 unresolved deployment adoption record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "sourceCandidateSha",
+    "deploymentPrepSha",
+    "deployer",
+    "deploymentTransactions",
+    "derivedAddresses",
+    "noParticipantOrKeeperActivityDuringUnresolvedState"
+  ],
+  "properties": {
+    "schema": { "const": "leopold.official-v2-deployment-attempt-unresolved.v1" },
+    "status": { "const": "OFFICIAL_V2_DEPLOYMENT_ATTEMPT_UNRESOLVED" },
+    "sourceCandidateSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "deploymentPrepSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "deployer": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "deploymentTransactions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wrapper", "vault"],
+      "properties": {
+        "wrapper": { "$ref": "#/$defs/transaction" },
+        "vault": { "$ref": "#/$defs/transaction" }
+      }
+    },
+    "derivedAddresses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wrapper", "vault", "adapter", "escrow"],
+      "properties": {
+        "wrapper": { "$ref": "#/$defs/address" },
+        "vault": { "$ref": "#/$defs/address" },
+        "adapter": { "$ref": "#/$defs/address" },
+        "escrow": { "$ref": "#/$defs/address" }
+      }
+    },
+    "noParticipantOrKeeperActivityDuringUnresolvedState": { "const": true }
+  },
+  "$defs": {
+    "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "transaction": {
+      "type": "object",
+      "required": ["hash", "nonce", "blockNumber", "blockHash", "gasUsed", "status", "address"],
+      "properties": {
+        "hash": { "type": "string", "pattern": "^0x[0-9a-f]{64}$" },
+        "nonce": { "type": "integer", "minimum": 0 },
+        "blockNumber": { "type": "integer", "minimum": 0 },
+        "blockHash": { "type": "string", "pattern": "^0x[0-9a-f]{64}$" },
+        "gasUsed": { "type": "string", "pattern": "^[0-9]+$" },
+        "status": { "const": 1 },
+        "address": { "$ref": "#/$defs/address" }
+      }
+    }
+  }
+}

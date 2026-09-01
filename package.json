@@ -92,6 +92,7 @@
     "deploy:sepolia": "hardhat deploy --network sepolia",
     "deploy:v2:official": "hardhat run scripts/deploy-leopold-v2-official.ts --network sepolia",
     "deploy:v2:official:dry-run": "LEOPOLD_V2_OFFICIAL_DRY_RUN=1 hardhat run scripts/deploy-leopold-v2-official.ts --network sepolia",
+    "deploy:v2:official:adopt": "node scripts/verify-leopold-v2-official-adoption.cjs",
     "lint": "pnpm lint:sol && pnpm lint:ts && pnpm prettier:check",
     "lint:sol": "solhint --disc --max-warnings 0 \"contracts/**/*.sol\"",
     "lint:ts": "eslint .",
