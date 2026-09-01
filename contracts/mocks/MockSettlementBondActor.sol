@@ -11,6 +11,12 @@ interface IMockBondEscrow {
 
     function withdrawSettlementRewards() external;
 
+    function depositAutomationBondCredit() external payable;
+
+    function withdrawAutomationBondCredit(uint256 amount) external;
+
+    function setAutoEntry(bool enabled) external;
+
     function creditProgress(uint256 roundId, uint8 pass, uint256 participants, address progressor) external;
 
     function finalizeRound(uint256 roundId, uint8 completedPasses) external;
@@ -54,6 +60,18 @@ contract MockSettlementBondActor {
 
     function withdrawRewards() external {
         ESCROW.withdrawSettlementRewards();
+    }
+
+    function depositAutomationCredit() external payable {
+        ESCROW.depositAutomationBondCredit{value: msg.value}();
+    }
+
+    function withdrawAutomationCredit(uint256 amount) external {
+        ESCROW.withdrawAutomationBondCredit(amount);
+    }
+
+    function setAutoEntry(bool enabled) external {
+        ESCROW.setAutoEntry(enabled);
     }
 
     receive() external payable {

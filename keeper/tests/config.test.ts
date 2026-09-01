@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { privateKeyToAccount } from "viem/accounts";
 
-import { assertKeeperBalanceWithinLimit } from "../src/balance-guard.js";
+import { assertKeeperBalanceWithinLimit, assertKeeperBalanceWithinLimits } from "../src/balance-guard.js";
 import { loadConfig } from "../src/config.js";
 
 const keeperPrivateKey = "0x1111111111111111111111111111111111111111111111111111111111111111";
@@ -11,6 +11,7 @@ const validEnvironment = {
   SEPOLIA_RPC_URL: "https://example.invalid",
   KEEPER_PRIVATE_KEY: keeperPrivateKey,
   DEPLOYER_ADDRESS: "0x000000000000000000000000000000000000dEaD",
+  KEEPER_MIN_BALANCE_WEI: "0",
   KEEPER_MAX_BALANCE_WEI: "100000000000000000",
   POLL_INTERVAL_MS: "15000",
 };
@@ -22,6 +23,8 @@ describe("keeper credential isolation", () => {
     expect(config.NODE_ENV).toBe("test");
     expect(config.POLL_INTERVAL_MS).toBe(15000);
     expect(config.KEEPER_MAX_BALANCE_WEI).toBe(100000000000000000n);
+    expect(config.KEEPER_AUTO_ENTRY_SCAN_SIZE).toBe(50);
+    expect(config.RPC_URLS).toEqual(["https://example.invalid/"]);
 
     expect(config.KEEPER_ADDRESS).toBe(privateKeyToAccount(keeperPrivateKey).address);
 
@@ -66,5 +69,29 @@ describe("keeper credential isolation", () => {
     expect(() => assertKeeperBalanceWithinLimit(100000000000000001n, 100000000000000000n)).toThrow(
       "exceeds the configured ceiling",
     );
+  });
+
+  it("normalizes and de-duplicates RPC fallbacks", () => {
+    const config = loadConfig({
+      ...validEnvironment,
+      SEPOLIA_RPC_URLS: "https://example.invalid/, https://fallback.invalid/rpc",
+    });
+    expect(config.RPC_URLS).toEqual(["https://example.invalid/", "https://fallback.invalid/rpc"]);
+  });
+
+  it("rejects invalid fallback URLs and inverted balance limits", () => {
+    expect(() => loadConfig({ ...validEnvironment, SEPOLIA_RPC_URLS: "not-a-url" })).toThrow();
+    expect(() =>
+      loadConfig({ ...validEnvironment, KEEPER_MIN_BALANCE_WEI: "11", KEEPER_MAX_BALANCE_WEI: "10" }),
+    ).toThrow("must not exceed");
+    expect(() => loadConfig({ ...validEnvironment, KEEPER_AUTO_ENTRY_SCAN_SIZE: "0" })).toThrow();
+    expect(() => loadConfig({ ...validEnvironment, KEEPER_AUTO_ENTRY_SCAN_SIZE: "501" })).toThrow();
+  });
+
+  it("enforces both balance boundaries", () => {
+    expect(() => assertKeeperBalanceWithinLimits(9n, 10n, 20n)).toThrow("below the configured minimum");
+    expect(() => assertKeeperBalanceWithinLimits(10n, 10n, 20n)).not.toThrow();
+    expect(() => assertKeeperBalanceWithinLimits(20n, 10n, 20n)).not.toThrow();
+    expect(() => assertKeeperBalanceWithinLimits(21n, 10n, 20n)).toThrow("exceeds the configured ceiling");
   });
 });
