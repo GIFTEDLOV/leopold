@@ -17,6 +17,7 @@ const V2_BINDING_FILE_SHA256 = "7225aff365e8965d4ac0f51769cf0fbbe6a738ab409abbc0
 const V2_BINDING_CANONICAL_SHA256 = "c219d034aa295a7abe5584dc0b9f5f4c8738e53733d64afc9fb0cde0e6f5be3c";
 const HISTORICAL_BINDING_FILE_SHA256 = "4fa8642b9f1be977d9e8ca41c6ea9abfbfdda0c8d5e7160150dd76bb6036265c";
 const V1_FREEZE_SHA256 = "38f11661d7871f3aeb253564f6ca7ec24d1eaded54bf2ac64be3cd7f839995c7";
+const ORIGINAL_ATTEMPT_EVIDENCE_SHA256 = "24c82ab28bed806fb75f1522ab82ed2fcc7f3292fcdd4680aa7bc563af4fae51";
 
 // These values are inherited from the reviewed Sepolia product configuration. The only V2
 // cadence selected for this single-vault official deployment is the existing Daily cadence.
@@ -75,8 +76,10 @@ function assertArtifactHashes(hashes) {
 }
 
 function assertBindingHashes(hashes) {
-  if (hashes?.file !== V2_BINDING_FILE_SHA256) throw new Error("OFFICIAL_V2_BINDING_FILE_MISMATCH");
-  if (hashes?.canonical !== V2_BINDING_CANONICAL_SHA256) throw new Error("OFFICIAL_V2_BINDING_CANONICAL_MISMATCH");
+  const fileSha256 = hashes?.fileSha256 ?? hashes?.file;
+  if (fileSha256 !== V2_BINDING_FILE_SHA256) throw new Error("OFFICIAL_V2_BINDING_FILE_MISMATCH");
+  const canonicalSha256 = hashes?.canonicalSha256 ?? hashes?.canonical;
+  if (canonicalSha256 !== V2_BINDING_CANONICAL_SHA256) throw new Error("OFFICIAL_V2_BINDING_CANONICAL_MISMATCH");
 }
 
 function assertExternalConfiguration({ usdc, comet }) {
@@ -226,6 +229,59 @@ function validateOfficialManifest(manifest) {
   return true;
 }
 
+function validateAdoptedOfficialManifest(manifest) {
+  validateOfficialManifest(manifest);
+  if (
+    JSON.stringify(manifest.statusTransition) !==
+    JSON.stringify(["UNRESOLVED_DEPLOYMENT_ATTEMPT", "READ_ONLY_REVERIFIED", "PROJECT_OWNER_ADOPTED"])
+  ) {
+    throw new Error("OFFICIAL_V2_ADOPTION_STATUS_TRANSITION_INVALID");
+  }
+  const adoption = manifest.adoption;
+  if (
+    adoption?.status !== "PROJECT_OWNER_ADOPTED" ||
+    adoption.originalRunnerFailure !== "OFFICIAL_V2_COMPOUND_COMET_MISMATCH" ||
+    adoption.deploymentTransactionsSucceeded !== true ||
+    adoption.unresolvedDuringInvestigation !== true ||
+    adoption.noParticipantOrKeeperActivityDuringUnresolvedState !== true ||
+    adoption.verifierRepaired !== true
+  ) {
+    throw new Error("OFFICIAL_V2_ADOPTION_HISTORY_INVALID");
+  }
+  if (
+    adoption.originalAttemptEvidence?.path !== "/tmp/leopold-v2-official-attempt-unresolved.json" ||
+    adoption.originalAttemptEvidence.sha256 !== ORIGINAL_ATTEMPT_EVIDENCE_SHA256 ||
+    adoption.originalAttemptEvidence.status !== "OFFICIAL_V2_DEPLOYMENT_ATTEMPT_UNRESOLVED"
+  ) {
+    throw new Error("OFFICIAL_V2_ADOPTION_ORIGINAL_EVIDENCE_INVALID");
+  }
+  if (
+    adoption.readOnlyReverification?.status !== "OFFICIAL_V2_ADOPTION_READ_ONLY_REVERIFICATION_PASS" ||
+    adoption.readOnlyReverification.rpcProviders?.length < 2 ||
+    adoption.readOnlyReverification.runtimeAndImmutableChecks !== true ||
+    adoption.readOnlyReverification.topologyChecks !== true ||
+    adoption.readOnlyReverification.createAndNonceChecks !== true ||
+    adoption.readOnlyReverification.v1PreservationChecks !== true
+  ) {
+    throw new Error("OFFICIAL_V2_ADOPTION_REVERIFICATION_INVALID");
+  }
+  if (
+    adoption.projectOwnerApproval?.approved !== true ||
+    adoption.projectOwnerApproval.approvedBy !== "PROJECT_OWNER" ||
+    adoption.projectOwnerApproval.scope !== "EXISTING_V2_SEPOLIA_TOPOLOGY_ONLY" ||
+    adoption.projectOwnerApproval.migrationPerformed !== false
+  ) {
+    throw new Error("OFFICIAL_V2_ADOPTION_APPROVAL_INVALID");
+  }
+  if (manifest.sourceProvenance?.deploymentReadySha !== OFFICIAL_V2_DEPLOYMENT_PREP_SHA) {
+    throw new Error("OFFICIAL_V2_ADOPTION_DEPLOYMENT_READY_SHA_INVALID");
+  }
+  if (manifest.sourceProvenance?.verifierHotfixSha !== "89f26f453ce2a837420dd736902de6cd2a48d263") {
+    throw new Error("OFFICIAL_V2_ADOPTION_VERIFIER_HOTFIX_SHA_INVALID");
+  }
+  return true;
+}
+
 function deploymentAddressPlan(deployer, nonce) {
   const wrapper = getCreateAddress({ from: deployer, nonce });
   const vault = getCreateAddress({ from: deployer, nonce: nonce + 1 });
@@ -295,6 +351,7 @@ module.exports = {
   assertRuntimeHash,
   assertV1ManifestUntouched,
   validateOfficialManifest,
+  validateAdoptedOfficialManifest,
   validateUnresolvedAttemptRecord,
   deploymentAddressPlan,
   calculateFundingPlan,

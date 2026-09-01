@@ -200,6 +200,27 @@ test("validates unresolved deployment attempt records without declaring adoption
   );
 });
 
+test("requires a truthful project-owner adoption transition for adopted evidence", () => {
+  assert.throws(() => policy.validateAdoptedOfficialManifest({}), /OFFICIAL_V2_MANIFEST_FIELD_MISSING/u);
+});
+
+test("accepts the reviewed schema's SG-4 fileSha256 field without weakening the digest", () => {
+  assert.doesNotThrow(() =>
+    policy.assertBindingHashes({
+      fileSha256: policy.V2_BINDING_FILE_SHA256,
+      canonicalSha256: policy.V2_BINDING_CANONICAL_SHA256,
+    }),
+  );
+  assert.throws(
+    () =>
+      policy.assertBindingHashes({
+        fileSha256: "0".repeat(64),
+        canonicalSha256: policy.V2_BINDING_CANONICAL_SHA256,
+      }),
+    /OFFICIAL_V2_BINDING_FILE_MISMATCH/u,
+  );
+});
+
 test("requires a dedicated keeper and a strict two-endpoint quorum", () => {
   assert.throws(
     () => policy.assertKeeperConfiguration({}, policy.EXPECTED_DEPLOYER),

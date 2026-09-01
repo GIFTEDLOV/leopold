@@ -78,6 +78,102 @@
     "deployment": { "type": "object", "required": ["blockNumber", "timestamp"] },
     "topology": { "type": "object" },
     "cadence": { "type": "object" },
+    "statusTransition": {
+      "type": "array",
+      "items": {
+        "enum": ["UNRESOLVED_DEPLOYMENT_ATTEMPT", "READ_ONLY_REVERIFIED", "PROJECT_OWNER_ADOPTED"]
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "adoption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "originalRunnerFailure",
+        "deploymentTransactionsSucceeded",
+        "unresolvedDuringInvestigation",
+        "noParticipantOrKeeperActivityDuringUnresolvedState",
+        "verifierRepaired",
+        "originalAttemptEvidence",
+        "readOnlyReverification",
+        "projectOwnerApproval"
+      ],
+      "properties": {
+        "status": { "const": "PROJECT_OWNER_ADOPTED" },
+        "originalRunnerFailure": { "const": "OFFICIAL_V2_COMPOUND_COMET_MISMATCH" },
+        "deploymentTransactionsSucceeded": { "const": true },
+        "unresolvedDuringInvestigation": { "const": true },
+        "noParticipantOrKeeperActivityDuringUnresolvedState": { "const": true },
+        "verifierRepaired": { "const": true },
+        "originalAttemptEvidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256", "status"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "status": { "const": "OFFICIAL_V2_DEPLOYMENT_ATTEMPT_UNRESOLVED" }
+          }
+        },
+        "readOnlyReverification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "rpcProviders",
+            "finalizedSnapshot",
+            "runtimeAndImmutableChecks",
+            "topologyChecks",
+            "createAndNonceChecks",
+            "v1PreservationChecks"
+          ],
+          "properties": {
+            "status": { "const": "OFFICIAL_V2_ADOPTION_READ_ONLY_REVERIFICATION_PASS" },
+            "rpcProviders": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "category"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 1 },
+                  "category": { "type": "string", "minLength": 1 }
+                }
+              }
+            },
+            "finalizedSnapshot": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["blockNumber", "blockHash", "timestamp"],
+              "properties": {
+                "blockNumber": { "type": "integer", "minimum": 0 },
+                "blockHash": { "type": "string", "pattern": "^0x[0-9a-f]{64}$" },
+                "timestamp": { "type": "integer", "minimum": 0 }
+              }
+            },
+            "runtimeAndImmutableChecks": { "const": true },
+            "topologyChecks": { "const": true },
+            "createAndNonceChecks": { "const": true },
+            "v1PreservationChecks": { "const": true }
+          }
+        },
+        "projectOwnerApproval": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["approved", "approvedBy", "decisionDate", "scope", "migrationPerformed"],
+          "properties": {
+            "approved": { "const": true },
+            "approvedBy": { "const": "PROJECT_OWNER" },
+            "decisionDate": { "type": "string", "format": "date" },
+            "scope": { "const": "EXISTING_V2_SEPOLIA_TOPOLOGY_ONLY" },
+            "migrationPerformed": { "const": false }
+          }
+        }
+      }
+    },
     "migrationPerformed": { "const": false },
     "v1Preservation": {
       "type": "object",

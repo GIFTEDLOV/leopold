@@ -1,0 +1,31 @@
+{
+  "schema": "leopold.frontend-contract-manifest.v1",
+  "network": {
+    "name": "ethereum-sepolia",
+    "chainId": 11155111
+  },
+  "deploymentStatus": "OFFICIAL_SEPOLIA_DEPLOYED",
+  "authorityBinding": {
+    "targetId": "LEOPOLD_V2_SEPOLIA",
+    "targetScope": "LEOPOLD_V2_RELEASE",
+    "path": "scripts/sg4-hcu-authority-bindings/v2.json",
+    "schema": "zama-szn4.sg4-hcu-authority-binding.v5",
+    "recordVersion": 5
+  },
+  "officialVaults": [
+    {
+      "id": 1,
+      "type": "DAILY",
+      "name": "Daily",
+      "roundDurationSeconds": 86400,
+      "vault": "0x511c8ac93BC285662B9dbDF65a0a9E2Fb11e8c86",
+      "bondEscrow": "0x18F5C545D7f18350BEf44aC5C34D55B7C3b95E80",
+      "implementation": "v2",
+      "automaticEntry": true
+    }
+  ],
+  "v1ManifestPath": "config/leopold-frontend-contracts.json",
+  "v1AddressesRetained": true,
+  "migrationPerformed": false,
+  "adoptionEvidencePath": "evidence/deployment/LEOPOLD_OFFICIAL_V2_DEPLOYMENT.json"
+}

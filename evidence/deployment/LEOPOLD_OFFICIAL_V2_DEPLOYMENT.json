@@ -1,0 +1,205 @@
+{
+  "schema": "leopold.official-v2-sepolia-deployment.v1",
+  "classification": "OFFICIAL V2 SEPOLIA TESTNET DEPLOYMENT",
+  "implementation": "v2",
+  "releaseEnvironment": "SEPOLIA_TESTNET",
+  "statusTransition": ["UNRESOLVED_DEPLOYMENT_ATTEMPT", "READ_ONLY_REVERIFIED", "PROJECT_OWNER_ADOPTED"],
+  "candidate": {
+    "commit": "d6ebae63cec660fc5f11bd84e4b581980d3e12f7",
+    "tree": "359fc8c74413ec1c8705fa84149fc396be9f388e",
+    "sg4Binding": {
+      "path": "scripts/sg4-hcu-authority-bindings/v2.json",
+      "fileSha256": "7225aff365e8965d4ac0f51769cf0fbbe6a738ab409abbc041c8425909175c6f",
+      "canonicalSha256": "c219d034aa295a7abe5584dc0b9f5f4c8738e53733d64afc9fb0cde0e6f5be3c"
+    }
+  },
+  "chainId": 11155111,
+  "deployer": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+  "keeperAddress": "0x3AE4FbA3D090F5f3e2375d5E0E9817045F0d14b5",
+  "wrapper": "0x3AD7490852eA0cf16F654Ce854B87227b4369b91",
+  "vault": "0x511c8ac93BC285662B9dbDF65a0a9E2Fb11e8c86",
+  "escrow": "0x18F5C545D7f18350BEf44aC5C34D55B7C3b95E80",
+  "adapter": "0xaF86E3a111DEE690Fa37b986D5F777689488938d",
+  "canonicalUsdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+  "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+  "deployments": {
+    "wrapper": {
+      "hash": "0x0d899a32cc4d8356ec955e6d5dd323f2266e858bb54ec776c3cd1416744bf1ef",
+      "nonce": 336,
+      "blockNumber": 11613660,
+      "blockHash": "0xe1de48ce6f74cf594a76d7cac76dea3f8babf98102fa7def46076b28a04ec8bc",
+      "gasUsed": "2491218",
+      "status": 1,
+      "address": "0x3AD7490852eA0cf16F654Ce854B87227b4369b91",
+      "constructorArguments": []
+    },
+    "vault": {
+      "hash": "0x25675fd113f163463483164e47149168fb556cc8c8916b2f473f25074b9ba189",
+      "nonce": 337,
+      "blockNumber": 11613661,
+      "blockHash": "0x333065be0c06ddb3a68e36ed6f481005749eb653a73238e77a2f3399f3468d4b",
+      "gasUsed": "8307099",
+      "status": 1,
+      "address": "0x511c8ac93BC285662B9dbDF65a0a9E2Fb11e8c86",
+      "constructorArguments": {
+        "vaultId": 1,
+        "vaultType": 0,
+        "vaultName": "0x4461696c79000000000000000000000000000000000000000000000000000000",
+        "roundDurationSeconds": 86400,
+        "wrapper": "0x3AD7490852eA0cf16F654Ce854B87227b4369b91",
+        "firstRoundOpensAt": 1788277728,
+        "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+        "strategyGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+        "minimumStrategyEpochAge": 60,
+        "settlementBondAmountWei": "5000000000000000",
+        "settlementRewardPerParticipantPassWei": "1250000000000000"
+      }
+    }
+  },
+  "constructorArguments": {
+    "wrapper": {
+      "arguments": [],
+      "fixedUnderlying": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+    },
+    "vault": {
+      "vaultId": 1,
+      "vaultType": 0,
+      "vaultName": "Daily",
+      "roundDurationSeconds": 86400,
+      "wrapper": "0x3AD7490852eA0cf16F654Ce854B87227b4369b91",
+      "firstRoundOpensAt": 1788277728,
+      "compoundComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+      "strategyGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+      "minimumStrategyEpochAge": 60,
+      "settlementBondAmountWei": "5000000000000000",
+      "settlementRewardPerParticipantPassWei": "1250000000000000"
+    },
+    "adapter": {
+      "asset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "comet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+      "guardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+      "createdBy": "0x511c8ac93BC285662B9dbDF65a0a9E2Fb11e8c86"
+    },
+    "escrow": {
+      "vault": "0x511c8ac93BC285662B9dbDF65a0a9E2Fb11e8c86",
+      "bondAmountWei": "5000000000000000",
+      "rewardPerParticipantPassWei": "1250000000000000",
+      "createdBy": "0x511c8ac93BC285662B9dbDF65a0a9E2Fb11e8c86"
+    }
+  },
+  "runtimeHashes": {
+    "wrapper": "3346df4a1411a5170f3a3ff189dd4828805897f85d6766970eac75b73b7ca438",
+    "vault": "96020d75ea78c1adb8c80f56544e7ab381934f3563242946825fe343e3ddf301",
+    "adapter": "afc94be1c1a32fbe66aab9ffb54275dcfce5e1b260a526f50c425c7ad39d9392",
+    "escrow": "a6a01e2d15d6e125d12865b831a62b1b1448a0fd1e009315fdb8829dbfd33f52",
+    "rawSha256": {
+      "wrapper": "ff366b4416357e95d7ce04dafe8eb3a8ed21aa134e26d814a7a911f02b86ed0f",
+      "vault": "8fe8b64341e1ce0f3cd57ebe6bf4cd7cb1ebc76824cbde8a6a1789876ea7f2fc",
+      "adapter": "6fd1264bd9efc7541ed9ddd40af4b3c0d2484bf080491e6e76f1d209618319e2",
+      "escrow": "3b33ca1248c83932229e98c16bdbab49ff25fbf39a6828d56e6c0b1d4d9ec750"
+    },
+    "artifactSha256": {
+      "vault": "96020d75ea78c1adb8c80f56544e7ab381934f3563242946825fe343e3ddf301",
+      "escrow": "a6a01e2d15d6e125d12865b831a62b1b1448a0fd1e009315fdb8829dbfd33f52"
+    }
+  },
+  "compiler": {
+    "version": "0.8.27",
+    "optimizerRuns": 1,
+    "viaIR": true,
+    "evmVersion": "cancun",
+    "metadataBytecodeHash": "none"
+  },
+  "deployment": {
+    "blockNumber": 11613661,
+    "blockHash": "0x333065be0c06ddb3a68e36ed6f481005749eb653a73238e77a2f3399f3468d4b",
+    "timestamp": "2026-09-01T16:03:24.000Z",
+    "finalizedSnapshot": {
+      "blockNumber": 11613924,
+      "blockHash": "0xe644e262d6a40f88f832dfa1f60e276c3b4b0cef1c752b2f8438a6f620e66a59",
+      "timestamp": 1788281952,
+      "providers": ["Alchemy", "PublicNode"]
+    }
+  },
+  "topology": {
+    "wrapperUnderlying": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "wrapperRate": "1",
+    "wrapperDecimals": 6,
+    "vaultAsset": "0x3AD7490852eA0cf16F654Ce854B87227b4369b91",
+    "vaultUnderlying": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "vaultStrategy": "0xaF86E3a111DEE690Fa37b986D5F777689488938d",
+    "vaultEscrow": "0x18F5C545D7f18350BEf44aC5C34D55B7C3b95E80",
+    "adapterVault": "0x511c8ac93BC285662B9dbDF65a0a9E2Fb11e8c86",
+    "adapterAsset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "adapterComet": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e",
+    "adapterGuardian": "0x57357D26D1f56eca4556d271078A0239a7696Bbf",
+    "escrowVault": "0x511c8ac93BC285662B9dbDF65a0a9E2Fb11e8c86",
+    "compoundBaseToken": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "compoundBaseScale": "1000000",
+    "bondAmountWei": "5000000000000000",
+    "rewardPerParticipantPassWei": "1250000000000000",
+    "refundPerCompletedParticipantWei": "2500000000000000",
+    "marketIntegrity": true,
+    "positionIntegrity": true
+  },
+  "cadence": {
+    "vaultName": "Daily",
+    "roundDurationSeconds": 86400,
+    "bootstrapSemantics": "firstRoundOpensAt is fixed in the deployed constructor; subsequent rounds follow the reviewed contract state machine"
+  },
+  "migrationPerformed": false,
+  "v1Preservation": {
+    "manifestPath": "config/leopold-frontend-contracts.json",
+    "unchanged": true,
+    "migrationPerformed": false
+  },
+  "sourceProvenance": {
+    "deploymentReadySha": "6a1c4bcc9ab30530b3675b9a9d3b3d18af405195",
+    "verifierHotfixSha": "89f26f453ce2a837420dd736902de6cd2a48d263",
+    "candidateCommit": "d6ebae63cec660fc5f11bd84e4b581980d3e12f7",
+    "candidateTree": "359fc8c74413ec1c8705fa84149fc396be9f388e",
+    "sg4BindingFileSha256": "7225aff365e8965d4ac0f51769cf0fbbe6a738ab409abbc041c8425909175c6f",
+    "sg4BindingCanonicalSha256": "c219d034aa295a7abe5584dc0b9f5f4c8738e53733d64afc9fb0cde0e6f5be3c",
+    "v1FreezeSha256": "38f11661d7871f3aeb253564f6ca7ec24d1eaded54bf2ac64be3cd7f839995c7",
+    "v1ManifestSha256": "438ea670c13e888db81eef5c7a64ea2943aa6d9f2c4faac604fe09850964d5aa",
+    "historicalV1DeploymentEvidencePath": "evidence/deployment/LEOPOLD_OFFICIAL_SEPOLIA_DEPLOYMENT.json",
+    "historicalV1AddressesRetained": true
+  },
+  "adoption": {
+    "status": "PROJECT_OWNER_ADOPTED",
+    "originalRunnerFailure": "OFFICIAL_V2_COMPOUND_COMET_MISMATCH",
+    "deploymentTransactionsSucceeded": true,
+    "unresolvedDuringInvestigation": true,
+    "noParticipantOrKeeperActivityDuringUnresolvedState": true,
+    "verifierRepaired": true,
+    "originalAttemptEvidence": {
+      "path": "/tmp/leopold-v2-official-attempt-unresolved.json",
+      "sha256": "24c82ab28bed806fb75f1522ab82ed2fcc7f3292fcdd4680aa7bc563af4fae51",
+      "status": "OFFICIAL_V2_DEPLOYMENT_ATTEMPT_UNRESOLVED"
+    },
+    "readOnlyReverification": {
+      "status": "OFFICIAL_V2_ADOPTION_READ_ONLY_REVERIFICATION_PASS",
+      "rpcProviders": [
+        { "name": "Alchemy", "category": "primary independent Sepolia RPC" },
+        { "name": "PublicNode", "category": "secondary independent Sepolia RPC" }
+      ],
+      "finalizedSnapshot": {
+        "blockNumber": 11613924,
+        "blockHash": "0xe644e262d6a40f88f832dfa1f60e276c3b4b0cef1c752b2f8438a6f620e66a59",
+        "timestamp": 1788281952
+      },
+      "runtimeAndImmutableChecks": true,
+      "topologyChecks": true,
+      "createAndNonceChecks": true,
+      "v1PreservationChecks": true
+    },
+    "projectOwnerApproval": {
+      "approved": true,
+      "approvedBy": "PROJECT_OWNER",
+      "decisionDate": "2026-09-01",
+      "scope": "EXISTING_V2_SEPOLIA_TOPOLOGY_ONLY",
+      "migrationPerformed": false
+    }
+  },
+  "deploymentJournalPath": "/tmp/leopold-v2-official-deployment-journal.json"
+}
