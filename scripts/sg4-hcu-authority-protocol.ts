@@ -1191,12 +1191,24 @@ export const PASS_DEPENDENCY_GRAPH: Readonly<Record<string, string>> = {
 /* The classes a PASS-blocking field may carry. DIAGNOSTIC is deliberately absent. */
 export const BLOCKING_PASS_FIELD_CLASSES: readonly string[] = ["DERIVED", "LIVE_READ", "MEASUREMENT", "RECOMPUTED"];
 
-export const BINDING_RECORD_PATH = "scripts/sg4-hcu-authority-binding.json";
-/* v3: the record carries distinct HCULimit and FHEVMExecutor REPRODUCED_BUILD entries plus real
- * Hardhat build-info in their separate source-material fields. Earlier record schemas cannot
- * satisfy the v3 verifier. */
-export const BINDING_RECORD_SCHEMA = "zama-szn4.sg4-hcu-authority-binding.v4";
-export const BINDING_RECORD_VERSION = 4;
+/* The v4 record is historical authority evidence. It remains at its original path and is checked
+ * byte-for-byte, but it is never selected as the active binding for a later release target. */
+export const HISTORICAL_BINDING_RECORD_PATH = "scripts/sg4-hcu-authority-binding.json";
+export const HISTORICAL_BINDING_RECORD_SCHEMA = "zama-szn4.sg4-hcu-authority-binding.v4";
+export const HISTORICAL_BINDING_RECORD_VERSION = 4;
+export const HISTORICAL_BINDING_RECORD_FILE_SHA256 = "4fa8642b9f1be977d9e8ca41c6ea9abfbfdda0c8d5e7160150dd76bb6036265c";
+export const HISTORICAL_BINDING_RECORD_CANONICAL_SHA256 =
+  "dc198ed1f208a1cb6a23dcb4a20ed51411f85efa199cdd46c1828b1a69b8af57";
+export const HISTORICAL_BINDING_IMPLEMENTATION_COMMIT = "d0e2bbd6f50aef4f957bf494b3b03d14662d84a3";
+
+/* V2 is an explicit release target with its own binding path and closed record version. The
+ * historical v4 record is intentionally not upgraded in place. */
+export const V2_BINDING_TARGET_ID = "LEOPOLD_V2_SEPOLIA";
+export const V2_BINDING_TARGET_SCOPE = "LEOPOLD_V2_RELEASE";
+export const V2_BINDING_RECORD_PATH = "scripts/sg4-hcu-authority-bindings/v2.json";
+export const BINDING_RECORD_PATH = V2_BINDING_RECORD_PATH;
+export const BINDING_RECORD_SCHEMA = "zama-szn4.sg4-hcu-authority-binding.v5";
+export const BINDING_RECORD_VERSION = 5;
 
 /* Where a facet's authoritative fact came from. The local fixture is never a PASS origin. */
 export const FACET_ORIGINS: readonly string[] = [
@@ -2005,6 +2017,7 @@ export const AUTHORITY_BINDING_RECORD_SHAPE = {
       "permittedBindingPath",
       "bindingPurpose",
     ],
+    bindingTarget: ["id", "scope", "supersedes"],
     authorityResolution: ["status", "reviewedIndependently", "reviewStatement"],
     provenance: ["reverificationStatus", "entries", "amendments"],
     artifact: [
@@ -2174,7 +2187,17 @@ export const SG4_IMPLEMENTATION_PATHS: readonly string[] = [
 ];
 
 export const PREPARATION_LINEAGE_MODEL = {
-  model: "ORIGINAL_A_TO_REMEDIATED_A2_TO_BINDING_B",
+  model: "HISTORICAL_V4_PRESERVED_PLUS_V2_A2_TO_BINDING_B",
+  historicalBindingPath: HISTORICAL_BINDING_RECORD_PATH,
+  historicalBindingSchema: HISTORICAL_BINDING_RECORD_SCHEMA,
+  historicalBindingVersion: HISTORICAL_BINDING_RECORD_VERSION,
+  historicalBindingMustRemainByteIdentical: true,
+  historicalBindingIsNeverV2Fallback: true,
+  activeBindingTargetId: V2_BINDING_TARGET_ID,
+  activeBindingTargetScope: V2_BINDING_TARGET_SCOPE,
+  activeBindingPath: V2_BINDING_RECORD_PATH,
+  activeBindingSchema: BINDING_RECORD_SCHEMA,
+  activeBindingVersion: BINDING_RECORD_VERSION,
   selfReferentialBindingRejected: true,
   rejectedModel:
     "A single commit whose tracked source records that same commit's hash and tree. Unsatisfiable by construction: recording the value changes the tree, and committing the change changes the commit.",
@@ -2199,7 +2222,9 @@ export const PREPARATION_LINEAGE_MODEL = {
   verifiedAt: ["CLEAN_HEAD_A2_WITHOUT_BINDING", "CLEAN_HEAD_A2_WITH_UNTRACKED_CANDIDATE", "CLEAN_HEAD_B"],
   checks: [
     "current branch is main",
-    "preparation has no binding; candidate mode has a clean tracked worktree/index and exactly one untracked binding",
+    "the historical binding remains byte-identical and is never used as the V2 fallback",
+    "preparation has no V2 binding; candidate mode has a clean tracked worktree/index and exactly one untracked V2 binding",
+    "the V2 binding target identifier and auditable historical supersession link are exact",
     "the binding commit B has exactly one parent; merge and octopus commits are rejected",
     "HEAD^ equals the recorded implementationCommit A2",
     "HEAD^{tree} is the binding tree and is NOT required to equal A2's tree",
@@ -2210,9 +2235,9 @@ export const PREPARATION_LINEAGE_MODEL = {
     "no third commit or unrelated change has been introduced without reopening review",
   ],
   postReviewSequence: [
-    "A. preserve the original preparation commit unchanged",
-    "B. commit the remediated closure implementation as A2, with no binding record",
-    "C. generate one untracked binding candidate naming A2 and verify it live without requiring B",
+    "A. preserve the original preparation commit and historical binding unchanged",
+    "B. commit the remediated closure implementation as A2, with no V2 binding record",
+    "C. generate one untracked V2 binding candidate naming A2 and verify it live without requiring B",
     "D. commit only the candidate bytes as B",
     "E. verify B has parent A2 and changes only the binding record",
     "F. replay the exact bound snapshot and complete post-commit live verification",
@@ -3688,11 +3713,21 @@ export function validateAuthorityProtocol(protocol: AuthorityProtocol): void {
     "artifact facets must be sorted and unique",
   );
 
-  /* F9 — original A -> remediated A2 -> binding B, with no self-reference anywhere. */
+  /* F9 — historical authority evidence remains separate from the V2 A2 -> binding B lineage. */
   invariant(protocol.liveMode.preparationLineage.selfReferentialBindingRejected, "self-binding model still permitted");
   invariant(
-    protocol.liveMode.preparationLineage.model === "ORIGINAL_A_TO_REMEDIATED_A2_TO_BINDING_B",
+    protocol.liveMode.preparationLineage.model === "HISTORICAL_V4_PRESERVED_PLUS_V2_A2_TO_BINDING_B",
     "preparation lineage model drift",
+  );
+  invariant(
+    protocol.liveMode.preparationLineage.historicalBindingMustRemainByteIdentical &&
+      protocol.liveMode.preparationLineage.historicalBindingIsNeverV2Fallback &&
+      protocol.liveMode.preparationLineage.historicalBindingPath === HISTORICAL_BINDING_RECORD_PATH &&
+      protocol.liveMode.preparationLineage.activeBindingTargetId === V2_BINDING_TARGET_ID &&
+      protocol.liveMode.preparationLineage.activeBindingTargetScope === V2_BINDING_TARGET_SCOPE &&
+      protocol.liveMode.preparationLineage.activeBindingPath === V2_BINDING_RECORD_PATH &&
+      String(HISTORICAL_BINDING_RECORD_PATH) !== V2_BINDING_RECORD_PATH,
+    "historical and V2 authority bindings are not separated",
   );
   invariant(
     protocol.liveMode.preparationLineage.bindingRecordMustNotContainItsOwnCommitOrTree,
@@ -3711,6 +3746,11 @@ export function validateAuthorityProtocol(protocol: AuthorityProtocol): void {
     "the binding record may not be one of the implementation paths it binds",
   );
   invariant(
+    !SG4_IMPLEMENTATION_PATHS.includes(HISTORICAL_BINDING_RECORD_PATH) &&
+      !SG4_IMPLEMENTATION_PATHS.includes(V2_BINDING_RECORD_PATH),
+    "authority binding paths may not be implementation paths",
+  );
+  invariant(
     protocol.liveMode.preparationLineage.postReviewSequence.length === 6,
     "the post-review two-commit sequence must remain complete",
   );
@@ -3721,8 +3761,10 @@ export function validateAuthorityProtocol(protocol: AuthorityProtocol): void {
     "the binding record was reduced to a preparation-only lineage record; the gate becomes unresolvable",
   );
   invariant(
-    BINDING_RECORD_PATH === "scripts/sg4-hcu-authority-binding.json",
-    "the authority-binding record path drifted",
+    BINDING_RECORD_PATH === V2_BINDING_RECORD_PATH &&
+      V2_BINDING_TARGET_ID === "LEOPOLD_V2_SEPOLIA" &&
+      V2_BINDING_TARGET_SCOPE === "LEOPOLD_V2_RELEASE",
+    "the V2 authority-binding target or path drifted",
   );
   invariant(
     protocol.liveMode.preparationLineage.noSourceEditPermittedAfterB &&

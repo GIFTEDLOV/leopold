@@ -5,7 +5,7 @@
  * read-only and every state read uses the single finalized block captured at the start.
  */
 
-import { writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import {
@@ -30,6 +30,15 @@ import {
 } from "./sg4-hcu-authority";
 import {
   BINDING_RECORD_PATH,
+  HISTORICAL_BINDING_RECORD_PATH,
+  HISTORICAL_BINDING_RECORD_SCHEMA,
+  HISTORICAL_BINDING_RECORD_VERSION,
+  HISTORICAL_BINDING_RECORD_FILE_SHA256,
+  HISTORICAL_BINDING_RECORD_CANONICAL_SHA256,
+  HISTORICAL_BINDING_IMPLEMENTATION_COMMIT,
+  V2_BINDING_TARGET_ID,
+  V2_BINDING_TARGET_SCOPE,
+  V2_BINDING_RECORD_PATH,
   BINDING_RECORD_SCHEMA,
   BINDING_RECORD_VERSION,
   ERC1967_IMPLEMENTATION_SLOT,
@@ -39,8 +48,6 @@ import {
   SEPOLIA_EXECUTOR_ADDRESS,
 } from "./sg4-hcu-authority-protocol";
 
-const LEGACY_FORENSIC_SHA256 = "7f425dcbf35c9359782647a5e1d71b6a413f359a48d4fd8cdab5d684afa6d638";
-const EXPECTED_ORIGINAL_A = "b5d6987f8cdf71d892cba8f9cabc65492223a4e0";
 const READ_ONLY_METHODS = new Set(LIVE_RPC_ALLOWED_METHODS);
 
 function fail(message: string): never {
@@ -70,23 +77,40 @@ function declaredCalldata(record: AuthorityBindingRecord, callId: string): strin
 }
 
 async function main(): Promise<void> {
+  const target = argument("--target");
+  if (target !== V2_BINDING_TARGET_ID) fail(`unsupported binding target ${target}; expected ${V2_BINDING_TARGET_ID}`);
   const sourcePath = resolve(argument("--source-record"));
+  if (sourcePath !== resolve(join(ROOT, HISTORICAL_BINDING_RECORD_PATH))) {
+    fail(`V2 source record must be the preserved historical record at ${HISTORICAL_BINDING_RECORD_PATH}`);
+  }
   const sourceBytes = readFileSync(sourcePath);
-  if (sha256(sourceBytes) !== LEGACY_FORENSIC_SHA256) fail("forensic source record digest mismatch");
+  if (sha256(sourceBytes) !== HISTORICAL_BINDING_RECORD_FILE_SHA256)
+    fail("historical source record byte digest mismatch");
   const legacy = JSON.parse(sourceBytes.toString("utf8")) as Record<string, unknown>;
-  if (legacy.schema !== "zama-szn4.sg4-hcu-authority-binding.v3" || legacy.recordVersion !== 3) {
-    fail("forensic source record is not the independently reviewed v3 record");
+  if (
+    legacy.schema !== HISTORICAL_BINDING_RECORD_SCHEMA ||
+    legacy.recordVersion !== HISTORICAL_BINDING_RECORD_VERSION
+  ) {
+    fail("historical source record schema/version mismatch");
+  }
+  if (authorityBindingCanonicalSha256(legacy) !== HISTORICAL_BINDING_RECORD_CANONICAL_SHA256) {
+    fail("historical source record canonical digest mismatch");
+  }
+  const historicalLineage = legacy.lineage as Record<string, unknown>;
+  if (
+    historicalLineage.implementationCommit !== HISTORICAL_BINDING_IMPLEMENTATION_COMMIT ||
+    historicalLineage.permittedBindingPath !== HISTORICAL_BINDING_RECORD_PATH
+  ) {
+    fail("historical source record lineage mismatch");
   }
 
   const head = gitValue("rev-parse", "HEAD");
   const tree = gitValue("rev-parse", "HEAD^{tree}");
-  const parent = gitValue("rev-parse", "HEAD^");
-  if (parent !== EXPECTED_ORIGINAL_A) fail("HEAD is not a direct remediation child of original Commit A");
   if (gitValue("diff", "--name-only") !== "" || gitValue("diff", "--cached", "--name-only") !== "") {
     fail("tracked worktree or index is not clean");
   }
   if (gitValue("ls-files", "--others", "--exclude-standard") !== "") fail("preparation contains an untracked file");
-  if (gitValue("ls-files", "--", BINDING_RECORD_PATH) !== "") fail("binding path is already tracked");
+  if (gitValue("ls-files", "--", V2_BINDING_RECORD_PATH) !== "") fail("V2 binding path is already tracked");
 
   const record = {
     ...legacy,
@@ -102,6 +126,20 @@ async function main(): Promise<void> {
       implementationTree: tree,
       benchmarkProtocolSha256: EXPECTED_SG4_PROTOCOL_SHA256,
       authorityProtocolSha256: EXPECTED_AUTHORITY_PROTOCOL_SHA256,
+      permittedBindingPath: V2_BINDING_RECORD_PATH,
+      bindingPurpose: `Bind the reviewed SG-4 implementation commit to a live authority verification for ${V2_BINDING_TARGET_ID}.`,
+    },
+    bindingTarget: {
+      id: V2_BINDING_TARGET_ID,
+      scope: V2_BINDING_TARGET_SCOPE,
+      supersedes: {
+        path: HISTORICAL_BINDING_RECORD_PATH,
+        fileSha256: HISTORICAL_BINDING_RECORD_FILE_SHA256,
+        canonicalSha256: HISTORICAL_BINDING_RECORD_CANONICAL_SHA256,
+        schema: HISTORICAL_BINDING_RECORD_SCHEMA,
+        recordVersion: HISTORICAL_BINDING_RECORD_VERSION,
+        implementationCommit: HISTORICAL_BINDING_IMPLEMENTATION_COMMIT,
+      },
     },
   } as unknown as AuthorityBindingRecord;
 
@@ -282,6 +320,7 @@ async function main(): Promise<void> {
   if (errors.length > 0) fail(`fresh record validation failed: ${errors.join(" | ")}`);
 
   const destination = join(ROOT, BINDING_RECORD_PATH);
+  mkdirSync(join(ROOT, "scripts/sg4-hcu-authority-bindings"), { recursive: true });
   writeFileSync(destination, `${JSON.stringify(record, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
   process.stdout.write(
     `${JSON.stringify(

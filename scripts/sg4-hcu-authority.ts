@@ -120,6 +120,15 @@ import {
   MEASUREMENT_ROOT_VERIFICATION,
   MEASUREMENT_TOOLCHAIN_ROOT,
   REPOSITORY_HYGIENE_FILES,
+  HISTORICAL_BINDING_RECORD_PATH,
+  HISTORICAL_BINDING_RECORD_SCHEMA,
+  HISTORICAL_BINDING_RECORD_VERSION,
+  HISTORICAL_BINDING_RECORD_FILE_SHA256,
+  HISTORICAL_BINDING_RECORD_CANONICAL_SHA256,
+  HISTORICAL_BINDING_IMPLEMENTATION_COMMIT,
+  V2_BINDING_TARGET_ID,
+  V2_BINDING_TARGET_SCOPE,
+  V2_BINDING_RECORD_PATH,
   BINDING_RECORD_PATH,
   BINDING_RECORD_SCHEMA,
   BINDING_RECORD_VERSION,
@@ -186,7 +195,7 @@ export const ROOT = join(__dirname, "..");
 /* Committed digests of the two deterministic protocols. Any edit to either generator changes its
  * digest and fails preflight until the change is reviewed and the constant is updated. */
 export const EXPECTED_SG4_PROTOCOL_SHA256 = "88d6f8c1522a0668d769f34ddafaf3e71134cbc9434a1b9676f78d5bdeb0968e";
-export const EXPECTED_AUTHORITY_PROTOCOL_SHA256 = "53fabb080c608c1224faa8435a1fbd548ca316806d554fcc8e92b730d8cfea2b";
+export const EXPECTED_AUTHORITY_PROTOCOL_SHA256 = "a2ef67a6ea2ebc4740ff60cd6f1af1fd287146f7f25f27c978e74b8a2e3e163c";
 
 /* Resolved through the repository root node_modules. This path exists only because
  * @fhevm/host-contracts is a direct dependency: with the transitive-only arrangement the authority
@@ -2449,7 +2458,7 @@ export function runOfflinePreflight(lineageProbe: LineageProbe = createGitLineag
     check(
       "PREPARATION_BINDING_IS_NOT_SELF_REFERENTIAL",
       PREPARATION_LINEAGE_MODEL.selfReferentialBindingRejected &&
-        PREPARATION_LINEAGE_MODEL.model === "ORIGINAL_A_TO_REMEDIATED_A2_TO_BINDING_B" &&
+        PREPARATION_LINEAGE_MODEL.model === "HISTORICAL_V4_PRESERVED_PLUS_V2_A2_TO_BINDING_B" &&
         PREPARATION_LINEAGE_MODEL.bindingRecordMustNotContainItsOwnCommitOrTree &&
         PREPARATION_LINEAGE_MODEL.bindingCommitMustHaveExactlyOneParent &&
         !SG4_IMPLEMENTATION_PATHS.includes(BINDING_RECORD_PATH),
@@ -3353,6 +3362,7 @@ export type AuthorityBindingRecord = {
   snapshot: Record<string, unknown>;
   stateEvidence: Record<string, unknown>;
   lineage: Record<string, unknown>;
+  bindingTarget: Record<string, unknown>;
   authorityResolution: Record<string, unknown>;
   provenance: { reverificationStatus: string; entries: Record<string, unknown>[] };
   artifact: Record<string, unknown>;
@@ -5807,6 +5817,47 @@ export function validateAuthorityBindingRecord(record: unknown): string[] {
   if (value.schema !== BINDING_RECORD_SCHEMA) errors.push("binding record schema mismatch");
   if (value.recordVersion !== BINDING_RECORD_VERSION) errors.push("binding record version mismatch");
 
+  /* ----- explicit versioned target and auditable historical supersession ----- */
+  const bindingTarget = checkSection(value, "bindingTarget", errors);
+  if (bindingTarget) {
+    if (bindingTarget.id !== V2_BINDING_TARGET_ID) errors.push("binding record target id mismatch");
+    if (bindingTarget.scope !== V2_BINDING_TARGET_SCOPE) errors.push("binding record target scope mismatch");
+    const supersedes = bindingTarget.supersedes;
+    const supersededFields = [
+      "path",
+      "fileSha256",
+      "canonicalSha256",
+      "schema",
+      "recordVersion",
+      "implementationCommit",
+    ];
+    if (!isObject(supersedes)) {
+      errors.push("binding record target supersedes must be an object");
+    } else {
+      for (const field of supersededFields) {
+        if (!(field in supersedes)) errors.push(`binding record target supersedes is missing ${field}`);
+      }
+      for (const key of Object.keys(supersedes)) {
+        if (!supersededFields.includes(key))
+          errors.push(`binding record target supersedes has an unpermitted field ${key}`);
+      }
+      if (supersedes.path !== HISTORICAL_BINDING_RECORD_PATH)
+        errors.push("binding record target superseded path mismatch");
+      if (supersedes.fileSha256 !== HISTORICAL_BINDING_RECORD_FILE_SHA256)
+        errors.push("binding record target superseded file digest mismatch");
+      if (supersedes.canonicalSha256 !== HISTORICAL_BINDING_RECORD_CANONICAL_SHA256)
+        errors.push("binding record target superseded canonical digest mismatch");
+      if (supersedes.schema !== HISTORICAL_BINDING_RECORD_SCHEMA)
+        errors.push("binding record target superseded schema mismatch");
+      if (supersedes.recordVersion !== HISTORICAL_BINDING_RECORD_VERSION)
+        errors.push("binding record target superseded record version mismatch");
+      if (supersedes.implementationCommit !== HISTORICAL_BINDING_IMPLEMENTATION_COMMIT)
+        errors.push("binding record target superseded implementation commit mismatch");
+      if (supersedes.path === V2_BINDING_RECORD_PATH)
+        errors.push("binding record target may not supersede the active V2 path");
+    }
+  }
+
   /* ----- non-self-referential content integrity ----- */
   const integrity = checkSection(value, "integrity", errors);
   if (integrity) {
@@ -7802,6 +7853,44 @@ export function validateBindingRecord(record: unknown): string[] {
   return validateAuthorityBindingRecord(record);
 }
 
+/* Historical v4 authority evidence is not an active V2 record and therefore cannot be passed
+ * through the v5 validator. It is nevertheless authenticated independently: the exact original
+ * bytes, canonical digest, schema/version, and original implementation lineage are all fixed.
+ * This check is deliberately read-only and is used before preparation, candidate, and post-commit
+ * states are considered reachable. */
+function historicalBindingBlockers(probe: LineageProbe): string[] {
+  const blockers: string[] = [];
+  const fileSha256 = probe.historicalBindingFileSha256();
+  if (fileSha256 === null) {
+    blockers.push("HISTORICAL_BINDING_RECORD_MISSING");
+    return blockers;
+  }
+  if (fileSha256 !== HISTORICAL_BINDING_RECORD_FILE_SHA256) {
+    blockers.push("HISTORICAL_BINDING_RECORD_BYTE_DRIFT");
+  }
+  const historical = probe.readHistoricalBindingRecord();
+  if (historical === null || !isObject(historical)) {
+    blockers.push("HISTORICAL_BINDING_RECORD_UNREADABLE");
+    return blockers;
+  }
+  if (historical.schema !== HISTORICAL_BINDING_RECORD_SCHEMA) blockers.push("HISTORICAL_BINDING_RECORD_SCHEMA_DRIFT");
+  if (historical.recordVersion !== HISTORICAL_BINDING_RECORD_VERSION)
+    blockers.push("HISTORICAL_BINDING_RECORD_VERSION_DRIFT");
+  const canonical = probe.historicalBindingCanonicalSha256();
+  if (canonical !== HISTORICAL_BINDING_RECORD_CANONICAL_SHA256) {
+    blockers.push("HISTORICAL_BINDING_RECORD_CANONICAL_DRIFT");
+  }
+  const lineage = isObject(historical.lineage) ? historical.lineage : null;
+  if (
+    lineage === null ||
+    lineage.permittedBindingPath !== HISTORICAL_BINDING_RECORD_PATH ||
+    lineage.implementationCommit !== HISTORICAL_BINDING_IMPLEMENTATION_COMMIT
+  ) {
+    blockers.push("HISTORICAL_BINDING_RECORD_LINEAGE_DRIFT");
+  }
+  return [...new Set(blockers)].sort();
+}
+
 /* Everything the lineage check needs from git, behind an interface so tests can supply a fake and
  * no test shells out. */
 export type LineageProbe = {
@@ -7811,6 +7900,9 @@ export type LineageProbe = {
   indexClean(): boolean;
   untrackedPaths?(): string[];
   bindingTracked?(): boolean;
+  historicalBindingFileSha256(): string | null;
+  historicalBindingCanonicalSha256(): string | null;
+  readHistoricalBindingRecord(): unknown | null;
   revParse(rev: string): string;
   /* Number of parents of a commit. A binding commit must have exactly one; a merge commit whose
    * first parent happens to be A would otherwise satisfy the HEAD^ check. */
@@ -7833,6 +7925,30 @@ export function createGitLineageProbe(): LineageProbe {
         .filter((line) => line.length > 0)
         .sort(),
     bindingTracked: () => gitValue("ls-files", "--", BINDING_RECORD_PATH) === BINDING_RECORD_PATH,
+    historicalBindingFileSha256: () => {
+      try {
+        return sha256(readFileSync(join(ROOT, HISTORICAL_BINDING_RECORD_PATH)));
+      } catch {
+        return null;
+      }
+    },
+    historicalBindingCanonicalSha256: () => {
+      const historical = (() => {
+        try {
+          return JSON.parse(readFileSync(join(ROOT, HISTORICAL_BINDING_RECORD_PATH), "utf8")) as unknown;
+        } catch {
+          return null;
+        }
+      })();
+      return historical === null ? null : authorityBindingCanonicalSha256(historical);
+    },
+    readHistoricalBindingRecord: () => {
+      try {
+        return JSON.parse(readFileSync(join(ROOT, HISTORICAL_BINDING_RECORD_PATH), "utf8")) as unknown;
+      } catch {
+        return null;
+      }
+    },
     revParse: (rev) => gitValue("rev-parse", rev),
     parentCount: (rev) => {
       const parents = gitValue("rev-list", "--parents", "-n", "1", rev);
@@ -7877,6 +7993,7 @@ export function checkPreparationState(probe: LineageProbe): LineageResult {
   if (probe.branch() !== PREPARATION_LINEAGE_MODEL.branchRequired) blockers.push("BRANCH_IS_NOT_MAIN");
   if (!probe.worktreeClean()) blockers.push("WORKTREE_IS_NOT_CLEAN");
   if (!probe.indexClean()) blockers.push("INDEX_IS_NOT_CLEAN");
+  blockers.push(...historicalBindingBlockers(probe));
   if (probe.readBindingRecord() !== null) blockers.push("PREPARATION_BINDING_RECORD_MUST_BE_ABSENT");
   return { result: blockers.length === 0 ? "VERIFIED" : "BROKEN", blockers: blockers.sort(), record: null };
 }
@@ -7897,6 +8014,7 @@ export function checkPreparationLineage(probe: LineageProbe, mode: VerificationM
     blockers.push("TRACKED_WORKTREE_IS_NOT_CLEAN");
   }
   if (!probe.indexClean()) blockers.push("INDEX_IS_NOT_CLEAN");
+  blockers.push(...historicalBindingBlockers(probe));
 
   const record = probe.readBindingRecord();
   if (record === null) {
@@ -7954,6 +8072,14 @@ export function checkPreparationLineage(probe: LineageProbe, mode: VerificationM
   const changed = probe.changedPaths(binding.implementationCommit, headCommit);
   if (changed.length !== 1 || changed[0] !== BINDING_RECORD_PATH) {
     fail(`BINDING_COMMIT_CHANGED_MORE_THAN_THE_BINDING_RECORD:${changed.join(",") || "nothing"}`);
+  }
+
+  /* The historical v4 record is not part of the active V2 diff. Its Git blob must be identical at
+   * A2 and B, proving that supersession is additive and auditable rather than an overwrite. */
+  const historicalAtA = probe.blobAt(binding.implementationCommit, HISTORICAL_BINDING_RECORD_PATH);
+  const historicalAtB = probe.blobAt(headCommit, HISTORICAL_BINDING_RECORD_PATH);
+  if (historicalAtA === null || historicalAtB === null || historicalAtA !== historicalAtB) {
+    fail("HISTORICAL_BINDING_BLOB_DRIFT");
   }
 
   /* Every implementation and runtime path must have the identical blob at A and at B. */

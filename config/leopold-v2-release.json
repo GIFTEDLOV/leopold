@@ -1,0 +1,61 @@
+{
+  "schema": "leopold.v2-release-manifest.v1",
+  "releaseStatus": "PRE_OFFICIAL_REVIEW",
+  "network": {
+    "name": "ethereum-sepolia",
+    "chainId": 11155111
+  },
+  "authorityBinding": {
+    "targetId": "LEOPOLD_V2_SEPOLIA",
+    "targetScope": "LEOPOLD_V2_RELEASE",
+    "path": "scripts/sg4-hcu-authority-bindings/v2.json",
+    "schema": "zama-szn4.sg4-hcu-authority-binding.v5",
+    "recordVersion": 5,
+    "historicalBindingPath": "scripts/sg4-hcu-authority-binding.json",
+    "historicalBindingFileSha256": "4fa8642b9f1be977d9e8ca41c6ea9abfbfdda0c8d5e7160150dd76bb6036265c",
+    "historicalBindingCanonicalSha256": "dc198ed1f208a1cb6a23dcb4a20ed51411f85efa199cdd46c1828b1a69b8af57"
+  },
+  "reviewedCandidate": {
+    "commit": "719dff15485b5144f5ad9b7a6457b7131fe261bc",
+    "disposableProofEvidenceSha256": "2ce8bbb22f2b74f34a324a575d5c483c43cc0bceaa2b533eb6984dac25feff1f"
+  },
+  "contracts": {
+    "vaultSource": "contracts/LeopoldVaultV2.sol",
+    "escrowSource": "contracts/LeopoldSettlementBondEscrowV2.sol",
+    "vaultRuntimeArtifactSha256": "96020d75ea78c1adb8c80f56544e7ab381934f3563242946825fe343e3ddf301",
+    "escrowRuntimeArtifactSha256": "a6a01e2d15d6e125d12865b831a62b1b1448a0fd1e009315fdb8829dbfd33f52",
+    "deploymentAddresses": null
+  },
+  "compiler": {
+    "version": "0.8.27",
+    "optimizerRuns": 1,
+    "viaIR": true,
+    "evmVersion": "cancun",
+    "metadataBytecodeHash": "none"
+  },
+  "hcu": {
+    "selection": {
+      "total": 13089448,
+      "depth": 2786064
+    },
+    "allocation": {
+      "total": 12491672,
+      "depth": 2374032
+    },
+    "ceilings": {
+      "totalExclusive": 15000000,
+      "depthExclusive": 3750000
+    }
+  },
+  "deploymentBoundary": {
+    "officialV1ManifestUnchanged": true,
+    "officialDeploymentAuthorized": false,
+    "officialDeploymentPerformed": false,
+    "disposableTopologyOnly": true
+  },
+  "independentReview": {
+    "required": true,
+    "status": "PENDING",
+    "acceptedBy": null
+  }
+}

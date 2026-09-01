@@ -1,22 +1,25 @@
 # SG-4 HCU authority protocol
 
-## Closure protocol v4
+## Closure protocol v5: versioned authority lineage
 
-This revision repairs the closure state machine. The immutable original preparation commit is followed by a remediated
-preparation commit A2, then by a binding-only commit B:
+This revision repairs the closure state machine and makes supersession versioned. The immutable historical v4 binding is
+preserved, while a new V2 preparation commit A2 is followed by a V2 binding-only commit B:
 
-`ORIGINAL_A -> REMEDIATED_PREPARATION_COMMIT_A2 -> BINDING_COMMIT_B`
+`HISTORICAL_V4_BINDING (preserved) + A2 -> V2_BINDING_COMMIT_B`
 
 The reachable transitions are: clean A2 with no binding; clean A2 with exactly one untracked binding candidate;
 candidate live verification; B whose parent is A2 and whose only diff is the binding; post-commit live verification;
 SG-4 closure. Candidate verification never requires B to exist, and the binding never predicts B's commit or tree. Git
 derives B after it exists.
 
-Binding schema `zama-szn4.sg4-hcu-authority-binding.v4` adds a canonical content digest, a complete finalized Sepolia
-snapshot, and exact state evidence. The snapshot records chain id, decimal and hexadecimal block number, block hash,
-state root, timestamp, capture time, read-only RPC method set, relevant addresses, and durability model. The selected
-durability model is recorded honestly as `PINNED_BLOCK_RPC_REPLAY`; no state-root proof is claimed without an
-independently verified EIP-1186 trie proof.
+The historical binding schema `zama-szn4.sg4-hcu-authority-binding.v4` remains at
+`scripts/sg4-hcu-authority-binding.json` and is authenticated byte-for-byte by its recorded file and canonical SHA-256
+digests. It is historical evidence only and is never a fallback for a later target. The V2 binding schema
+`zama-szn4.sg4-hcu-authority-binding.v5` adds a canonical content digest, a complete finalized Sepolia snapshot, and
+exact state evidence. The snapshot records chain id, decimal and hexadecimal block number, block hash, state root,
+timestamp, capture time, read-only RPC method set, relevant addresses, and durability model. The selected durability
+model is recorded honestly as `PINNED_BLOCK_RPC_REPLAY`; no state-root proof is claimed without an independently
+verified EIP-1186 trie proof.
 
 The generator resolves `finalized` once and performs every state read against that exact block. Candidate and
 post-commit verification request the bound block number and reject any block hash, state root, timestamp, code,
@@ -26,13 +29,14 @@ addresses and authority facts remain non-overridable. The fallback endpoint rema
 The packed HCULimit word is read at `0xc13af6c514bff8997f30c90003baa82bd02aad978179d1ce58d85c4319ad6500`. Its five
 fields are decoded as strict least-to-most-significant `uint48` values, with the high 16 bits required to be zero, and
 the three limit fields must equal their getters. The verifier still writes no files; only the explicit generator writes
-the untracked candidate.
+the untracked V2 candidate at `scripts/sg4-hcu-authority-bindings/v2.json`, and only after it is invoked with the exact
+target identifier `LEOPOLD_V2_SEPOLIA` and the preserved historical source record.
 
 ## Executive decision
 
-This document specifies authority protocol version `sg4-hcu-authority-protocol/v1` with closure binding schema v4. A2
-records how the SG-4 HCU blocker is closed; the binding and live evidence are produced only after clean A2 passes.
-Permanent benchmark execution remains prohibited until post-commit verification succeeds.
+This document specifies authority protocol version `sg4-hcu-authority-protocol/v1` with historical v4 and active V2/v5
+closure bindings. A2 records how the SG-4 HCU blocker is closed; the binding and live evidence are produced only after
+clean A2 passes. Permanent benchmark execution remains prohibited until post-commit verification succeeds.
 
 The previous SG-4 preregistration recorded that no locally authoritative numeric HCU ceiling existed. That premise was
 incorrect. Candidate ceilings are present in installed, integrity-pinned code, and they are bindable to the live
@@ -521,7 +525,24 @@ HTTPS provider because retention capability is transport, not authority; no exec
 from the environment. The transport is injectable solely as a test seam. Output is sanitized: no endpoint, headers,
 credentials, provider objects, receipts, traces, private URLs, or environment dumps are retained.
 
-### Preparation binding — original A, remediated A2, then B
+### Preparation binding — preserve historical v4, then V2 A2 and B
+
+The repository already contains a valid historical authority binding. It is not deleted, rewritten, upgraded in place,
+or used as a V2 fallback. The V2 record carries a closed `bindingTarget` section:
+
+| Field                                           | Required value                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------ |
+| `bindingTarget.id`                              | `LEOPOLD_V2_SEPOLIA`                                               |
+| `bindingTarget.scope`                           | `LEOPOLD_V2_RELEASE`                                               |
+| `lineage.permittedBindingPath`                  | `scripts/sg4-hcu-authority-bindings/v2.json`                       |
+| `bindingTarget.supersedes.path`                 | `scripts/sg4-hcu-authority-binding.json`                           |
+| `bindingTarget.supersedes.fileSha256`           | `4fa8642b9f1be977d9e8ca41c6ea9abfbfdda0c8d5e7160150dd76bb6036265c` |
+| `bindingTarget.supersedes.canonicalSha256`      | `dc198ed1f208a1cb6a23dcb4a20ed51411f85efa199cdd46c1828b1a69b8af57` |
+| `bindingTarget.supersedes.schema/version`       | `zama-szn4.sg4-hcu-authority-binding.v4` / `4`                     |
+| `bindingTarget.supersedes.implementationCommit` | `d0e2bbd6f50aef4f957bf494b3b03d14662d84a3`                         |
+
+Every supersession field is required and compared exactly. This is an additive, auditable lineage; it does not waive any
+artifact, provenance, compiler, HCU, deployment identity, or live read-only check.
 
 An earlier revision stored the preparation commit and tree in a tracked source file and required a clean `HEAD` to equal
 them. That is **unsatisfiable by construction**: writing the values into a tracked file changes the tree, and committing
@@ -536,11 +557,13 @@ only the binding record and may not touch implementation source; and any later c
 breaks the lineage. So after B, **no permitted action could ever supply the missing values** — the gate was permanently
 unresolvable. A lineage-only record is now rejected by the validator for exactly that reason.
 
-- **Original A.** Preserved unchanged as the parent of the closure remediation.
-- **Commit A2 — remediated implementation.** All closure schema, generator, verifier, launcher, documentation and tests.
-  A2 contains no binding and claims nothing about its own commit or tree.
-- **Commit B — authority binding.** Adds exactly one dedicated record at `scripts/sg4-hcu-authority-binding.json` and
-  changes nothing else. B does not record its own commit or tree; the verifier reads B from `HEAD` and A2 from `HEAD^`.
+- **Historical v4 evidence.** Preserved unchanged at `scripts/sg4-hcu-authority-binding.json`; the verifier checks its
+  exact bytes and lineage and never selects it for V2.
+- **Commit A2 — V2 remediated implementation.** All reviewed V2 closure source, generator, verifier, launcher,
+  documentation and tests. A2 contains no V2 binding and claims nothing about its own commit or tree.
+- **Commit B — V2 authority binding.** Adds exactly one dedicated record at `scripts/sg4-hcu-authority-bindings/v2.json`
+  and changes nothing else. B does not record its own commit or tree; the verifier reads the V2 record from `HEAD` and
+  A2 from `HEAD^`.
 
 The record carries **both** the implementation lineage **and** every late-bound authority input, so the resolved facts
 arrive as independently reviewed data rather than as code. Its closed sections are:
@@ -550,7 +573,8 @@ arrive as independently reviewed data rather than as code. Its closed sections a
 | `integrity`           | canonical JSON content digest computed with only its own digest field set to null                                                                                                                                                             |
 | `snapshot`            | complete finalized Sepolia block identity, RPC methods, addresses and durability model                                                                                                                                                        |
 | `stateEvidence`       | exact proxy/implementation bytes and hashes, slots, versions, reciprocal getters, packed HCU storage and getters                                                                                                                              |
-| `lineage`             | implementation commit A2, tree A2, both protocol digests, permitted path, binding purpose                                                                                                                                                     |
+| `lineage`             | implementation commit A2, tree A2, both protocol digests, permitted V2 path, binding purpose                                                                                                                                                  |
+| `bindingTarget`       | explicit V2 target id/scope and exact historical v4 supersession tuple                                                                                                                                                                        |
 | `authorityResolution` | `status`, `reviewedIndependently`, review statement                                                                                                                                                                                           |
 | `provenance`          | reverification status and eight discriminated entries: six `SOURCE_FILE` entries with `path`/`contentSha256`, plus separate `HCULimit` and `FHEVMExecutor` `REPRODUCED_BUILD` entries with `buildInfoSha256` and closed reproduction evidence |
 | `artifact`            | id, release, compiler version, metadata model, normalization manifest + digest, normalized runtime hash                                                                                                                                       |
@@ -575,18 +599,19 @@ Running at clean `HEAD` B, the verifier requires all of:
 5. `HEAD^{tree}` is B's own binding tree — it is **not** falsely required to equal A2's tree, and must not equal the
    recorded implementation tree;
 6. the recorded `implementationTree` equals `A^{tree}`;
-7. `git diff --name-only A..B` is exactly the one dedicated binding-record path;
+7. `git diff --name-only A..B` is exactly the one dedicated V2 binding-record path;
 8. every SG-4 implementation and runtime path has the identical blob at B as at A;
-9. the authority-binding record's schema, closed shape, lineage **and late-bound authority inputs** are valid;
-10. no third commit or unrelated change has been introduced. A commit C appended after B makes `HEAD^` equal B rather
+9. the historical v4 binding blob is identical at A and B, and the V2 target's exact supersession tuple is valid;
+10. the authority-binding record's schema, closed shape, lineage **and late-bound authority inputs** are valid;
+11. no third commit or unrelated change has been introduced. A commit C appended after B makes `HEAD^` equal B rather
     than A, so check 4 fails and the gate reopens rather than silently accepting it.
 
 **No source edit is permitted after B for normal resolution.** Any implementation edit reopens review and requires a
 fresh A→B lineage — never a third-commit workaround.
 
-**During this preparation the record is deliberately not created**, because the official material has not yet been
-independently reverified and commit A does not exist. Its absence is recorded as `PREPARATION_BINDING_RECORD_ABSENT` and
-blocks every live run.
+**During this preparation the V2 record is deliberately not created**, because the official material has not yet been
+independently reverified and V2 A2 does not exist. The historical v4 record remains present and must remain exact. V2
+absence is recorded as `PREPARATION_BINDING_RECORD_ABSENT` and blocks every live run.
 
 ### Everything the record claims is recomputed, not merely well-formed
 

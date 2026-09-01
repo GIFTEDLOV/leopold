@@ -42,6 +42,18 @@ import {
   TRANSACTION_DEPTH_HCU_LIMIT,
   TRANSACTION_TOTAL_HCU_LIMIT,
   UNSUPPORTED_OPERATION_GUARD,
+  BINDING_RECORD_PATH,
+  BINDING_RECORD_SCHEMA,
+  BINDING_RECORD_VERSION,
+  HISTORICAL_BINDING_RECORD_PATH,
+  HISTORICAL_BINDING_RECORD_SCHEMA,
+  HISTORICAL_BINDING_RECORD_VERSION,
+  HISTORICAL_BINDING_RECORD_FILE_SHA256,
+  HISTORICAL_BINDING_RECORD_CANONICAL_SHA256,
+  HISTORICAL_BINDING_IMPLEMENTATION_COMMIT,
+  V2_BINDING_TARGET_ID,
+  V2_BINDING_TARGET_SCOPE,
+  V2_BINDING_RECORD_PATH,
   controlIsBlocking,
   deriveAuthorityProtocol,
   evaluateCombinedHcu,
@@ -1429,8 +1441,8 @@ function bindingRecordFixture(overrides: Record<string, unknown> = {}): Record<s
   const enumerationManifest = enumerationManifestFixture();
   const authorityImplementationCode = `0x${officialImplementationRuntime().toString("hex")}`;
   const base: Record<string, unknown> = {
-    schema: "zama-szn4.sg4-hcu-authority-binding.v4",
-    recordVersion: 4,
+    schema: BINDING_RECORD_SCHEMA,
+    recordVersion: BINDING_RECORD_VERSION,
     integrity: {
       canonicalization: "CANONICAL_JSON_SHA256_WITH_DIGEST_FIELD_NULL",
       canonicalSha256: null,
@@ -1505,8 +1517,20 @@ function bindingRecordFixture(overrides: Record<string, unknown> = {}): Record<s
       implementationTree: TREE_A,
       benchmarkProtocolSha256: EXPECTED_SG4_PROTOCOL_SHA256,
       authorityProtocolSha256: EXPECTED_AUTHORITY_PROTOCOL_SHA256,
-      permittedBindingPath: "scripts/sg4-hcu-authority-binding.json",
+      permittedBindingPath: BINDING_RECORD_PATH,
       bindingPurpose: "Bind the reviewed SG-4 implementation commit to a live authority verification.",
+    },
+    bindingTarget: {
+      id: V2_BINDING_TARGET_ID,
+      scope: V2_BINDING_TARGET_SCOPE,
+      supersedes: {
+        path: HISTORICAL_BINDING_RECORD_PATH,
+        fileSha256: HISTORICAL_BINDING_RECORD_FILE_SHA256,
+        canonicalSha256: HISTORICAL_BINDING_RECORD_CANONICAL_SHA256,
+        schema: HISTORICAL_BINDING_RECORD_SCHEMA,
+        recordVersion: HISTORICAL_BINDING_RECORD_VERSION,
+        implementationCommit: HISTORICAL_BINDING_IMPLEMENTATION_COMMIT,
+      },
     },
     authorityResolution: {
       status: "RESOLVED",
@@ -1614,8 +1638,8 @@ function bindingRecordFixture(overrides: Record<string, unknown> = {}): Record<s
 /* A record carrying only the lineage — the rejected preparation-only shape. */
 function preparationOnlyRecordFixture(): Record<string, unknown> {
   return {
-    schema: "zama-szn4.sg4-hcu-authority-binding.v4",
-    recordVersion: 4,
+    schema: BINDING_RECORD_SCHEMA,
+    recordVersion: BINDING_RECORD_VERSION,
     lineage: bindingRecordFixture().lineage as Record<string, unknown>,
   };
 }
@@ -1634,6 +1658,9 @@ type LineageOverrides = {
   implementationTree?: string;
   changedPaths?: string[];
   driftedPaths?: string[];
+  historicalBindingFileSha256?: string | null;
+  historicalBindingCanonicalSha256?: string | null;
+  historicalBindingRecord?: unknown | null;
   record?: unknown | null;
 };
 
@@ -1646,8 +1673,22 @@ function verifiedLineageProbe(overrides: LineageOverrides = {}) {
     worktreeClean: () => overrides.worktreeClean ?? true,
     trackedWorktreeClean: () => overrides.trackedWorktreeClean ?? true,
     indexClean: () => overrides.indexClean ?? true,
-    untrackedPaths: () => overrides.untrackedPaths ?? ["scripts/sg4-hcu-authority-binding.json"],
+    untrackedPaths: () => overrides.untrackedPaths ?? [V2_BINDING_RECORD_PATH],
     bindingTracked: () => overrides.bindingTracked ?? false,
+    historicalBindingFileSha256: () => overrides.historicalBindingFileSha256 ?? HISTORICAL_BINDING_RECORD_FILE_SHA256,
+    historicalBindingCanonicalSha256: () =>
+      overrides.historicalBindingCanonicalSha256 ?? HISTORICAL_BINDING_RECORD_CANONICAL_SHA256,
+    readHistoricalBindingRecord: () =>
+      overrides.historicalBindingRecord === undefined
+        ? {
+            schema: HISTORICAL_BINDING_RECORD_SCHEMA,
+            recordVersion: HISTORICAL_BINDING_RECORD_VERSION,
+            lineage: {
+              permittedBindingPath: HISTORICAL_BINDING_RECORD_PATH,
+              implementationCommit: HISTORICAL_BINDING_IMPLEMENTATION_COMMIT,
+            },
+          }
+        : overrides.historicalBindingRecord,
     parentCount: () => overrides.parentCount ?? 1,
     revParse: (rev: string) => {
       if (rev === "HEAD") return headCommit;
@@ -1656,7 +1697,7 @@ function verifiedLineageProbe(overrides: LineageOverrides = {}) {
       if (rev === `${COMMIT_A}^{tree}`) return overrides.implementationTree ?? TREE_A;
       return "UNRESOLVED";
     },
-    changedPaths: () => overrides.changedPaths ?? ["scripts/sg4-hcu-authority-binding.json"],
+    changedPaths: () => overrides.changedPaths ?? [V2_BINDING_RECORD_PATH],
     blobAt: (commit: string, path: string) =>
       drifted.has(path) && commit === headCommit ? `drift-${path}` : `blob-${path}`,
     readBindingRecord: () => record,
@@ -3316,7 +3357,7 @@ describe("SG-4 HCU authority: two-commit preparation lineage", function () {
 
     const model = deriveAuthorityProtocol().liveMode.preparationLineage;
     expect(model.selfReferentialBindingRejected).to.equal(true);
-    expect(model.model).to.equal("ORIGINAL_A_TO_REMEDIATED_A2_TO_BINDING_B");
+    expect(model.model).to.equal("HISTORICAL_V4_PRESERVED_PLUS_V2_A2_TO_BINDING_B");
     expect(model.bindingRecordMustNotContainItsOwnCommitOrTree).to.equal(true);
     expect(model.rejectedModel).to.match(/Unsatisfiable by construction/u);
 
@@ -3363,7 +3404,7 @@ describe("SG-4 HCU authority: two-commit preparation lineage", function () {
       ["tracked binding", { bindingTracked: true }, "CANDIDATE_BINDING_MUST_BE_UNTRACKED"],
       [
         "extra untracked",
-        { untrackedPaths: ["extra.json", "scripts/sg4-hcu-authority-binding.json"] },
+        { untrackedPaths: ["extra.json", V2_BINDING_RECORD_PATH] },
         "CANDIDATE_UNTRACKED_SET_INVALID",
       ],
       ["dirty tracked worktree", { trackedWorktreeClean: false }, "TRACKED_WORKTREE_IS_NOT_CLEAN"],
@@ -3500,24 +3541,56 @@ describe("SG-4 HCU authority: two-commit preparation lineage", function () {
     expect(validateAuthorityBindingRecord(bindingRecordFixture({ bindingTree: TREE_B })).join("|")).to.include(
       "unpermitted field bindingTree",
     );
+    expect(
+      validateAuthorityBindingRecord(
+        bindingRecordFixture({
+          bindingTarget: {
+            ...(bindingRecordFixture().bindingTarget as Record<string, unknown>),
+            id: "HISTORICAL_FALLBACK",
+          },
+        }),
+      ),
+    ).to.include("binding record target id mismatch");
+    expect(
+      validateAuthorityBindingRecord(
+        bindingRecordFixture({
+          bindingTarget: {
+            ...(bindingRecordFixture().bindingTarget as Record<string, unknown>),
+            supersedes: {
+              ...((bindingRecordFixture().bindingTarget as Record<string, unknown>).supersedes as Record<
+                string,
+                unknown
+              >),
+              path: V2_BINDING_RECORD_PATH,
+            },
+          },
+        }),
+      ),
+    ).to.include("binding record target superseded path mismatch");
+    expect(
+      checkPreparationLineage(verifiedLineageProbe({ historicalBindingFileSha256: "0".repeat(64) })).blockers,
+    ).to.include("HISTORICAL_BINDING_RECORD_BYTE_DRIFT");
+    expect(
+      checkPreparationLineage(verifiedLineageProbe({ historicalBindingCanonicalSha256: "0".repeat(64) })).blockers,
+    ).to.include("HISTORICAL_BINDING_RECORD_CANONICAL_DRIFT");
     expect(validateAuthorityBindingRecord("not an object")).to.deep.equal(["binding record must be a JSON object"]);
   });
 
   it("98. documents the exact post-review two-commit sequence", function () {
     const model = deriveAuthorityProtocol().liveMode.preparationLineage;
     expect(model.postReviewSequence).to.deep.equal([
-      "A. preserve the original preparation commit unchanged",
-      "B. commit the remediated closure implementation as A2, with no binding record",
-      "C. generate one untracked binding candidate naming A2 and verify it live without requiring B",
+      "A. preserve the original preparation commit and historical binding unchanged",
+      "B. commit the remediated closure implementation as A2, with no V2 binding record",
+      "C. generate one untracked V2 binding candidate naming A2 and verify it live without requiring B",
       "D. commit only the candidate bytes as B",
       "E. verify B has parent A2 and changes only the binding record",
       "F. replay the exact bound snapshot and complete post-commit live verification",
     ]);
-    expect(model.bindingRecordPath).to.equal("scripts/sg4-hcu-authority-binding.json");
-    expect(model.checks).to.have.lengthOf(10);
+    expect(model.bindingRecordPath).to.equal(V2_BINDING_RECORD_PATH);
+    expect(model.checks).to.have.lengthOf(12);
     /* The document carries the same sequence. */
     const doc = readFileSync(resolve(ROOT, "docs/security/SG4_HCU_AUTHORITY_PROTOCOL.md"), "utf8");
-    expect(doc).to.include("scripts/sg4-hcu-authority-binding.json");
+    expect(doc).to.include(V2_BINDING_RECORD_PATH);
     expect(doc).to.include("commit only the verified bytes as B");
     expect(doc).to.match(/HEAD\^` equals the recorded `implementationCommit` A2/u);
     expect(doc).to.match(/not\*\* falsely required to equal A2's tree/u);
@@ -3969,7 +4042,7 @@ describe("SG-4 HCU authority: late-bound authority-binding record", function () 
     /* Folding the edit into B is caught as an extra changed path. */
     const amended = checkPreparationLineage(
       verifiedLineageProbe({
-        changedPaths: ["scripts/sg4-hcu-authority-binding.json", "scripts/sg4-hcu-authority.ts"],
+        changedPaths: [V2_BINDING_RECORD_PATH, "scripts/sg4-hcu-authority.ts"],
       }),
     );
     expect(amended.result).to.equal("BROKEN");
