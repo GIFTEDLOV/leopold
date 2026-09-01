@@ -121,12 +121,11 @@ async function submitOnce(
 async function main(): Promise<void> {
   if (network.name !== "sepolia") throw new Error("OFFICIAL_V2_SMOKE_REQUIRES_SEPOLIA");
   const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8")) as {
-    implementation: string;
     deploymentStatus: string;
     network: { chainId: number };
     officialVaults: Array<{ implementation: string; automaticEntry: boolean; vault: string; bondEscrow: string }>;
   };
-  if (manifest.implementation !== "v2" || manifest.deploymentStatus !== "OFFICIAL_SEPOLIA_DEPLOYED") {
+  if (manifest.deploymentStatus !== "OFFICIAL_SEPOLIA_DEPLOYED") {
     throw new Error("OFFICIAL_V2_SMOKE_MANIFEST_NOT_ADOPTED");
   }
   if (manifest.network.chainId !== 11155111 || manifest.officialVaults.length !== 1) {
