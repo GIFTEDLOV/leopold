@@ -204,8 +204,10 @@ async function main(): Promise<void> {
   for (const [index, participant] of participants.entries()) {
     const prefix = `participant-${index + 1}`;
     const publicBalance = (await usdc.getFunction("balanceOf")(participant.address)) as bigint;
-    if (publicBalance < DEPOSIT) throw new Error(`OFFICIAL_V2_SMOKE_USDC_SHORTFALL:${index + 1}`);
     const wrappedBefore = (await wrapper.getFunction("confidentialBalanceOf")(participant.address)) as string;
+    if (publicBalance < DEPOSIT && wrappedBefore === ethers.ZeroHash) {
+      throw new Error(`OFFICIAL_V2_SMOKE_USDC_SHORTFALL:${index + 1}`);
+    }
     const txs: JournalEntry[] = [];
     if (wrappedBefore === ethers.ZeroHash) {
       txs.push(
