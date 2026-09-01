@@ -36,6 +36,7 @@
     "scripts/validate-sg4-randomness-evidence.ts",
     "scripts/verify-sg4-randomness-receipts.ts",
     "scripts/deploy-leopold-official.ts",
+    "scripts/deploy-leopold-v2-official.ts",
     "scripts/deploy-leopold-v2-disposable.ts",
     "scripts/leopold-deployment-provenance.ts",
     "scripts/leopold-fhe-retry.ts",

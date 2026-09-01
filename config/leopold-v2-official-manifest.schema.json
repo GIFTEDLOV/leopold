@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://leopold.invalid/schema/official-v2-sepolia-deployment-v1.json",
+  "title": "Leopold official V2 Sepolia deployment evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "implementation",
+    "releaseEnvironment",
+    "candidate",
+    "chainId",
+    "deployer",
+    "keeperAddress",
+    "wrapper",
+    "vault",
+    "escrow",
+    "adapter",
+    "canonicalUsdc",
+    "compoundComet",
+    "deployments",
+    "constructorArguments",
+    "runtimeHashes",
+    "compiler",
+    "deployment",
+    "topology",
+    "migrationPerformed",
+    "v1Preservation"
+  ],
+  "properties": {
+    "schema": { "const": "leopold.official-v2-sepolia-deployment.v1" },
+    "classification": { "const": "OFFICIAL V2 SEPOLIA TESTNET DEPLOYMENT" },
+    "implementation": { "const": "v2" },
+    "releaseEnvironment": { "const": "SEPOLIA_TESTNET" },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "tree", "sg4Binding"],
+      "properties": {
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "tree": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "sg4Binding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "fileSha256", "canonicalSha256"],
+          "properties": {
+            "path": { "const": "scripts/sg4-hcu-authority-bindings/v2.json" },
+            "fileSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "canonicalSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        }
+      }
+    },
+    "chainId": { "const": 11155111 },
+    "deployer": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "keeperAddress": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "wrapper": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "vault": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "escrow": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "adapter": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "canonicalUsdc": { "const": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" },
+    "compoundComet": { "const": "0xAec1F48e02Cfb822Be958B68C7957156EB3F0b6e" },
+    "deployments": { "type": "object", "minProperties": 2 },
+    "constructorArguments": { "type": "object" },
+    "runtimeHashes": { "type": "object", "required": ["vault", "escrow"] },
+    "compiler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "optimizerRuns", "viaIR", "evmVersion", "metadataBytecodeHash"],
+      "properties": {
+        "version": { "const": "0.8.27" },
+        "optimizerRuns": { "const": 1 },
+        "viaIR": { "const": true },
+        "evmVersion": { "const": "cancun" },
+        "metadataBytecodeHash": { "const": "none" }
+      }
+    },
+    "deployment": { "type": "object", "required": ["blockNumber", "timestamp"] },
+    "topology": { "type": "object" },
+    "cadence": { "type": "object" },
+    "migrationPerformed": { "const": false },
+    "v1Preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifestPath", "unchanged", "migrationPerformed"],
+      "properties": {
+        "manifestPath": { "const": "config/leopold-frontend-contracts.json" },
+        "unchanged": { "const": true },
+        "migrationPerformed": { "const": false }
+      }
+    },
+    "sourceProvenance": { "type": "object" },
+    "deploymentJournalPath": { "type": "string", "minLength": 1 }
+  }
+}
