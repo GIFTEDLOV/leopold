@@ -26,6 +26,7 @@ import {
   type VaultSnapshot,
 } from "./lifecycle.js";
 import { actionChunkSize } from "./planner.js";
+import { applyGasPolicy, DEFAULT_GAS_POLICY, type GasPolicyConfig } from "./gas-policy.js";
 
 const vaultInterface = new Interface(LEOPOLD_VAULT_ABI);
 const escrowInterface = new Interface(LEOPOLD_BOND_ESCROW_ABI);
@@ -123,6 +124,7 @@ export class EthersKeeperGateway implements KeeperGateway {
   readonly #autoEntryScanSize: number;
   readonly #historicalScanSize: number;
   readonly #checkpoints: KeeperCheckpointStore;
+  readonly #gasPolicy: GasPolicyConfig;
 
   readonly keeperAddress: string;
 
@@ -133,6 +135,7 @@ export class EthersKeeperGateway implements KeeperGateway {
     readonly proofProvider: PublicProofProvider;
     readonly autoEntryScanSize: number;
     readonly historicalScanSize: number;
+    readonly gasPolicy?: GasPolicyConfig;
     readonly checkpoints: KeeperCheckpointStore;
   }) {
     if (options.rpcUrls.length === 0 || options.rpcUrls.some((url) => url.trim().length === 0)) {
@@ -163,6 +166,7 @@ export class EthersKeeperGateway implements KeeperGateway {
     }
     this.#historicalScanSize = options.historicalScanSize;
     this.#checkpoints = options.checkpoints;
+    this.#gasPolicy = options.gasPolicy ?? DEFAULT_GAS_POLICY;
     this.keeperAddress = getAddress(this.#wallet.address);
   }
 
@@ -385,7 +389,18 @@ export class EthersKeeperGateway implements KeeperGateway {
   }
 
   async sign(action: LifecycleAction, data: string): Promise<SignedLifecycleTransaction> {
-    const request = await this.#wallet.populateTransaction({ to: this.#target(action), data });
+    const target = this.#target(action);
+    let estimatedGas: bigint | undefined;
+    let estimationFallback = false;
+    try {
+      estimatedGas = await this.#provider.estimateGas({ from: this.keeperAddress, to: target, data });
+    } catch (error) {
+      const floor = this.#gasPolicy.floors[action.kind];
+      if (floor === undefined) throw error;
+      estimationFallback = true;
+    }
+    const gasPolicy = applyGasPolicy(action.kind, estimatedGas, this.#gasPolicy, estimationFallback);
+    const request = await this.#wallet.populateTransaction({ to: target, data, gasLimit: gasPolicy.gasLimit });
     const serialized = await this.#wallet.signTransaction(request);
     const nonce = request.nonce;
     if (nonce === undefined || nonce === null || request.gasLimit === undefined || request.gasLimit === null) {
@@ -402,6 +417,7 @@ export class EthersKeeperGateway implements KeeperGateway {
       maximumCostWei:
         getBigInt(request.gasLimit) * getBigInt(feePerGas) +
         (request.value === undefined || request.value === null ? 0n : getBigInt(request.value)),
+      gasPolicy,
     };
   }
 

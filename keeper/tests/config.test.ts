@@ -24,6 +24,8 @@ describe("keeper credential isolation", () => {
     expect(config.POLL_INTERVAL_MS).toBe(15000);
     expect(config.KEEPER_MAX_BALANCE_WEI).toBe(100000000000000000n);
     expect(config.KEEPER_AUTO_ENTRY_SCAN_SIZE).toBe(50);
+    expect(config.GAS_POLICY.multiplierBps).toBe(12_500);
+    expect(config.GAS_POLICY.floors["close-round"]).toBe(750_000n);
     expect(config.RPC_URLS).toEqual(["https://example.invalid/"]);
 
     expect(config.KEEPER_ADDRESS).toBe(privateKeyToAccount(keeperPrivateKey).address);
@@ -77,6 +79,22 @@ describe("keeper credential isolation", () => {
       SEPOLIA_RPC_URLS: "https://example.invalid/, https://fallback.invalid/rpc",
     });
     expect(config.RPC_URLS).toEqual(["https://example.invalid/", "https://fallback.invalid/rpc"]);
+  });
+
+  it("parses reviewed gas-policy overrides", () => {
+    const config = loadConfig({
+      ...validEnvironment,
+      KEEPER_GAS_MULTIPLIER_BPS: "13000",
+      KEEPER_GAS_MARGIN_UNITS: "30000",
+      KEEPER_GAS_MAX_LIMIT: "1600000",
+      KEEPER_GAS_FLOORS: "close-round=800000",
+    });
+    expect(config.GAS_POLICY).toMatchObject({
+      multiplierBps: 13000,
+      additiveMargin: 30000n,
+      maximumGasLimit: 1600000n,
+    });
+    expect(config.GAS_POLICY.floors["close-round"]).toBe(800000n);
   });
 
   it("rejects invalid fallback URLs and inverted balance limits", () => {

@@ -4,6 +4,7 @@ import path from "node:path";
 import { ethers, network } from "hardhat";
 import type { TransactionResponse } from "ethers";
 import { chromium } from "../frontend/node_modules/@playwright/test";
+import { retrySafeFheOperation } from "./leopold-fhe-retry";
 
 const CHAIN_ID = 11_155_111n;
 const USDC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
@@ -161,32 +162,58 @@ async function createBrowserFhe(
     { addressA, addressB },
   );
   const page = await context.newPage();
-  await page.goto("http://127.0.0.1:3000/e2e-closure", { waitUntil: "domcontentloaded", timeout: 30_000 });
-  await page.waitForFunction(() => window.__leopoldClosureReady === true, undefined, { timeout: 30_000 });
+  const helperUrl = process.env.LEOPOLD_FHE_HELPER_URL ?? "http://localhost:3000/e2e-closure";
+  await retrySafeFheOperation(
+    "browser-route-ready",
+    async () => {
+      await page.goto(helperUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      await page.waitForFunction(() => window.__leopoldClosureReady === true, undefined, { timeout: 30_000 });
+    },
+    {
+      attempts: 3,
+      timeoutMs: 60_000,
+      onRetry: (diagnostic) => process.stderr.write(`FHE_HELPER_RETRY ${JSON.stringify(diagnostic)}\n`),
+    },
+  );
   return {
     async encrypt(account, contractAddress, amount) {
-      return page.evaluate(
-        async ({ account: a, contractAddress: c, amount: value }) => {
-          if (!window.__leopoldClosureApi) throw new Error("CLOSURE_API_NOT_READY");
-          return window.__leopoldClosureApi.encrypt(a as `0x${string}`, c as `0x${string}`, value);
-        },
-        { account, contractAddress, amount: amount.toString() },
+      return retrySafeFheOperation(
+        "encrypt",
+        () =>
+          page.evaluate(
+            async ({ account: a, contractAddress: c, amount: value }) => {
+              if (!window.__leopoldClosureApi) throw new Error("CLOSURE_API_NOT_READY");
+              return window.__leopoldClosureApi.encrypt(a as `0x${string}`, c as `0x${string}`, value);
+            },
+            { account, contractAddress, amount: amount.toString() },
+          ),
+        { onRetry: (diagnostic) => process.stderr.write(`FHE_HELPER_RETRY ${JSON.stringify(diagnostic)}\n`) },
       );
     },
     async publicDecrypt(handle) {
-      const result = await page.evaluate(async (h) => {
-        if (!window.__leopoldClosureApi) throw new Error("CLOSURE_API_NOT_READY");
-        return window.__leopoldClosureApi.publicDecrypt(h as `0x${string}`);
-      }, handle);
+      const result = await retrySafeFheOperation(
+        "public-decrypt",
+        () =>
+          page.evaluate(async (h) => {
+            if (!window.__leopoldClosureApi) throw new Error("CLOSURE_API_NOT_READY");
+            return window.__leopoldClosureApi.publicDecrypt(h as `0x${string}`);
+          }, handle),
+        { onRetry: (diagnostic) => process.stderr.write(`FHE_HELPER_RETRY ${JSON.stringify(diagnostic)}\n`) },
+      );
       return { ...result, clear: typeof result.clear === "boolean" ? result.clear : BigInt(result.clear) };
     },
     async decrypt(account, contractAddress, handle) {
-      const result = await page.evaluate(
-        async ({ account: a, contractAddress: c, handle: h }) => {
-          if (!window.__leopoldClosureApi) throw new Error("CLOSURE_API_NOT_READY");
-          return window.__leopoldClosureApi.decrypt(a as `0x${string}`, c as `0x${string}`, h as `0x${string}`);
-        },
-        { account, contractAddress, handle },
+      const result = await retrySafeFheOperation(
+        "decrypt",
+        () =>
+          page.evaluate(
+            async ({ account: a, contractAddress: c, handle: h }) => {
+              if (!window.__leopoldClosureApi) throw new Error("CLOSURE_API_NOT_READY");
+              return window.__leopoldClosureApi.decrypt(a as `0x${string}`, c as `0x${string}`, h as `0x${string}`);
+            },
+            { account, contractAddress, handle },
+          ),
+        { onRetry: (diagnostic) => process.stderr.write(`FHE_HELPER_RETRY ${JSON.stringify(diagnostic)}\n`) },
       );
       return BigInt(result.clear);
     },

@@ -15,14 +15,23 @@ async function manifestPath(document: unknown): Promise<string> {
   return file;
 }
 
-function document(vaults: unknown[]) {
+function document(vaults: unknown[], authorityBinding?: unknown) {
   return {
     schema: "leopold.frontend-contract-manifest.v1",
     network: { name: "ethereum-sepolia", chainId: 11_155_111 },
     deploymentStatus: "OFFICIAL_SEPOLIA_DEPLOYED",
     officialVaults: vaults,
+    ...(authorityBinding === undefined ? {} : { authorityBinding }),
   };
 }
+
+const v2AuthorityBinding = {
+  targetId: "LEOPOLD_V2_SEPOLIA",
+  targetScope: "LEOPOLD_V2_RELEASE",
+  path: "scripts/sg4-hcu-authority-bindings/v2.json",
+  schema: "zama-szn4.sg4-hcu-authority-binding.v5",
+  recordVersion: 5,
+};
 
 const vault = {
   id: 1,
@@ -41,12 +50,15 @@ describe("official vault manifest", () => {
     const frozen = await loadOfficialVaults(await manifestPath(document([vault])));
     expect(frozen[0]?.automaticEntry).toBe(false);
     const automatic = await loadOfficialVaults(
-      await manifestPath(document([{ ...vault, implementation: "v2", automaticEntry: true }])),
+      await manifestPath(document([{ ...vault, implementation: "v2", automaticEntry: true }], v2AuthorityBinding)),
     );
     expect(automatic[0]?.automaticEntry).toBe(true);
     await expect(
       loadOfficialVaults(await manifestPath(document([{ ...vault, automaticEntry: true }]))),
     ).rejects.toThrow("explicit V2");
+    await expect(
+      loadOfficialVaults(await manifestPath(document([{ ...vault, implementation: "v2", automaticEntry: true }]))),
+    ).rejects.toThrow("authority binding selection");
   });
 
   it("rejects the wrong chain and duplicate vault identities", async () => {

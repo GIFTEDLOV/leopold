@@ -110,6 +110,15 @@ export type SignedLifecycleTransaction = {
   readonly serialized: string;
   readonly calldataHash: string;
   readonly maximumCostWei: bigint;
+  readonly gasPolicy?: {
+    readonly action: LifecycleActionKind;
+    readonly estimatedGas?: bigint;
+    readonly gasFloor?: bigint;
+    readonly multiplierBps: number;
+    readonly additiveMargin: bigint;
+    readonly gasLimit: bigint;
+    readonly estimationFallback?: boolean;
+  };
 };
 
 export type ReceiptView = Pick<TransactionReceipt, "hash" | "blockHash" | "blockNumber" | "status"> & {

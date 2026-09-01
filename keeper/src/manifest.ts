@@ -4,37 +4,56 @@ import { z } from "zod";
 
 import { SEPOLIA_CHAIN_ID, type VaultConfig } from "./lifecycle.js";
 
-const manifestSchema = z.object({
-  schema: z.literal("leopold.frontend-contract-manifest.v1"),
-  network: z.object({
-    name: z.literal("ethereum-sepolia"),
-    chainId: z.number().int(),
-  }),
-  deploymentStatus: z.literal("OFFICIAL_SEPOLIA_DEPLOYED"),
-  officialVaults: z
-    .array(
-      z
-        .object({
-          id: z.number().int().positive(),
-          type: z.string().min(1),
-          name: z.string().min(1),
-          vault: z.string(),
-          bondEscrow: z.string(),
-          implementation: z.enum(["v1", "v2"]).default("v1"),
-          automaticEntry: z.boolean().default(false),
-        })
-        .superRefine((vault, context) => {
-          if (vault.automaticEntry && vault.implementation !== "v2") {
-            context.addIssue({
-              code: "custom",
-              path: ["implementation"],
-              message: "Automatic entry requires an explicit V2 vault/escrow implementation marker",
-            });
-          }
-        }),
-    )
-    .min(1),
-});
+const manifestSchema = z
+  .object({
+    schema: z.literal("leopold.frontend-contract-manifest.v1"),
+    network: z.object({
+      name: z.literal("ethereum-sepolia"),
+      chainId: z.number().int(),
+    }),
+    deploymentStatus: z.literal("OFFICIAL_SEPOLIA_DEPLOYED"),
+    authorityBinding: z
+      .object({
+        targetId: z.literal("LEOPOLD_V2_SEPOLIA"),
+        targetScope: z.literal("LEOPOLD_V2_RELEASE"),
+        path: z.literal("scripts/sg4-hcu-authority-bindings/v2.json"),
+        schema: z.literal("zama-szn4.sg4-hcu-authority-binding.v5"),
+        recordVersion: z.literal(5),
+      })
+      .optional(),
+    officialVaults: z
+      .array(
+        z
+          .object({
+            id: z.number().int().positive(),
+            type: z.string().min(1),
+            name: z.string().min(1),
+            vault: z.string(),
+            bondEscrow: z.string(),
+            implementation: z.enum(["v1", "v2"]).default("v1"),
+            automaticEntry: z.boolean().default(false),
+          })
+          .superRefine((vault, context) => {
+            if (vault.automaticEntry && vault.implementation !== "v2") {
+              context.addIssue({
+                code: "custom",
+                path: ["implementation"],
+                message: "Automatic entry requires an explicit V2 vault/escrow implementation marker",
+              });
+            }
+          }),
+      )
+      .min(1),
+  })
+  .superRefine((manifest, context) => {
+    if (manifest.officialVaults.some((vault) => vault.automaticEntry) && manifest.authorityBinding === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["authorityBinding"],
+        message: "Automatic V2 entry requires explicit SG-4 V2 authority binding selection",
+      });
+    }
+  });
 
 export async function loadOfficialVaults(manifestPath: string): Promise<readonly VaultConfig[]> {
   const parsed = manifestSchema.parse(JSON.parse(await readFile(manifestPath, "utf8")));

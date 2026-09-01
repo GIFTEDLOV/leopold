@@ -11,10 +11,14 @@ the V2 wallet they intend to use.
 
 ## Reproducible local evidence
 
-- Production Solidity settings are the repository optimizer/via-IR/Cancun settings; the V2 vault runtime is
-  byte-for-byte equal to the frozen V1 runtime and is validated by `scripts/validate-leopold-auto-entry-bytecode.cjs`.
+- Production Solidity settings are the repository optimizer/via-IR/Cancun settings for both V2 sources; the V2 vault
+  runtime is byte-for-byte equal to the frozen V1 runtime and is validated by
+  `scripts/validate-leopold-auto-entry-bytecode.cjs`. The V2 escrow now has the same explicit override as the V2 vault,
+  so standalone compilation and the escrow creation path embedded in the V2 vault use one canonical artifact.
 - `LeopoldVaultV2`: 23,531 runtime bytes, 1,045 EIP-170 bytes of headroom, 38,979 creation bytes.
-- `LeopoldSettlementBondEscrowV2`: 7,711 runtime bytes, 16,865 EIP-170 bytes of headroom, 8,259 creation bytes.
+- `LeopoldSettlementBondEscrowV2`: 6,169 runtime bytes, 18,407 EIP-170 bytes of headroom, 6,605 creation bytes.
+- Canonical V2 runtime SHA-256: `LeopoldVaultV2` `96020d75ea78c1adb8c80f56544e7ab381934f3563242946825fe343e3ddf301`;
+  `LeopoldSettlementBondEscrowV2` `a6a01e2d15d6e125d12865b831a62b1b1448a0fd1e009315fdb8829dbfd33f52`.
 - Source SHA-256: `LeopoldVaultV2` `ff12019fccf541bf2a48d4b18269d275f77f2bfb2bcbf315610d0cceb88af1e7`;
   `LeopoldSettlementBondEscrowV2` `5c67e94da167dab81c439294d493375b449151999cb2110c76a870a8891df181`.
 - Four-participant V2 selection and allocation remain below 15,000,000 total HCU and 3,750,000 depth.

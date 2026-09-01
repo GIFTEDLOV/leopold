@@ -1,0 +1,110 @@
+{
+  "schema": "leopold.disposable-v2-proof.v2",
+  "classification": "DISPOSABLE V2 SEPOLIA PROOF — NOT OFFICIAL DEPLOYMENT",
+  "status": "ABORTED_BEFORE_PARTICIPANT_REGISTRATION",
+  "abortReason": [
+    "Round 1 and Round 2 legal save windows elapsed before participant setup completed.",
+    "The scheduler preserves fixed cadence, requiring empty-round catch-up; the reviewed keeper under-estimated close-round gas twice and mined reverted transactions.",
+    "The local browser FHE helper was unavailable during the next live window, so no encrypted save was submitted.",
+    "The topology artifact’s embedded sourceCommitSha is 69b24a14cf7c9491c1fa0c30c378b8b771e6b70e while the reviewed deployment source checkpoint is 17ed66f1bfd696f72317e96662902eb3c3436245; provenance must be corrected before another proof."
+  ],
+  "sourceCommitSha": "17ed66f1bfd696f72317e96662902eb3c3436245",
+  "network": { "name": "sepolia", "chainId": "11155111" },
+  "topologyEvidence": {
+    "path": "/tmp/leopold-v2-disposable-topology-v2.json",
+    "sha256": "1a1e2a7756ef0e0054ccdc7abfca39fda929797b5218e568ad1a95da422cb399",
+    "failedPriorTopologyPath": "/tmp/leopold-v2-disposable-topology.json",
+    "failedPriorTopologySha256": "2f0189d02af39dfb05c7e864f022d0b5e8642f6e7f9b6a153c5fdbc8723682da"
+  },
+  "contracts": {
+    "wrapper": "0x5499B0270BfFba67C7ce77EF87F0a1F3B87f0881",
+    "vault": "0x5A59B9A6e95d4ede371bc2b2a1270D434af6037c",
+    "escrow": "0x2F6C4c6f8aa660826B501D43d4f54383d5431438",
+    "adapter": "0x01EFA68c117aC648D9325Cf16b9CcFe7eA52650D"
+  },
+  "runtime": {
+    "vault": { "bytes": 23531, "sha256": "06e3efce73c02465a30282a211b93b34b004bf2bcb7bdf179cf60c3070d4c673" },
+    "escrow": { "bytes": 6169, "sha256": "2be37f60a0f5cd0a2faaa69de7a676c19e33a266b9ead1b532757b5d7a7668bf" }
+  },
+  "participants": [
+    {
+      "address": "0xbE0dbCF88C84CB0aa0b58c50151C583DabEd6CeD",
+      "creditWei": "200000000000000",
+      "autoEntry": { "enabled": true, "effectiveRound": "2" }
+    },
+    {
+      "address": "0x4AA75AC27b19a2A2Ba206c5B7B4FCfE5552611C9",
+      "creditWei": "400000000000000",
+      "autoEntry": { "enabled": true, "effectiveRound": "2" }
+    }
+  ],
+  "keepers": ["0x2f977Ec4F1Ef6e43E22D12b2CB293C3B361ADbB4", "0x91fD1523544EcbAb075d36A5203D7699541170dB"],
+  "publicTransactions": {
+    "participantAApprove": "0xf3c65c26dc99c8937e07c8051c61fd2aab1b08e1ec4a89094da8bdc3b7a409d1",
+    "participantAWrap": "0xc2d2420b541bee63fdfa40cecc9a6a1c86f59c30de2bdfcecca7998b077d1ea2",
+    "participantACredit": "0xa22e45ce4623e5b8561cbe40c1b1ea6882dc6e850b5b09913ff023a3fd403274",
+    "participantAAutoEntry": "0x85c42e3d57c8cd386d7e5ebf2c734ec7dd1cf4aad4753179318d9b7110316a43",
+    "participantBCredit": "0x6e2d885db8166f83e69ba0ae3f46f1d9023b8d57a8816a5e4364953171fdf76e",
+    "participantBAutoEntry": "0xb60f954b5805678f4f31f8c7b3031ef49b2c1eaaba73610b6a8bdc4dc261c2e7",
+    "participantBApprove": "0xb10bf003da8d30d6c034850d41d94675bb72cfb39820c0e5318c1f05014e88c4",
+    "participantBWrap": "0x8ee814ac1d1c1516921c89f5cba14bf81e6189bccb5eca9097fdf9375d322020",
+    "keeper1CloseRound1": "0xee46c426b5ce8017a1ec49cafa7b99e1797f278c52dc5bacd8d3a247d045e702",
+    "keeper1CloseRound2": "0xec8aae584ce3466c9ebc255b43c644635d74f2a0c4e065c4ba68c4c440c87f18",
+    "keeper1CloseRound3": "0xc730cbf11b9f1b60a8d80e1fcb1bc5bff0c45929cecf75535720eb586d595fe4",
+    "keeper1CloseRound4Reverted": "0x77c50e2534fe762af49dc2a77ff3668e03153676f2bfb8537cd56fdaf9b66edd",
+    "keeper2CloseRound4": "0xcfd653fcf683abd633ade30676977e89fff8eba2051b630496e21003ac6e16a9",
+    "keeper2CloseRound6Reverted": "0x6a75e4be41ca537d37305e911b9748e327d39466b23ca1d4f8fafd479830cda7"
+  },
+  "rounds": {
+    "bootstrapRound1": { "state": "AGGREGATE_PENDING", "participantCount": 0, "saved": false },
+    "round2": { "state": "AGGREGATE_PENDING", "participantCount": 0, "autoEntryRegistrations": 0, "settled": false },
+    "round3": { "state": "AGGREGATE_PENDING", "participantCount": 0, "autoEntryRegistrations": 0, "settled": false },
+    "activeAtFinalSnapshot": { "roundId": 33, "state": "OPEN", "participantCount": 0, "saved": false }
+  },
+  "autoEntryProof": {
+    "round2": "NOT_PROVEN",
+    "round3": "NOT_PROVEN",
+    "manualRegistrationTransactions": 0,
+    "participantIdentityChecks": "NOT_REACHED"
+  },
+  "privacyProof": {
+    "wrapperHandlesExist": true,
+    "vaultPrincipalHandles": "zero",
+    "acceptedTicket": "NOT_CREATED",
+    "negativeDecryptTests": "NOT_REACHED"
+  },
+  "accountingFinalSnapshot": {
+    "escrowBalanceWei": "600000000000000",
+    "totalNativeFundedWei": "600000000000000",
+    "totalAutomationCreditWei": "600000000000000",
+    "totalUnresolvedLiabilityWei": "0",
+    "totalRewardLiabilityWei": "0",
+    "totalRefundLiabilityWei": "0",
+    "totalDepositedWei": "0",
+    "totalAutomationCreditWithdrawnWei": "0",
+    "totalRewardsWithdrawnWei": "0",
+    "totalRefundsWithdrawnWei": "0",
+    "solvent": true
+  },
+  "finalReadSnapshot": {
+    "blockNumber": 11606925,
+    "blockHash": "0x767ea3e7d9875eee3f25c04ce8b8a2c34712866afcfc616c1afe0eabe1ca03cd",
+    "blockTimestamp": 1788194556,
+    "activeRoundId": 33
+  },
+  "drills": {
+    "twoKeeperRace": "NOT_REACHED",
+    "rpcOutage": "NOT_REACHED",
+    "rpcDivergence": "NOT_REACHED",
+    "crashRestart": "KEEPER_JOURNALS_PRESERVED",
+    "liveReorg": "NOT_INDUCED",
+    "deterministicReorgTests": "PREVIOUSLY_PASSING"
+  },
+  "preservedArtifacts": [
+    "/tmp/leopold-v2-disposable-topology.json",
+    "/tmp/leopold-v2-disposable-topology-v2.json",
+    "/tmp/leopold-keeper-1.json",
+    "/tmp/leopold-keeper-2.json",
+    "/tmp/leopold-v2-disposable-catchup.json"
+  ]
+}
