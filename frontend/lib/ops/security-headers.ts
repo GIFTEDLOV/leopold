@@ -25,11 +25,11 @@ export function buildContentSecurityPolicy(dynamicApiBaseUrl = process.env.NEXT_
     // needs wasm-unsafe-eval; general unsafe-eval is intentionally omitted.
     "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
     "style-src 'self' 'unsafe-inline' https://app.dynamic.xyz",
-    "font-src 'self' data:",
+    "font-src 'self' data: https://cdn.jsdelivr.net",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
-    `connect-src 'self' ${rpcOrigin} ${zamaOrigin} https://zama-mpc-testnet-public-efd88e2b.s3.eu-west-1.amazonaws.com ${dynamicApiOrigin} https://app.dynamic.xyz https://*.dynamic.xyz https://*.dynamicauth.com https://relay.walletconnect.com wss://relay.walletconnect.com https://*.walletconnect.com wss://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.org`,
+    `connect-src 'self' ${rpcOrigin} ${zamaOrigin} https://zama-mpc-testnet-public-efd88e2b.s3.eu-west-1.amazonaws.com https://dynamic-static-assets.com https://*.dynamic-static-assets.com ${dynamicApiOrigin} https://app.dynamic.xyz https://*.dynamic.xyz https://*.dynamicauth.com https://relay.walletconnect.com wss://relay.walletconnect.com https://*.walletconnect.com wss://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.org`,
     "frame-src 'self' https://app.dynamic.xyz https://*.dynamic.xyz https://*.dynamicauth.com https://verify.walletconnect.com",
     "manifest-src 'self'",
   ].join("; ");

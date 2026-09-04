@@ -10,6 +10,17 @@ export function WalletGate({ children }: { children: ReactNode }) {
   const financial = useFinancial();
   const auth = useAuth();
   const mode = deriveWalletGateMode(auth.accountStatus, auth.financialWalletMetadata.status);
+  if (auth.initializationError)
+    return (
+      <div className="wallet-gate" data-testid="auth-initialization-error" role="alert">
+        <span className="brand-mark">L</span>
+        <h2>Authentication provider unavailable</h2>
+        <p>{auth.initializationError}</p>
+        <button className="button" type="button" onClick={() => window.location.reload()}>
+          Retry authentication
+        </button>
+      </div>
+    );
   if (mode === "AUTH_LOADING")
     return (
       <div className="wallet-gate" data-testid="auth-initializing">

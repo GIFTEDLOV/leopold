@@ -68,6 +68,7 @@ const serverMountedSnapshot = () => false;
 export type AuthContextValue = {
   clientReady: boolean;
   hydrationPhase: ReturnType<typeof getAuthHydrationPhase>;
+  initializationError: string | null;
   account: AccountState;
   accountStatus: AccountStatus;
   accountAuthentication: AccountState["authentication"];
@@ -181,6 +182,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
   const social = useSocialAccounts();
   const [otpSent, setOtpSent] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [initializationFailed, setInitializationFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [accountConflict, setAccountConflict] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -199,7 +201,17 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
     serverMountedSnapshot,
   );
 
+  useEffect(() => {
+    if (sdkHasLoaded) return;
+    const timeout = window.setTimeout(() => setInitializationFailed(true), 10_000);
+    return () => window.clearTimeout(timeout);
+  }, [sdkHasLoaded]);
+
   const clientReady = clientMounted && sdkHasLoaded;
+  const initializationError =
+    !sdkHasLoaded && initializationFailed
+      ? "Dynamic authentication could not initialize. Check that this Preview origin is allowed in Dynamic, then retry."
+      : null;
   const account = useMemo(
     () => deriveAccountState({ clientReady, completedUser: user, incompleteUser: userWithMissingInfo }),
     [clientReady, user, userWithMissingInfo],
@@ -423,6 +435,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
     () => ({
       clientReady,
       hydrationPhase: getAuthHydrationPhase(clientReady),
+      initializationError,
       account,
       accountStatus: account.status,
       accountAuthentication: account.authentication,
@@ -616,6 +629,7 @@ function DynamicAuthState({ children }: { children: ReactNode }) {
       account,
       accountIdentity,
       clientReady,
+      initializationError,
       activeNetworkId,
       activeWalletAddress,
       busy,
@@ -704,6 +718,7 @@ function FixtureAuthState({ children }: { children: ReactNode }) {
     () => ({
       clientReady: true,
       hydrationPhase: getAuthHydrationPhase(true),
+      initializationError: null,
       account,
       accountStatus: account.status,
       accountAuthentication: account.authentication,

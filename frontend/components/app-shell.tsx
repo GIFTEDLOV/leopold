@@ -242,7 +242,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : null}
           </div>
         ) : null}
-        {isV2 ? <button className={styles.wallet} type="button" aria-label={`Prize Savings status: ${session.status.toLowerCase()}`}>
+        {isV2 ? <button className={styles.wallet} type="button" aria-label={`Wallet status: ${session.status.toLowerCase()}`}>
           {session.status === "CONNECTED" ? "Connected" : session.status === "WRONG_NETWORK" ? "Wrong network" : session.status === "BOOTSTRAPPING" ? "Checking…" : "Disconnected"}
         </button> : null}
         {isV2 ? pathname === "/app" ? (

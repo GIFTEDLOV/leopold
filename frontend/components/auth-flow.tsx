@@ -66,6 +66,15 @@ export function LoginClient() {
           <p className="subtle">This environment has no Dynamic environment ID. No test or fake login is available.</p>
         </div>
       ) : null}
+      {auth.initializationError ? (
+        <div className="error" role="alert">
+          <strong>Authentication provider unavailable.</strong>
+          <p>{auth.initializationError}</p>
+          <button className="button secondary" type="button" onClick={() => window.location.reload()}>
+            Retry authentication
+          </button>
+        </div>
+      ) : null}
       {!auth.otpSent ? (
         <form className="auth-form" onSubmit={(event) => void requestOtp(event)}>
           <label className="card-label" htmlFor="login-email">
@@ -81,7 +90,7 @@ export function LoginClient() {
             placeholder="you@example.com"
             required
           />
-          <button className="button" disabled={submitting || !auth.configured} type="submit">
+          <button className="button" disabled={submitting || !auth.configured || Boolean(auth.initializationError)} type="submit">
             {submitting ? "Sending…" : "Continue with email"}
           </button>
         </form>
@@ -113,7 +122,7 @@ export function LoginClient() {
         className="button secondary"
         type="button"
         onClick={auth.openWalletAuthentication}
-        disabled={!auth.configured}
+        disabled={!auth.configured || Boolean(auth.initializationError)}
       >
         Continue with wallet
       </button>

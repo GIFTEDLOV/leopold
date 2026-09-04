@@ -15,6 +15,8 @@ describe("operations surface and release hardening", () => {
     expect(csp).toContain("ethereum-sepolia-rpc.publicnode.com");
     expect(csp).toContain("relayer.testnet.zama.org");
     expect(csp).toContain("dynamicauth.com");
+    expect(csp).toContain("dynamic-static-assets.com");
+    expect(csp).toContain("cdn.jsdelivr.net");
     expect(csp).toContain("walletconnect.com");
     expect(headers["Strict-Transport-Security"]).toContain("max-age=31536000");
     expect(headers["X-Content-Type-Options"]).toBe("nosniff");
