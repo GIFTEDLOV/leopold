@@ -1,0 +1,463 @@
+.shell{--bg:#72786f;--board:#121514;--surface:#202322;--surface-2:#282b2a;--surface-3:#303433;--line:rgba(255,255,255,.11);--muted:#9ba19a;--soft:#d9ddd5;--white:#f5f4ed;--gold:#d1b35f;--green:#7cc58a;min-height:100svh;padding:24px;background:radial-gradient(circle at 14% 8%,rgba(224,218,179,.28),transparent 28%),radial-gradient(circle at 88% 92%,rgba(90,113,83,.35),transparent 35%),linear-gradient(135deg,#777c74,#646c64 60%,#74796c);font-family:var(--sans,Arial,sans-serif);color:var(--white)}
+.board{width:min(1410px,100%);min-height:calc(100svh - 48px);margin:0 auto;overflow:hidden;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:linear-gradient(145deg,#151817,#0f1111);box-shadow:0 30px 80px rgba(12,15,12,.34),inset 0 1px rgba(255,255,255,.09)}
+.topbar{position:relative;z-index:5;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px;min-height:78px;padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.08)}
+.brand{display:inline-flex;align-items:center;gap:10px;width:max-content;color:var(--white);font:600 18px/1 Georgia,serif;letter-spacing:-.04em}
+.brandMark{display:grid;place-items:center;width:30px;height:30px;border:1px solid rgba(209,179,95,.8);border-radius:50%;color:var(--gold);font:600 16px Georgia,serif}
+.brandAccent{color:var(--gold)}
+.navPill{display:flex;align-items:center;gap:2px;padding:4px;border:1px solid rgba(255,255,255,.08);border-radius:999px;background:#1b1e1d;box-shadow:inset 0 1px rgba(255,255,255,.045)}
+.navLink{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 15px;border-radius:999px;color:#9ea49d;font:11px/1 var(--sans,Arial,sans-serif);transition:background .18s ease,color .18s ease,transform .18s ease}
+.navLink:hover,.navLink:focus-visible{color:var(--white);transform:translateY(-1px)}
+.navLinkActive{color:var(--white);background:#2b2e2d;box-shadow:inset 0 1px rgba(255,255,255,.08),0 3px 9px rgba(0,0,0,.18)}
+.tools{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.network{display:inline-flex;align-items:center;gap:7px;color:#929a92;font:10px/1 var(--mono,monospace);letter-spacing:.05em;text-transform:uppercase}
+.networkDot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(124,197,138,.12)}
+.profileButton{display:grid;place-items:center;width:38px;height:38px;border:1px solid rgba(255,255,255,.18);border-radius:50%;background:linear-gradient(145deg,#e0bd69,#9c7e39);color:#111714;font:700 13px/1 var(--sans,Arial,sans-serif);box-shadow:0 4px 12px rgba(0,0,0,.24);transition:transform .18s ease,box-shadow .18s ease}
+.profileButton:hover,.profileButton:focus-visible{transform:translateY(-1px);box-shadow:0 7px 17px rgba(0,0,0,.3)}
+.profileMenu{position:absolute;right:23px;top:64px;width:min(270px,calc(100vw - 34px));display:grid;gap:9px;padding:14px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:#232625;box-shadow:0 18px 42px rgba(0,0,0,.36)}
+.profileMenu strong{font:600 15px Georgia,serif}.profileMenu small{color:var(--muted);font-size:11px;line-height:1.45}.profileMenu a{display:flex;align-items:center;justify-content:space-between;padding:10px 11px;border:1px solid rgba(255,255,255,.1);border-radius:9px;color:var(--soft);font-size:12px}.profileMenu a:hover{background:rgba(255,255,255,.06);color:var(--white)}
+.content{padding:38px 34px 58px}
+.pageHeader{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:24px}.pageHeaderCopy{max-width:720px}.kicker{display:block;margin:0 0 9px;color:var(--gold);font:10px/1.2 var(--mono,monospace);letter-spacing:.17em;text-transform:uppercase}.title{margin:0;color:var(--white);font:500 clamp(34px,4vw,57px)/.98 Georgia,serif;letter-spacing:-.045em}.lede{max-width:650px;margin:12px 0 0;color:var(--muted);font-size:14px;line-height:1.55}.headerMeta{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:11px}.status{display:inline-flex;align-items:center;gap:6px;width:max-content;padding:7px 10px;border:1px solid rgba(124,197,138,.28);border-radius:999px;background:rgba(124,197,138,.11);color:#9bd6a4;font:10px/1 var(--mono,monospace);letter-spacing:.05em;text-transform:uppercase}.statusGold{border-color:rgba(209,179,95,.35);background:rgba(209,179,95,.12);color:#e0c77e}.statusNeutral{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#c1c7bf}
+.metricGrid{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:12px;margin-bottom:14px}.metric{min-height:139px;display:flex;flex-direction:column;justify-content:space-between;padding:17px 18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#252827,#1d201f);box-shadow:inset 0 1px rgba(255,255,255,.045),0 10px 22px rgba(0,0,0,.15)}.metricLabel{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#9ca39c;font:10px/1 var(--mono,monospace);letter-spacing:.08em;text-transform:uppercase}.metricIcon{display:grid;place-items:center;width:34px;height:34px;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#d0d5ce;font-size:15px}.metricValue{display:flex;align-items:baseline;gap:8px;margin-top:22px;color:var(--white);font:500 31px/1 Georgia,serif;letter-spacing:-.04em}.metricValue small{color:var(--muted);font:11px/1 var(--mono,monospace);letter-spacing:.08em}.metricNote{margin:7px 0 0;color:#aeb5ad;font-size:11px;line-height:1.4}.metricDelta{color:var(--green);font:10px var(--mono,monospace)}
+.grid{display:grid;gap:12px}.gridMain{grid-template-columns:minmax(0,1.42fr) minmax(290px,.78fr)}.gridTwo{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{min-width:0;padding:18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#222524,#1b1e1d);box-shadow:inset 0 1px rgba(255,255,255,.04),0 10px 22px rgba(0,0,0,.14)}.panelTall{min-height:278px}.panelHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:17px}.panelKicker{margin:0 0 7px;color:#a6ada5;font:9px/1 var(--mono,monospace);letter-spacing:.12em;text-transform:uppercase}.panelTitle{margin:0;color:var(--white);font:500 20px/1.1 Georgia,serif;letter-spacing:-.025em}.panelCopy{margin:0;color:var(--muted);font-size:12px;line-height:1.52}.button{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 13px;border:1px solid rgba(209,179,95,.72);border-radius:9px;background:linear-gradient(180deg,#d9ba6b,#b99549);color:#161814;font:700 10px/1 var(--sans,Arial,sans-serif);letter-spacing:.04em;transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}.button:hover,.button:focus-visible{filter:brightness(1.06);transform:translateY(-1px);box-shadow:0 6px 15px rgba(0,0,0,.2)}.buttonSecondary{border-color:rgba(255,255,255,.17);background:#2b2f2d;color:var(--soft)}.buttonSmall{min-height:29px;padding-inline:10px;font-size:9px}
+.savingHero{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:18px;align-items:stretch}.savingAmount{margin:20px 0 8px;color:var(--white);font:500 clamp(40px,5vw,62px)/.9 Georgia,serif;letter-spacing:-.06em}.savingAmount span{color:var(--muted);font:11px var(--mono,monospace);letter-spacing:.08em}.savingActions{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}.sparkPanel{display:flex;flex-direction:column;justify-content:space-between;padding:14px;border:1px solid rgba(209,179,95,.19);border-radius:12px;background:radial-gradient(circle at 50% 30%,rgba(209,179,95,.18),transparent 44%),#1a1d1c}.sparkPanel span{color:#a8aea5;font:9px var(--mono,monospace);letter-spacing:.1em;text-transform:uppercase}.spark{position:relative;min-height:100px;overflow:hidden}.spark svg{position:absolute;inset:9px 0 0;width:100%;height:78px}.sparkDot{position:absolute;right:22%;top:34%;width:8px;height:8px;border:2px solid #f0cf7a;border-radius:50%;background:#1b1e1d;box-shadow:0 0 0 5px rgba(240,207,122,.12),0 0 18px rgba(240,207,122,.45)}.sparkValue{color:var(--white);font:500 26px Georgia,serif}.sparkLabel{color:var(--muted);font-size:10px}
+.heatmap{display:grid;gap:8px;margin-top:19px}.heatRow{display:grid;grid-template-columns:24px 1fr;align-items:center;gap:8px}.heatLabel{color:#8c948b;font:9px var(--mono,monospace)}.heatCells{display:grid;grid-template-columns:repeat(14,minmax(8px,1fr));gap:4px}.heatCell{height:11px;border-radius:4px;background:#393b38}.heat1{background:#4f3b33}.heat2{background:#80513f}.heat3{background:#b96c4d}.heat4{background:#de8b62}.heat5{background:#efaa76;box-shadow:0 0 8px rgba(239,170,118,.18)}.axis{display:flex;justify-content:space-between;margin:10px 0 0 32px;color:#737b73;font:8px var(--mono,monospace);text-transform:uppercase}
+.drawList{display:grid;gap:0}.drawItem{display:grid;grid-template-columns:1fr auto;gap:12px;padding:12px 0;border-top:1px solid rgba(255,255,255,.09)}.drawItem:first-child{border-top:0;padding-top:0}.drawItem strong{display:block;color:var(--soft);font:14px Georgia,serif}.drawItem span{display:block;margin-top:4px;color:#8e978e;font-size:10px}.drawBadge{align-self:start;padding:5px 7px;border:1px solid rgba(124,197,138,.3);border-radius:999px;color:#9bd6a4;font:8px var(--mono,monospace);text-transform:uppercase}.routeCard{position:relative;min-height:105px;margin-top:17px;overflow:hidden;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:radial-gradient(circle at 23% 62%,rgba(209,179,95,.25) 0 3px,transparent 4px),radial-gradient(circle at 74% 28%,rgba(124,197,138,.25) 0 2px,transparent 3px),linear-gradient(145deg,#303533,#1d211f)}.routeCard:before{content:"";position:absolute;left:19%;top:62%;width:58%;height:1px;background:linear-gradient(90deg,transparent,#d1b35f 15%,#d1b35f 80%,transparent);transform:rotate(-25deg);box-shadow:0 0 9px rgba(209,179,95,.6)}.routeCard:after{content:"";position:absolute;left:20%;top:57%;width:8px;height:8px;border:2px solid #dfbf68;border-radius:50%;box-shadow:108px -48px 0 -1px #7cc58a,108px -48px 0 1px rgba(124,197,138,.65)}.routeCaption{position:absolute;left:12px;bottom:10px;color:#bfc6bc;font:9px var(--mono,monospace);letter-spacing:.04em}
+.inlineStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:15px}.inlineStats div{padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#1a1d1c}.inlineStats span{display:block;color:#899188;font:8px var(--mono,monospace);letter-spacing:.08em;text-transform:uppercase}.inlineStats strong{display:block;margin-top:7px;color:var(--soft);font:18px Georgia,serif}
+.list{display:grid}.listRow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:15px;padding:12px 0;border-top:1px solid rgba(255,255,255,.09)}.listRow:first-child{border-top:0;padding-top:0}.listMain strong{display:block;color:var(--soft);font:14px Georgia,serif}.listMain span{display:block;margin-top:4px;color:#8b938a;font-size:10px}.listValue{color:#cbd1c9;font:10px var(--mono,monospace)}.table{width:100%;border-collapse:collapse;margin-top:12px;color:#bfc6bd;font-size:11px}.table th{padding:9px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.12);color:#7e877e;font:8px var(--mono,monospace);letter-spacing:.08em;text-transform:uppercase}.table td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.07)}.table tr:last-child td{border-bottom:0}.table td:first-child{color:var(--soft);font-family:Georgia,serif;font-size:13px}.tableStatus{color:#9bd6a4;font:9px var(--mono,monospace);text-transform:uppercase}.empty{display:grid;place-items:center;min-height:150px;padding:30px;text-align:center;border:1px dashed rgba(255,255,255,.14);border-radius:11px;color:var(--muted);font-size:12px}.footerNote{margin:18px 0 0;color:#747d74;font:9px var(--mono,monospace);letter-spacing:.06em;text-transform:uppercase}
+.profileGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.profilePanel{min-height:195px}.profileValue{margin:17px 0;color:var(--soft);font:500 27px Georgia,serif}.setting{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:13px 0;border-top:1px solid rgba(255,255,255,.09)}.setting:first-child{border-top:0;padding-top:0}.setting strong{display:block;color:var(--soft);font:13px Georgia,serif}.setting span{display:block;margin-top:4px;color:#899188;font-size:10px;line-height:1.4}.tagList{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}.tag{padding:7px 9px;border:1px solid rgba(255,255,255,.12);border-radius:999px;color:#adb5ac;font:9px var(--mono,monospace);text-transform:uppercase}
+@media(max-width:1050px){.topbar{grid-template-columns:auto 1fr auto}.navPill{justify-self:center}.network{display:none}.metricGrid{grid-template-columns:repeat(3,1fr)}.gridMain{grid-template-columns:1fr}.savingHero{grid-template-columns:1fr 180px}}
+@media(max-width:760px){.shell{padding:0}.board{min-height:100svh;border:0;border-radius:0}.topbar{grid-template-columns:auto 1fr auto;gap:10px;padding:14px 16px}.brand{font-size:16px}.brandMark{width:27px;height:27px}.brand>span{display:none}.navPill{max-width:100%;overflow:auto;justify-self:stretch;scrollbar-width:none}.navPill::-webkit-scrollbar{display:none}.navLink{flex:0 0 auto;padding-inline:11px;font-size:10px}.content{padding:27px 16px 42px}.pageHeader{align-items:flex-start;flex-direction:column;gap:15px}.title{font-size:40px}.metricGrid{grid-template-columns:1fr 1fr}.metric:first-child{grid-column:1/-1}.metric{min-height:126px}.gridTwo,.profileGrid{grid-template-columns:1fr}.savingHero{grid-template-columns:1fr}.sparkPanel{min-height:180px}.inlineStats{grid-template-columns:1fr}.table{display:block;overflow-x:auto;white-space:nowrap}.table th,.table td{padding-inline:7px}.profileMenu{right:14px;top:58px}}
+@media(max-width:460px){.metricGrid{grid-template-columns:1fr}.metric:first-child{grid-column:auto}.headerMeta{align-self:stretch;justify-content:space-between}.pageHeader .button{width:100%}.heatCells{gap:3px}.heatCell{height:9px}.panel{padding:15px}}
+@media(prefers-reduced-motion:reduce){.navLink,.profileButton,.button{transition:none}.navLink:hover,.profileButton:hover,.button:hover{transform:none}}
+
+.walletNotice{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:-5px 0 22px;padding:14px 16px;border:1px solid rgba(209,179,95,.24);background:linear-gradient(90deg,rgba(209,179,95,.14),rgba(209,179,95,.05));color:var(--soft)}.walletNotice>div{display:grid;gap:4px}.walletNotice strong{font:600 14px Georgia,serif}.walletNotice span{color:var(--muted);font-size:11px;line-height:1.45}.homeTopGrid{margin-bottom:0}.homeAmount{margin:23px 0 10px;color:var(--white);font:500 clamp(42px,5vw,66px)/.9 Georgia,serif;letter-spacing:-.06em}.homeAmount small{color:var(--muted);font:11px var(--mono,monospace);letter-spacing:.08em}.homeActions{display:flex;flex-wrap:wrap;gap:8px;margin-top:19px}.homeFine{margin:18px 0 0;color:#879087;font-size:10px;line-height:1.5}.homeState{margin:36px 0 26px;color:var(--white);font:500 clamp(25px,3vw,36px)/1 Georgia,serif;letter-spacing:-.035em}.homeMetaGrid{display:grid;grid-template-columns:1fr 1fr;gap:15px;padding:15px 0;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1)}.homeMetaGrid span{display:block;color:#899188;font:9px var(--mono,monospace);letter-spacing:.06em;text-transform:uppercase}.homeMetaGrid strong{display:block;margin-top:7px;color:var(--soft);font:14px Georgia,serif}.homeSection{margin-top:28px}.homeSectionHeading{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:13px}.homeSectionHeading h2{margin:0;color:var(--white);font:500 27px/1.05 Georgia,serif;letter-spacing:-.035em}.drawBoardWrap{overflow:hidden;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#222524,#1b1e1d);box-shadow:inset 0 1px rgba(255,255,255,.04),0 10px 22px rgba(0,0,0,.14)}.drawBoard{display:grid;grid-template-columns:repeat(3,1fr)}.drawColumn{min-height:145px;padding:21px 18px;border-right:1px solid rgba(255,255,255,.1)}.drawColumn:last-child{border-right:0}.drawColumn span{display:block;color:#a1a9a0;font-size:12px}.drawColumn strong{display:block;margin-top:22px;color:var(--white);font:500 clamp(22px,2.4vw,31px)/1 Georgia,serif;letter-spacing:-.04em}.drawColumn small{display:block;margin-top:10px;color:#8e978e;font-size:11px;line-height:1.4}.drawStatusStrip{display:flex;align-items:center;gap:13px;padding:15px 18px;border-top:1px solid rgba(255,255,255,.1);background:rgba(124,197,138,.05)}.drawStatusIcon{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:50%;background:rgba(124,197,138,.16);color:var(--green);font-size:15px}.drawStatusStrip strong{display:block;color:var(--soft);font-size:14px}.drawStatusStrip div span{display:block;margin-top:4px;color:var(--muted);font-size:11px;line-height:1.4}.gridThree{grid-template-columns:repeat(3,minmax(0,1fr))}.homeTallCard{min-height:238px}.homeSubheading{margin:37px 0 10px;color:var(--white);font:500 24px/1.08 Georgia,serif;letter-spacing:-.03em}.textAction{color:#bdc6bd;font-size:11px}.panel .textAction{display:inline-flex;margin-top:25px}.settingsList{display:grid;margin-top:2px}.settingRow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-top:1px solid rgba(255,255,255,.09)}.settingRow:first-child{border-top:0;padding-top:0}.settingRow>div{min-width:0}.settingRow strong{display:block;color:var(--soft);font:13px Georgia,serif}.settingRow span{display:block;margin-top:4px;color:#899188;font-size:10px;line-height:1.4}.referenceList{display:grid;margin-top:6px}.referenceRow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 0;border-top:1px solid rgba(255,255,255,.09)}.referenceRow:first-child{border-top:0}.referenceRow strong{display:block;color:var(--soft);font:14px Georgia,serif}.referenceRow span{display:block;margin-top:4px;color:#899188;font-size:10px}.pageSection{margin-top:22px}.detailList{display:grid;margin:20px 0 0}.detailList>div{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-top:1px solid rgba(255,255,255,.09)}.detailList span{color:#9ca59b;font-size:12px}.detailList strong{color:var(--soft);font:14px Georgia,serif;text-align:right}.resultBlank{display:grid;gap:7px;margin:24px 0 21px;padding:17px;border-radius:11px;background:rgba(124,197,138,.06)}.resultBlank strong{color:var(--soft);font-size:15px}.resultBlank span{color:var(--muted);font-size:11px;line-height:1.45}.activityStatus{display:flex;align-items:center;justify-content:space-between;min-height:145px}.activityStatus .panelTitle{margin-bottom:13px}.rewardValue{margin:27px 0 16px;color:var(--white);font:500 48px/.95 Georgia,serif;letter-spacing:-.05em}.rewardValue small{color:var(--muted);font:11px var(--mono,monospace);letter-spacing:.08em}.profileActions{display:flex;gap:8px;margin-top:22px}.profileActionRow{display:flex;flex-wrap:wrap;gap:8px;margin-top:17px;padding-top:15px;border-top:1px solid rgba(255,255,255,.09)}.profilePublic{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;padding-top:15px;border-top:1px solid rgba(255,255,255,.09)}.profilePublic strong{display:block;color:var(--soft);font:13px Georgia,serif}.profilePublic span{display:block;margin-top:4px;color:#899188;font-size:10px;line-height:1.4}
+@media(max-width:900px){.gridThree{grid-template-columns:1fr}.drawColumn{min-height:130px;padding-inline:14px}.drawColumn strong{font-size:23px}.homeMetaGrid{gap:10px}}
+@media(max-width:760px){.walletNotice{align-items:flex-start;flex-direction:column}.walletNotice .button{width:100%}.drawBoard{grid-template-columns:1fr}.drawColumn{min-height:0;border-right:0;border-bottom:1px solid rgba(255,255,255,.1)}.drawColumn:last-child{border-bottom:0}.drawColumn strong{margin-top:10px}.drawStatusStrip{align-items:flex-start}.homeMetaGrid{grid-template-columns:1fr}.activityStatus{align-items:flex-start;gap:14px;flex-direction:column}.profileActionRow,.profilePublic{align-items:flex-start;flex-direction:column}.profilePublic .button{width:100%}}
+
+/* Leopold blue card surfaces: the V2 boards sit above the continuous
+   dotted/engraving background with a restrained layered lift. */
+.panel,
+.drawBoardWrap,
+.metric,
+.empty{
+  border-color:rgba(143,177,207,.24);
+  background:linear-gradient(145deg,#183653 0%,#102540 72%,#0d2037 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(214,231,245,.1),
+    0 2px 4px rgba(3,12,24,.24),
+    0 14px 30px rgba(3,12,24,.26);
+}
+.panel,
+.drawBoardWrap,
+.metric,
+.empty{
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.panel:hover,
+.drawBoardWrap:hover,
+.metric:hover,
+.empty:hover{
+  transform:translateY(-2px);
+  border-color:rgba(171,202,228,.34);
+  box-shadow:
+    inset 0 1px 0 rgba(229,241,250,.13),
+    0 3px 6px rgba(3,12,24,.27),
+    0 18px 36px rgba(3,12,24,.3);
+}
+.historyList{display:grid;margin-top:5px}.historyRow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-top:1px solid rgba(187,211,231,.16)}.historyRow:first-child{border-top:0;padding-top:0}.historyRow strong{display:block;color:var(--white);font:14px Georgia,serif}.historyRow span{display:block;margin-top:5px;color:#afc0cf;font-size:11px;line-height:1.4}
+.resultBlank{background:linear-gradient(145deg,rgba(86,133,166,.25),rgba(11,34,57,.5));border:1px solid rgba(155,193,219,.14);box-shadow:inset 0 1px rgba(224,239,249,.06)}
+.homeMetaGrid,.detailList>div,.settingRow,.referenceRow,.profileActionRow,.profilePublic{border-color:rgba(187,211,231,.18)}
+.textAction{color:#d3e0ea}
+@media(prefers-reduced-motion:reduce){.panel,.drawBoardWrap,.metric,.empty{transition:none}.panel:hover,.drawBoardWrap:hover,.metric:hover,.empty:hover{transform:none}}
+
+/* Final V2 depth palette: darker Leopold blue on the cards, with the board
+   background remaining only slightly deeper than the previous checkpoint. */
+.panel,
+.drawBoardWrap,
+.metric,
+.empty{
+  background:linear-gradient(145deg,#05172c 0%,#020c1d 72%,#010611 100%);
+  border-color:rgba(127,167,202,.22);
+  box-shadow:
+    inset 0 1px 0 rgba(203,226,243,.08),
+    0 2px 4px rgba(2,9,18,.28),
+    0 15px 32px rgba(2,9,18,.3);
+}
+.panel:hover,
+.drawBoardWrap:hover,
+.metric:hover,
+.empty:hover{
+  border-color:rgba(161,196,223,.3);
+  box-shadow:
+    inset 0 1px 0 rgba(221,237,248,.1),
+    0 3px 6px rgba(2,9,18,.32),
+    0 19px 38px rgba(2,9,18,.34);
+}
+.resultBlank{background:linear-gradient(145deg,rgba(35,76,110,.18),rgba(2,10,23,.72));}
+
+/* The Make Public control needs an explicit amount entry before its action. */
+.profilePublic{display:grid;gap:12px;align-items:stretch}
+.profilePublicForm{display:flex;align-items:stretch;gap:8px}
+.profilePublicInput{display:flex;align-items:center;min-width:0;flex:1;border:1px solid rgba(255,255,255,.17);border-radius:9px;background:rgba(255,255,255,.045);overflow:hidden}
+.profilePublicInput:focus-within{border-color:rgba(209,179,95,.72);box-shadow:0 0 0 3px rgba(209,179,95,.13)}
+.profilePublicInput input{width:100%;min-width:0;padding:0 12px;border:0;outline:0;background:transparent;color:var(--white);font:500 17px/1 Georgia,serif}
+.profilePublicInput input::placeholder{color:#6f7970}
+.profilePublicInput span{flex:0 0 auto;margin:0;padding:0 12px 0 4px;color:#9ba39a;font:9px/1 var(--mono,monospace);letter-spacing:.08em}
+.profilePublicForm .button{flex:0 0 auto}
+.profilePublic .srOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:760px){.profilePublicForm{align-items:stretch;flex-direction:column}.profilePublicForm .button{width:100%}}
+
+.systemNotice{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:-5px 0 22px;padding:14px 16px;border:1px solid rgba(143,177,207,.28);border-radius:14px;background:linear-gradient(135deg,rgba(28,67,101,.58),rgba(6,26,48,.72));color:var(--soft)}.systemNotice>div{display:grid;gap:4px}.systemNotice strong{font:600 14px Georgia,serif}.systemNotice span{color:var(--muted);font-size:11px;line-height:1.45}.dialogBackdrop{position:fixed;z-index:90;inset:0;display:grid;place-items:center;padding:18px;background:rgba(2,8,17,.72);backdrop-filter:blur(8px)}.dialog{width:min(470px,100%);padding:24px;border:1px solid rgba(158,192,220,.28);border-radius:16px;background:linear-gradient(145deg,#102d4a,#061526);box-shadow:0 30px 80px rgba(0,0,0,.46)}.dialog .panelTitle{margin:4px 0 10px}.dialogField{display:grid;grid-template-columns:1fr auto;gap:7px;margin:20px 0 0;color:#b7c9d8;font:10px var(--mono,monospace);letter-spacing:.08em;text-transform:uppercase}.dialogField>span{grid-column:2}.dialogInput{grid-column:1/-1;width:100%;min-height:48px;padding:0 13px;border:1px solid rgba(188,215,235,.23);border-radius:9px;outline:0;background:rgba(255,255,255,.055);color:var(--white);font:500 20px/1 Georgia,serif}.dialogInput:focus{border-color:rgba(209,179,95,.7);box-shadow:0 0 0 3px rgba(209,179,95,.13)}.dialogActions{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}.dialogError{margin:16px 0 0;color:#f2b5a6;font-size:12px;line-height:1.45}
+@media(max-width:760px){.systemNotice{align-items:flex-start;flex-direction:column}.systemNotice .button{width:100%}.dialogActions{flex-direction:column-reverse}.dialogActions .button{width:100%}}
+:global(html:not([data-leopold-theme="dark"])) .systemNotice{border-color:rgba(16,37,64,.17);background:#eaf0f2;color:#102540}:global(html:not([data-leopold-theme="dark"])) .systemNotice span{color:#637083}:global(html:not([data-leopold-theme="dark"])) .dialog{border-color:rgba(16,37,64,.2);background:linear-gradient(145deg,#fffef9,#f2f4f2);box-shadow:0 28px 70px rgba(16,37,64,.24)}:global(html:not([data-leopold-theme="dark"])) .dialog .panelTitle{color:#102540}:global(html:not([data-leopold-theme="dark"])) .dialogField{color:#52647a}:global(html:not([data-leopold-theme="dark"])) .dialogInput{border-color:rgba(16,37,64,.17);background:#fffef9;color:#102540}
+
+/* V2 light mode uses the same visual language as V1 Classic while retaining
+   the V2 card gradient and depth treatment. */
+:global(html:not([data-leopold-theme="dark"])) .panel,
+:global(html:not([data-leopold-theme="dark"])) .drawBoardWrap,
+:global(html:not([data-leopold-theme="dark"])) .metric,
+:global(html:not([data-leopold-theme="dark"])) .empty{
+  border-color:rgba(16,37,64,.17);
+  background:linear-gradient(145deg,rgba(255,254,249,.98),rgba(247,244,235,.93));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.82),
+    0 2px 4px rgba(16,37,64,.07),
+    0 14px 30px rgba(16,37,64,.1);
+}
+:global(html:not([data-leopold-theme="dark"])) .panel,
+:global(html:not([data-leopold-theme="dark"])) .drawBoardWrap,
+:global(html:not([data-leopold-theme="dark"])) .metric{
+  border-bottom:3px solid rgba(201,171,96,.72);
+}
+:global(html:not([data-leopold-theme="dark"])) .panel:hover,
+:global(html:not([data-leopold-theme="dark"])) .drawBoardWrap:hover,
+:global(html:not([data-leopold-theme="dark"])) .metric:hover,
+:global(html:not([data-leopold-theme="dark"])) .empty:hover{
+  border-color:rgba(16,37,64,.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.9),
+    0 3px 6px rgba(16,37,64,.09),
+    0 18px 36px rgba(16,37,64,.13);
+}
+:global(html:not([data-leopold-theme="dark"])) .panelKicker,
+:global(html:not([data-leopold-theme="dark"])) .kicker{color:#36566d}
+:global(html:not([data-leopold-theme="dark"])) .title,
+:global(html:not([data-leopold-theme="dark"])) .panelTitle,
+:global(html:not([data-leopold-theme="dark"])) .homeState,
+:global(html:not([data-leopold-theme="dark"])) .homeSectionHeading h2,
+:global(html:not([data-leopold-theme="dark"])) .homeSubheading,
+:global(html:not([data-leopold-theme="dark"])) .rewardValue,
+:global(html:not([data-leopold-theme="dark"])) .savingAmount,
+:global(html:not([data-leopold-theme="dark"])) .homeAmount,
+:global(html:not([data-leopold-theme="dark"])) .metricValue,
+:global(html:not([data-leopold-theme="dark"])) .drawColumn strong{color:#07101d}
+:global(html:not([data-leopold-theme="dark"])) .lede,
+:global(html:not([data-leopold-theme="dark"])) .panelCopy,
+:global(html:not([data-leopold-theme="dark"])) .homeFine,
+:global(html:not([data-leopold-theme="dark"])) .homeMetaGrid span,
+:global(html:not([data-leopold-theme="dark"])) .drawColumn span,
+:global(html:not([data-leopold-theme="dark"])) .drawColumn small,
+:global(html:not([data-leopold-theme="dark"])) .detailList span,
+:global(html:not([data-leopold-theme="dark"])) .settingRow span,
+:global(html:not([data-leopold-theme="dark"])) .setting span,
+:global(html:not([data-leopold-theme="dark"])) .referenceRow span,
+:global(html:not([data-leopold-theme="dark"])) .profilePublic span,
+:global(html:not([data-leopold-theme="dark"])) .resultBlank span,
+:global(html:not([data-leopold-theme="dark"])) .empty,
+:global(html:not([data-leopold-theme="dark"])) .headerMeta{color:#637083}
+:global(html:not([data-leopold-theme="dark"])) .homeMetaGrid strong,
+:global(html:not([data-leopold-theme="dark"])) .detailList strong,
+:global(html:not([data-leopold-theme="dark"])) .settingRow strong,
+:global(html:not([data-leopold-theme="dark"])) .setting strong,
+:global(html:not([data-leopold-theme="dark"])) .referenceRow strong,
+:global(html:not([data-leopold-theme="dark"])) .drawStatusStrip strong,
+:global(html:not([data-leopold-theme="dark"])) .resultBlank strong,
+:global(html:not([data-leopold-theme="dark"])) .listMain strong,
+:global(html:not([data-leopold-theme="dark"])) .historyRow strong{color:#102540}
+:global(html:not([data-leopold-theme="dark"])) .button{
+  border-color:#c9ab60;
+  background:linear-gradient(180deg,#d6b96e 0%,#c9ab60 100%);
+  color:#07101d;
+  box-shadow:inset 0 1px rgba(255,255,255,.58),0 5px 13px rgba(16,37,64,.1);
+}
+:global(html:not([data-leopold-theme="dark"])) .buttonSecondary{
+  border-color:rgba(16,37,64,.17);
+  background:#fffef9;
+  color:#102540;
+}
+:global(html:not([data-leopold-theme="dark"])) .status{
+  border-color:rgba(67,107,78,.28);
+  background:rgba(67,107,78,.12);
+  color:#405f49;
+}
+:global(html:not([data-leopold-theme="dark"])) .statusGold{
+  border-color:rgba(201,171,96,.48);
+  background:rgba(201,171,96,.18);
+  color:#735f2f;
+}
+:global(html:not([data-leopold-theme="dark"])) .statusNeutral{
+  border-color:rgba(16,37,64,.14);
+  background:rgba(16,37,64,.06);
+  color:#40536b;
+}
+:global(html:not([data-leopold-theme="dark"])) .walletNotice{
+  margin:-5px 0 20px;
+  padding:16px 18px;
+  border-color:rgba(152,120,50,.28);
+  border-radius:14px;
+  background:#eee5cf;
+  color:#102540;
+}
+:global(html:not([data-leopold-theme="dark"])) .walletNotice strong{font:600 16px Georgia,serif}
+:global(html:not([data-leopold-theme="dark"])) .walletNotice span{color:#6f6247;font-size:12px}
+:global(html:not([data-leopold-theme="dark"])) .walletNotice .buttonSecondary{
+  min-height:0;
+  padding:10px 14px;
+  border-color:#9e803c;
+  border-radius:7px;
+  background:linear-gradient(180deg,#d8bd78 0%,#c9ab60 100%);
+  color:#07101d;
+  font:700 10px/1 "Courier New",monospace;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  box-shadow:inset 0 1px rgba(255,255,255,.5),0 6px 15px rgba(16,37,64,.12);
+}
+:global(html:not([data-leopold-theme="dark"])) .metricIcon,
+:global(html:not([data-leopold-theme="dark"])) .tag{
+  border-color:rgba(16,37,64,.16);
+  color:#40536b;
+}
+:global(html:not([data-leopold-theme="dark"])) .homeMetaGrid,
+:global(html:not([data-leopold-theme="dark"])) .detailList>div,
+:global(html:not([data-leopold-theme="dark"])) .settingRow,
+:global(html:not([data-leopold-theme="dark"])) .setting,
+:global(html:not([data-leopold-theme="dark"])) .referenceRow,
+:global(html:not([data-leopold-theme="dark"])) .profileActionRow,
+:global(html:not([data-leopold-theme="dark"])) .profilePublic,
+:global(html:not([data-leopold-theme="dark"])) .drawColumn,
+:global(html:not([data-leopold-theme="dark"])) .drawStatusStrip{border-color:rgba(16,37,64,.17)}
+:global(html:not([data-leopold-theme="dark"])) .drawStatusStrip{background:rgba(231,243,237,.7)}
+:global(html:not([data-leopold-theme="dark"])) .drawStatusIcon{background:#e1e9dc;color:#405f49}
+:global(html:not([data-leopold-theme="dark"])) .resultBlank{
+  border-color:rgba(67,107,78,.16);
+  background:linear-gradient(145deg,rgba(231,243,237,.78),rgba(255,254,249,.92));
+  box-shadow:inset 0 1px rgba(255,255,255,.8);
+}
+:global(html:not([data-leopold-theme="dark"])) .profilePublicInput{
+  border-color:rgba(16,37,64,.17);
+  background:#fffef9;
+}
+:global(html:not([data-leopold-theme="dark"])) .profilePublicInput input{color:#07101d}
+:global(html:not([data-leopold-theme="dark"])) .profilePublicInput input::placeholder{color:#718095}
+:global(html:not([data-leopold-theme="dark"])) .profilePublicInput span{color:#637083}
+:global(html:not([data-leopold-theme="dark"])) .textAction{color:#365f78}
+:global(html:not([data-leopold-theme="dark"])) .panelKicker,
+:global(html:not([data-leopold-theme="dark"])) .kicker,
+:global(html:not([data-leopold-theme="dark"])) .metricLabel,
+:global(html:not([data-leopold-theme="dark"])) .tag,
+:global(html:not([data-leopold-theme="dark"])) .status,
+:global(html:not([data-leopold-theme="dark"])) .lede,
+:global(html:not([data-leopold-theme="dark"])) .panelCopy,
+:global(html:not([data-leopold-theme="dark"])) .homeFine,
+:global(html:not([data-leopold-theme="dark"])) .homeMetaGrid span,
+:global(html:not([data-leopold-theme="dark"])) .drawColumn span,
+:global(html:not([data-leopold-theme="dark"])) .drawColumn small,
+:global(html:not([data-leopold-theme="dark"])) .detailList span,
+:global(html:not([data-leopold-theme="dark"])) .settingRow span,
+:global(html:not([data-leopold-theme="dark"])) .setting span,
+:global(html:not([data-leopold-theme="dark"])) .referenceRow span,
+:global(html:not([data-leopold-theme="dark"])) .profilePublic span,
+:global(html:not([data-leopold-theme="dark"])) .resultBlank span,
+:global(html:not([data-leopold-theme="dark"])) .empty,
+:global(html:not([data-leopold-theme="dark"])) .headerMeta,
+:global(html:not([data-leopold-theme="dark"])) .textAction,
+:global(html:not([data-leopold-theme="dark"])) .historyRow span,
+:global(html:not([data-leopold-theme="dark"])) .listValue{font-weight:600}
+:global(html:not([data-leopold-theme="dark"])) .title,
+:global(html:not([data-leopold-theme="dark"])) .panelTitle,
+:global(html:not([data-leopold-theme="dark"])) .homeState,
+:global(html:not([data-leopold-theme="dark"])) .homeSectionHeading h2,
+:global(html:not([data-leopold-theme="dark"])) .homeSubheading,
+:global(html:not([data-leopold-theme="dark"])) .rewardValue,
+:global(html:not([data-leopold-theme="dark"])) .savingAmount,
+:global(html:not([data-leopold-theme="dark"])) .homeAmount,
+:global(html:not([data-leopold-theme="dark"])) .metricValue,
+:global(html:not([data-leopold-theme="dark"])) .drawColumn strong,
+:global(html:not([data-leopold-theme="dark"])) .profileValue{font-weight:600}
+
+/* Treat the V2 Home title as the primary page heading, not supporting copy. */
+@media(min-width:761px){
+  :global(html:not([data-leopold-theme="dark"])) .title{
+    font-size:clamp(48px,5.25vw,72px);
+    line-height:.95;
+    letter-spacing:-.05em;
+  }
+}
+:global(html:not([data-leopold-theme="dark"])) .profilePublicInput input{font-weight:600}
+
+/* The Home heading stays compact enough to read as one deliberate line on
+   desktop. Mobile is allowed to wrap naturally instead of overflowing. */
+.homePageHeader .pageHeaderCopy{max-width:none;flex:1 1 auto;min-width:0}
+.homePageHeader .homeTitle{font-weight:500}
+@media(min-width:761px){
+  .homePageHeader .homeTitle{
+    font-size:clamp(40px,3.65vw,54px);
+    line-height:1;
+    letter-spacing:-.045em;
+    white-space:nowrap;
+  }
+}
+@media(max-width:760px){.homePageHeader .homeTitle{white-space:normal;font-size:40px}}
+
+/* The savings balance keeps its dark V2 surface even while the rest of the
+   Home screen is in V1-inspired light mode. Every child follows that same
+   dark palette, including the controls and private-value treatment. */
+:global(html:not([data-leopold-theme="dark"])) .darkSavingsCard{
+  border-color:rgba(127,167,202,.22);
+  background:linear-gradient(145deg,#05172c 0%,#020c1d 72%,#010611 100%);
+  color:#f5f4ed;
+  box-shadow:inset 0 1px 0 rgba(203,226,243,.08),0 2px 4px rgba(2,9,18,.28),0 15px 32px rgba(2,9,18,.3);
+}
+:global(html:not([data-leopold-theme="dark"])) .darkSavingsCard:hover{
+  border-color:rgba(161,196,223,.3);
+  box-shadow:inset 0 1px 0 rgba(221,237,248,.1),0 3px 6px rgba(2,9,18,.32),0 19px 38px rgba(2,9,18,.34);
+}
+:global(html:not([data-leopold-theme="dark"])) .darkSavingsCard .panelKicker{color:#a6ada5}
+:global(html:not([data-leopold-theme="dark"])) .darkSavingsCard .panelCopy{color:#9ba19a}
+:global(html:not([data-leopold-theme="dark"])) .darkSavingsCard .homeFine{color:#879087}
+:global(html:not([data-leopold-theme="dark"])) .darkSavingsCard .homeAmount{color:#f5f4ed}
+:global(html:not([data-leopold-theme="dark"])) .darkSavingsCard .homeAmount small{color:#9ba19a}
+:global(html:not([data-leopold-theme="dark"])) .darkSavingsCard .metricIcon{border-color:rgba(255,255,255,.12);color:#d0d5ce}
+:global(html:not([data-leopold-theme="dark"])) .darkSavingsCard .button{
+  border-color:rgba(209,179,95,.72);
+  background:linear-gradient(180deg,#d9ba6b,#b99549);
+  color:#161814;
+}
+:global(html:not([data-leopold-theme="dark"])) .darkSavingsCard .buttonSecondary{
+  border-color:rgba(255,255,255,.17);
+  background:#2b2f2d;
+  color:#d9ddd5;
+}
+
+/* The Prize Savings card becomes the warm premium anchor in light mode.
+   Its gold gradient is paired with white controls and deep navy type for
+   contrast, while the former white/neutral accents become gold-toned. */
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard{
+  border-color:#b89042;
+  background:linear-gradient(145deg,#e3c47a 0%,#d1ad5c 58%,#bc9140 100%);
+  color:#102540;
+  box-shadow:inset 0 1px 0 rgba(255,250,226,.6),0 3px 7px rgba(112,86,31,.2),0 16px 32px rgba(112,86,31,.2);
+}
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard:hover{
+  border-color:#a98032;
+  box-shadow:inset 0 1px 0 rgba(255,250,226,.72),0 4px 8px rgba(112,86,31,.24),0 20px 38px rgba(112,86,31,.24);
+}
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .panelKicker,
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .panelTitle,
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .homeState,
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .homeMetaGrid strong{color:#102540}
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .homeMetaGrid span{color:#6e5626}
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .homeMetaGrid{border-color:rgba(91,67,24,.3)}
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .statusNeutral{
+  border-color:rgba(91,67,24,.38);
+  background:rgba(255,254,249,.26);
+  color:#6e5626;
+}
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .button,
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .buttonSecondary{
+  border-color:rgba(255,254,249,.94);
+  background:linear-gradient(180deg,#fffef9 0%,#f4edda 100%);
+  color:#102540;
+  box-shadow:inset 0 1px rgba(255,255,255,.92),0 6px 14px rgba(91,67,24,.18);
+}
+
+/* Keep the Prize Savings card in its premium light-mode treatment in both
+   themes, including its typography, separators, status, and controls. */
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard{
+  border-color:#b89042;
+  background:linear-gradient(145deg,#e3c47a 0%,#d1ad5c 58%,#bc9140 100%);
+  color:#102540;
+  box-shadow:inset 0 1px 0 rgba(255,250,226,.6),0 3px 7px rgba(112,86,31,.2),0 16px 32px rgba(112,86,31,.2);
+}
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard:hover{
+  border-color:#a98032;
+  box-shadow:inset 0 1px 0 rgba(255,250,226,.72),0 4px 8px rgba(112,86,31,.24),0 20px 38px rgba(112,86,31,.24);
+}
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .panelKicker,
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .panelTitle,
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .homeState,
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .homeMetaGrid strong{color:#102540}
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .homeMetaGrid span{color:#6e5626}
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .homeMetaGrid{border-color:rgba(91,67,24,.3)}
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .statusNeutral{
+  border-color:rgba(91,67,24,.38);
+  background:rgba(255,254,249,.26);
+  color:#6e5626;
+}
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .button,
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .buttonSecondary{
+  border-color:rgba(255,254,249,.94);
+  background:linear-gradient(180deg,#fffef9 0%,#f4edda 100%);
+  color:#102540;
+  box-shadow:inset 0 1px rgba(255,255,255,.92),0 6px 14px rgba(91,67,24,.18);
+}
+
+/* One clear primary action; the secondary Manage action remains white. */
+.goldPrizeCard .button:not(.buttonSecondary){
+  border-color:#164d78;
+  background:linear-gradient(180deg,#2b6fa4 0%,#164d78 100%);
+  color:#fff;
+  box-shadow:inset 0 1px rgba(255,255,255,.2),0 6px 14px rgba(16,37,64,.24);
+}
+.goldPrizeCard .button:not(.buttonSecondary):hover,
+.goldPrizeCard .button:not(.buttonSecondary):focus-visible{
+  background:linear-gradient(180deg,#347fb7 0%,#1b5a89 100%);
+}
+
+/* Explicit class for the primary Prize Savings action so it stays blue
+   across both light and dark theme cascades. */
+.goldPrizeCard .primaryPrizeButton{
+  border-color:#123f66;
+  background:linear-gradient(180deg,#2c74aa 0%,#164f7d 100%);
+  color:#fff;
+  box-shadow:inset 0 1px rgba(255,255,255,.2),0 6px 14px rgba(16,37,64,.24);
+}
+.goldPrizeCard .primaryPrizeButton:hover,
+.goldPrizeCard .primaryPrizeButton:focus-visible{
+  border-color:#123f66;
+  background:linear-gradient(180deg,#377fb4 0%,#1a5c8d 100%);
+  color:#fff;
+}
+
+/* Match the Off status to the premium blue primary action. */
+.goldPrizeCard .statusNeutral{
+  border-color:#123f66;
+  background:linear-gradient(180deg,#2c74aa 0%,#164f7d 100%);
+  color:#fff;
+  box-shadow:inset 0 1px rgba(255,255,255,.2),0 4px 10px rgba(16,37,64,.2);
+}
+
+/* Theme-specific selectors intentionally match the existing card-theme
+   specificity, so these requested blue controls cannot be overridden. */
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .primaryPrizeButton,
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .primaryPrizeButton{
+  border-color:rgba(127,167,202,.42);
+  background:linear-gradient(145deg,#05172c 0%,#020c1d 72%,#010611 100%);
+  color:#fff;
+  box-shadow:inset 0 1px rgba(203,226,243,.1),0 6px 14px rgba(2,9,18,.3);
+}
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .primaryPrizeButton:hover,
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .primaryPrizeButton:focus-visible,
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .primaryPrizeButton:hover,
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .primaryPrizeButton:focus-visible{
+  border-color:rgba(161,196,223,.6);
+  background:linear-gradient(145deg,#0a2039 0%,#051226 72%,#020916 100%);
+  color:#fff;
+}
+:global(html:not([data-leopold-theme="dark"])) .goldPrizeCard .statusNeutral,
+:global(html[data-leopold-theme="dark"]) .goldPrizeCard .statusNeutral{
+  border-color:rgba(127,167,202,.42);
+  background:linear-gradient(145deg,#05172c 0%,#020c1d 72%,#010611 100%);
+  color:#fff;
+  box-shadow:inset 0 1px rgba(203,226,243,.1),0 4px 10px rgba(2,9,18,.28);
+}

@@ -56,7 +56,10 @@ export function LoginClient() {
   }
 
   return (
-    <LoginShell>
+    <LoginShell
+      eyebrow={auth.otpSent ? "EMAIL VERIFICATION" : "PRIVATE PRIZE SAVINGS"}
+      title={auth.otpSent ? <>Verify your<br /><span>email</span></> : <>Sign Up/Sign In<br />to <span>Leopold</span></>}
+    >
       <p className="subtle">
         Sign in with email or prove ownership with your external wallet. No funds move until you choose to save.
       </p>
