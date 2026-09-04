@@ -15,9 +15,9 @@ export default function PrizesPage() {
       <ConfigurationStatus />
       <div className={styles.pageHeading}>
         <div>
-          <p className={styles.eyebrow}>Private prize center</p>
-          <h1>Every round, in one <em>place.</em></h1>
-          <p>Prize entry is public. Your exact chances, result, and winnings stay private.</p>
+          <p className={styles.eyebrow}>PRIZES</p>
+          <h1>Prizes</h1>
+          <p>See current and completed Classic Vault rounds, then reveal your own result only when you choose.</p>
         </div>
       </div>
       <section className={styles.tabRow}><button className={styles.selected}>Current</button><button>Upcoming</button><button>Completed</button></section>
@@ -36,22 +36,17 @@ export default function PrizesPage() {
                   <span className={styles.eyebrow}>
                     {vault.name} Vault · Round {state?.roundId.toString() ?? "—"}
                   </span>
-                  <h2>
-                    {financial.fixture && !state ? (entered ? "Result ready" : "Round active") : roundStatus.label}
-                  </h2>
+                  <h2>{financial.fixture && !state ? (entered ? "Result ready" : "Round active") : roundStatus.label}</h2>
                 </div>
                 <span className={styles.status}>{entered ? "Entered" : "Not entered"}</span>
               </div>
               <div className={styles.listRow}>
-                <div>
-                  <strong>Prize</strong>
-                  <span>Public round reserve</span>
-                </div>
+                <div><strong>Prize</strong><span>Public round reserve</span></div>
                 <strong>{state ? `${formatUsdcAmount(state.publicPrize)} USDC` : "Unavailable"}</strong>
               </div>
               <div className={styles.listRow}>
                 <div>
-                  <strong>Private result</strong>
+                  <strong>Your result</strong>
                   <span>
                     {!entered
                       ? "Enter an open round first"
@@ -59,7 +54,7 @@ export default function PrizesPage() {
                         ? "Revealed only in this browser session"
                         : resultReady
                           ? "Your private result is ready"
-                          : "Available after private draw finalization"}
+                          : "Available after the draw finalizes"}
                   </span>
                 </div>
                 <strong>
@@ -75,9 +70,7 @@ export default function PrizesPage() {
                 style={{ marginTop: "18px" }}
                 data-testid={`reveal-result-${vault.slug}`}
                 disabled={!financial.financialActionsEnabled || !resultReady}
-                onClick={() => {
-                  void financial.revealResult(vault.slug).catch(() => undefined);
-                }}
+                onClick={() => void financial.revealResult(vault.slug).catch(() => undefined)}
               >
                 Reveal Private Result
               </button>
@@ -86,11 +79,10 @@ export default function PrizesPage() {
         })}
       </div>
       <section className={styles.privacyBand}>
-        <p className={styles.eyebrow}>Encrypted draw</p>
-        <h2>Why a draw can take time</h2>
+        <p className={styles.eyebrow}>ENCRYPTED DRAW</p>
+        <h2>Private result. Publicly verifiable round.</h2>
         <p>
-          When a round closes, Leopold may show “Finalizing private draw.” Permissionless participants complete the
-          private draw in bounded steps. Progress never reveals the winner, accepted ticket, or participant balances.
+          Round progress can remain public without exposing your balance, exact chance, accepted ticket, or private result.
         </p>
       </section>
     </div>
