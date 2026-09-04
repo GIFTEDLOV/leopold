@@ -378,7 +378,7 @@ export function MarketingHome() {
         <section className="gateway" id="explore" aria-labelledby="gateway-title">
           <h2 id="gateway-title"><StyledWords accentWords={["private"]}>Leopold is building private, prize-linked savings for the onchain economy.</StyledWords></h2>
           <div className="feature-masonry" id="product">
-            {featureCards.map((card) => <a className={card.className} href="#protocol" key={card.label}>{card.video ? <FeatureCardVideo src={card.video} /> : null}<span className="card-label"><StyledWords accentWords={card.accentWords}>{card.label}</StyledWords></span><p><StyledWords accentWords={card.accentWords}>{card.copy}</StyledWords></p><Arrow /></a>)}
+            {featureCards.map((card) => <a className={card.className} href="#protocol" key={card.label}>{"video" in card ? <FeatureCardVideo src={card.video} /> : null}<span className="card-label"><StyledWords accentWords={card.accentWords}>{card.label}</StyledWords></span><p><StyledWords accentWords={card.accentWords}>{card.copy}</StyledWords></p><Arrow /></a>)}
           </div>
         </section>
 
