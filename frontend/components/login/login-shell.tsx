@@ -109,6 +109,75 @@ export function LoginShell({
           font-size: 11px !important;
           font-weight: 800 !important;
         }
+
+        .${styles.board} {
+          width: min(1240px, calc(100vw - 72px));
+          height: auto;
+          max-height: calc(100svh - 72px);
+          min-height: 0;
+          aspect-ratio: 1.5 / 1;
+          grid-template-columns: minmax(390px, 39fr) minmax(0, 61fr);
+          gap: 4px;
+          padding: 4px;
+          border: 0;
+          border-radius: 5px;
+          background-color: rgba(255, 254, 249, .97);
+          background-image: radial-gradient(rgba(16,37,64,.035) .55px, transparent .55px);
+          background-size: 4px 4px;
+          box-shadow: none;
+        }
+        .${styles.formPanel} {
+          border-radius: 1px 0 0 1px;
+          background-color: rgba(255, 254, 249, .97);
+          background-image: radial-gradient(rgba(16,37,64,.035) .55px, transparent .55px);
+          background-size: 4px 4px;
+        }
+        .${styles.mosaic} {
+          border-radius: 0 5px 5px 0;
+        }
+        .${styles.formContent} .profile-actions .button {
+          height: 46px !important;
+          min-height: 46px !important;
+        }
+
+        html[data-leopold-theme="dark"] .${styles.board},
+        html[data-leopold-theme="dark"] .${styles.formPanel} {
+          background-color: rgba(7,16,29,.97);
+          background-image: radial-gradient(rgba(255,255,255,.035) .55px, transparent .55px);
+        }
+
+        @media (max-width: 1000px) and (min-width: 761px) {
+          .${styles.board} {
+            aspect-ratio: 1.42 / 1;
+            grid-template-columns: minmax(360px, 43fr) minmax(0, 57fr);
+          }
+        }
+
+        @media (max-width: 760px) {
+          .${styles.login} {
+            padding: 14px;
+          }
+          .${styles.board} {
+            width: 100%;
+            height: calc(100svh - 28px);
+            max-height: none;
+            min-height: 0;
+            aspect-ratio: auto;
+            grid-template-columns: 1fr;
+            grid-template-rows: minmax(0, 1fr) minmax(180px, 38%);
+            gap: 0;
+            padding: 0;
+            border-radius: 0;
+          }
+          .${styles.formPanel},
+          .${styles.mosaic} {
+            border-radius: 0;
+          }
+          .${styles.formContent} .profile-actions .button {
+            height: 39px !important;
+            min-height: 39px !important;
+          }
+        }
       `}</style>
       <section className={styles.board} aria-labelledby="login-title">
         <div className={styles.formPanel}>
