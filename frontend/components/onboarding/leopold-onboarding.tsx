@@ -41,31 +41,31 @@ const onboardingSlides = [
     alt: "Coins arranged beside a private savings ledger",
   },
   {
-    label: "CONFIDENTIAL SAVING",
-    title: "Make your savings private",
-    copy: "Use Leopold’s privacy flow so your individual savings position remains encrypted.",
-    note: "Leopold provides confidentiality, not anonymity.",
-    accentWords: ["private"],
+    label: "ADD MONEY",
+    title: "Add money",
+    copy: "Choose how much USDC you want to save. Leopold handles the privacy preparation underneath the guided saving flow.",
+    note: "Privacy preparation stays underneath the guided saving flow.",
+    accentWords: ["money"],
     image: `${assetRoot}/leopold-secure-savings.webp`,
     position: "center 48%",
     alt: "Hands placing coins into a secured savings box",
   },
   {
-    label: "PRIZE CADENCE",
-    title: "Choose a vault",
-    copy: "Select Daily, Weekly, Monthly, or Boost for the prize cadence you prefer.",
-    note: "Weekly is recommended; all four vaults remain available.",
-    accentWords: ["vault"],
+    label: "WAYS TO SAVE",
+    title: "Choose how you save",
+    copy: "Prize Savings — automatic future participation. Classic Vaults — Daily, Weekly, Monthly, or Boost.",
+    note: "Choose automatic participation or direct vault-by-vault control.",
+    accentWords: ["save"],
     image: `${assetRoot}/leopold-weekly.webp`,
     position: "center 48%",
     alt: "A wall of secure deposit boxes representing savings vaults",
   },
   {
-    label: "ENTER A ROUND",
-    title: "Save and enter",
-    copy: "Deposit into a vault. Your savings enter its prize rounds while your principal remains yours.",
-    note: "Principal is never used as prize funding.",
-    accentWords: ["Save"],
+    label: "PRIZE SAVINGS",
+    title: "Turn on Prize Savings",
+    copy: "With Prize Savings, you turn it on once and Leopold keeps you entered in future eligible draws. Classic Vault users retain direct vault-by-vault control.",
+    note: "Classic Vault users retain direct vault-by-vault control.",
+    accentWords: ["Prize"],
     image: `${assetRoot}/leopold-investment-growth.webp`,
     position: "center 48%",
     alt: "A saver reviewing the growth of a financial position",
@@ -190,6 +190,7 @@ function OnboardingWalkthrough() {
         <Brand />
         <div className={styles["header-links"]}>
           <span>PRIVATE PRIZE SAVINGS</span>
+          <Link className={styles["skip-onboarding"]} href="/login">Jump to sign in <span aria-hidden="true">↗</span></Link>
         </div>
       </header>
 
@@ -214,7 +215,6 @@ function OnboardingWalkthrough() {
                   <span className={styles["image-index"]} aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                 </div>
                 <div className={styles["slide-copy"]}>
-                  <div className={styles["board-brand"]}><Brand /><span>ONBOARDING</span></div>
                   <div className={styles["board-intro"]}>
                     <p>LEOPOLD ORIENTATION</p>
                     <div>
@@ -226,15 +226,31 @@ function OnboardingWalkthrough() {
                   <h2><AccentTitle accentWords={slide.accentWords}>{slide.title}</AccentTitle></h2>
                   <p className={styles.copy}>{slide.copy}</p>
                   <p className={styles.note}>{slide.note}</p>
-                  <div className={styles["slide-actions"]}>
-                    {index > 0 ? <button className={styles["step-previous"]} type="button" onClick={() => goTo(index - 1)}><span aria-hidden="true">←</span> Previous step</button> : null}
-                    {"complete" in slide && slide.complete ? <div className={styles["completion-actions"]}><Link className={styles.primary} href="/login">Continue to sign in <span aria-hidden="true">↗</span></Link><Link className={styles.secondary} href="/">Return to landing page</Link></div> : <><button className={styles["step-next"]} type="button" onClick={() => goTo(index + 1)}>Next step <span aria-hidden="true">→</span></button><div className={styles["jump-row"]}><Link className={styles["jump-sign-in"]} href="/login">Jump to sign in <span aria-hidden="true">↗</span></Link></div></>}
-                  </div>
+                  {"complete" in slide && slide.complete ? (
+                    <div className={styles["completion-actions"]}>
+                      <Link className={styles.primary} href="/login">Continue to sign in <span aria-hidden="true">↗</span></Link>
+                      <Link className={styles.secondary} href="/">Return to landing page</Link>
+                    </div>
+                  ) : (
+                    <button className={styles["step-next"]} type="button" onClick={() => goTo(index + 1)}>Next step <span aria-hidden="true">→</span></button>
+                  )}
                 </div>
               </article>
             ))}
           </div>
 
+          <div className={styles.progress} role="group" aria-label="Choose an onboarding step">
+            {onboardingSlides.map((slide, index) => (
+              <button
+                className={index === activeIndex ? styles.active : undefined}
+                type="button"
+                onClick={() => goTo(index)}
+                aria-label={`Go to step ${index + 1}: ${slide.title}`}
+                aria-current={index === activeIndex ? "step" : undefined}
+                key={slide.label}
+              ><span>{String(index + 1).padStart(2, "0")}</span></button>
+            ))}
+          </div>
         </section>
       </main>
     </div>

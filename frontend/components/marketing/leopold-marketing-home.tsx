@@ -19,7 +19,7 @@ const heroImages = [
 
 const navigationLinks = [
   ["Products", "#product"],
-  ["Vaults", "#vaults"],
+  ["Ways to Save", "#vaults"],
   ["Privacy", "#protocol"],
   ["How it Works", "#how-it-works"],
   ["Company", "#principle"],
@@ -27,12 +27,14 @@ const navigationLinks = [
 ] as const;
 
 const featureCards = [
-  { label: "PRIVATE BY DEFAULT", copy: "Your savings position stays encrypted, not displayed to the pool.", accentWords: ["private"], size: "feature-card--wide", image: "feature-card--photo-a" },
-  { label: "PRIZE YIELD", copy: "One collective yield stream. One verifiable winner. Principal stays yours.", accentWords: ["yield"], size: "feature-card--tall", image: "feature-card--ink" },
-  { label: "WITHDRAW ANYTIME", copy: "Leave the pool without waiting for a draw to finish.", accentWords: ["withdraw"], size: "feature-card--mid", image: "feature-card--photo-b" },
-  { label: "ENCRYPTED DRAW", copy: "The accepted random ticket never becomes visible to an admin, keeper, or participant.", accentWords: ["encrypted"], size: "feature-card--tall", image: "feature-card--photo-c" },
-  { label: "COMPOUND III", copy: "USDC is supplied directly to the protocol yield source.", accentWords: ["compound"], size: "feature-card--short", image: "feature-card--linework" },
-  { label: "BUILT ON ZAMA", copy: "Encrypted state can still drive public, composable onchain outcomes.", accentWords: ["zama"], size: "feature-card--mid", image: "feature-card--photo-d" },
+  { label: "PRIVATE BY DEFAULT", copy: "Your savings position stays encrypted, not displayed to the pool.", accentWords: ["private"], size: "feature-card--wide", image: "feature-card--photo-a", video: undefined, variant: undefined },
+  { label: "PRIZE SAVINGS", copy: "Turn it on once and stay automatically entered in upcoming eligible draws while your savings remain available to you.", accentWords: ["savings"], size: "feature-card--tall", image: "feature-card--ink", video: undefined, variant: undefined },
+  { label: "WITHDRAW ANYTIME", copy: "Leave the pool without waiting for a draw to finish.", accentWords: ["withdraw"], size: "feature-card--mid", image: "feature-card--photo-b", video: undefined, variant: undefined },
+  { label: "ENCRYPTED DRAW", copy: "The accepted random ticket never becomes visible to an admin, keeper, or participant.", accentWords: ["encrypted"], size: "feature-card--tall", image: "feature-card--photo-c", video: undefined, variant: undefined },
+  { label: "COMPOUND III", copy: "USDC is supplied directly to the protocol yield source.", accentWords: ["compound"], size: "feature-card--short", image: "feature-card--linework", video: undefined, variant: undefined },
+  { label: "BUILT ON ZAMA", copy: "Encrypted state can still drive public, composable onchain outcomes.", accentWords: ["zama"], size: "feature-card--mid", image: "feature-card--photo-d", video: undefined, variant: undefined },
+  { label: "AUTOMATIC PARTICIPATION", copy: "Turn Prize Savings on once and stay entered in future eligible draws.", accentWords: ["participation"], size: "feature-card--mid", image: "", video: `${assetRoot}/leopold-savings-coins.mp4`, variant: "feature-card--video-left" },
+  { label: "SAVE, THEN STAY IN", copy: "Your savings remain yours while your participation continues.", accentWords: ["savings"], size: "feature-card--mid", image: "", video: `${assetRoot}/leopold-savings-cash.mp4`, variant: "feature-card--video-right" },
 ] as const;
 
 const protocolFacts = [
@@ -84,13 +86,24 @@ const savingCadences = [
   },
 ] as const;
 
+const prizeSavingsCadence = {
+  label: "DEFAULT EXPERIENCE",
+  title: "Prize Savings",
+  copy: "Save once. Turn Prize Savings on. Stay automatically entered in future eligible draws without coming back to enter every round.",
+  round: "Automatic participation",
+  image: `${assetRoot}/leopold-savings-ledger.webp`,
+  imageAlt: "A private savings ledger representing automatic prize participation",
+  width: 1800,
+  height: 2400,
+} as const;
+
 const savingSteps = [
-  ["Get USDC", "Start with test USDC on Sepolia."],
-  ["Make Private", "Cross the public boundary and receive Private USDC."],
-  ["Save", "Choose one or more official Leopold vaults."],
-  ["Enter", "Join an open prize round with its separate public settlement bond."],
-  ["Reveal Privately", "Reveal only your own result when it becomes available."],
-  ["Withdraw", "Take principal out independently of the prize outcome."],
+  ["Get test USDC", "Get Sepolia USDC if you need it."],
+  ["Add money", "Choose how much USDC you want to save."],
+  ["Turn on Prize Savings", "Enable automatic participation once."],
+  ["Stay entered", "Leopold keeps you entered in future eligible draws."],
+  ["Check your result", "See what happened after each draw."],
+  ["Keep saving or withdraw", "Your savings remain accessible."],
 ] as const;
 
 const savingStepSequences = [
@@ -126,6 +139,41 @@ function BrandMark() {
 
 function Arrow() {
   return <span aria-hidden="true">↗</span>;
+}
+
+function FeatureCardVideo({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const setSlowMotion = () => {
+      video.playbackRate = 0.55;
+    };
+
+    setSlowMotion();
+    video.addEventListener("loadedmetadata", setSlowMotion);
+    return () => video.removeEventListener("loadedmetadata", setSlowMotion);
+  }, []);
+
+  return (
+    <>
+      <video
+        ref={videoRef}
+        className={styles["feature-card-video"]}
+        src={src}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+      <span className={styles["feature-card-video-tint"]} aria-hidden="true" />
+    </>
+  );
 }
 
 type PixelTile = { blink: boolean; cell: number; delay: number };
@@ -219,55 +267,8 @@ export function LeopoldMarketingHome() {
   const [principleHeadline, setPrincipleHeadline] = useState(0);
   const [protocolEntered, setProtocolEntered] = useState(false);
   const [savingProcessEntered, setSavingProcessEntered] = useState(false);
-  const heroRef = useRef<HTMLElement>(null);
-  const heroTitleRef = useRef<HTMLHeadingElement>(null);
   const protocolRef = useRef<HTMLElement>(null);
   const savingProcessRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const hero = heroRef.current;
-    const heroTitle = heroTitleRef.current;
-    const heroCopy = hero?.querySelector<HTMLElement>(`.${styles["hero-copy"]}`);
-    if (!hero || !heroTitle || !heroCopy) return;
-
-    let animationFrame = 0;
-    let currentCopyOffset = 0;
-    let copyOffsetInitialized = false;
-    const updateScrollEffect = () => {
-      animationFrame = 0;
-      const heroRect = hero.getBoundingClientRect();
-      const progress = Math.min(1, Math.max(0, -heroRect.top / Math.max(heroRect.height, 1)));
-      const viewportHeight = window.innerHeight;
-      const targetCopyOffset = -Math.max(0, heroRect.bottom - viewportHeight);
-      if (!copyOffsetInitialized || reducedMotion.matches) {
-        currentCopyOffset = targetCopyOffset;
-        copyOffsetInitialized = true;
-      } else {
-        currentCopyOffset += (targetCopyOffset - currentCopyOffset) * 0.2;
-      }
-      heroCopy.style.setProperty("--hero-copy-pin", `${currentCopyOffset.toFixed(2)}px`);
-      if (reducedMotion.matches) return;
-      const growthCap = viewportHeight < 660 ? 0.22 : viewportHeight < 780 ? 0.34 : 0.55;
-      heroTitle.style.setProperty("--hero-scroll-scale", (1 + progress * growthCap).toFixed(3));
-      heroTitle.style.setProperty("--hero-scroll-lift", `${(-progress * 12).toFixed(1)}px`);
-      if (Math.abs(targetCopyOffset - currentCopyOffset) > 0.1) {
-        animationFrame = window.requestAnimationFrame(updateScrollEffect);
-      }
-    };
-    const requestUpdate = () => {
-      if (animationFrame) return;
-      animationFrame = window.requestAnimationFrame(updateScrollEffect);
-    };
-    updateScrollEffect();
-    window.addEventListener("scroll", requestUpdate, { passive: true });
-    window.addEventListener("resize", requestUpdate);
-    return () => {
-      window.removeEventListener("scroll", requestUpdate);
-      window.removeEventListener("resize", requestUpdate);
-      if (animationFrame) window.cancelAnimationFrame(animationFrame);
-    };
-  }, []);
 
   useEffect(() => {
     heroImages.forEach((source) => {
@@ -361,7 +362,7 @@ export function LeopoldMarketingHome() {
       </header>
 
       <main id="marketing-main">
-        <section className={styles.hero} id="top" aria-label="Leopold introduction" ref={heroRef}>
+        <section className={styles.hero} id="top" aria-label="Leopold introduction">
           <div className={styles["hero-tiles"]} aria-hidden="true">
             {Array.from({ length: 96 }).map((_, index) => (
               <span
@@ -383,7 +384,8 @@ export function LeopoldMarketingHome() {
           <div className={styles["hero-shade"]} />
           <div className={styles["hero-copy"]}>
             <p className={styles.eyebrow}>PRIVATE PRIZE SAVINGS</p>
-            <h1 className={styles["hero-scroll-title"]} ref={heroTitleRef}>Private savings.<br /><StyledWords accentWords={["provable"]}>Publicly provable.</StyledWords></h1>
+            <h1>Private savings.<br /><StyledWords accentWords={["provable"]}>Publicly provable.</StyledWords></h1>
+            <p>Save USDC and choose how you want to participate. Prize Savings keeps you automatically entered in future eligible draws, while Classic Vaults gives you direct control over Daily, Weekly, Monthly and Boost.</p>
           </div>
           <button
             className={styles["scroll-cue"]}
@@ -399,7 +401,8 @@ export function LeopoldMarketingHome() {
           <h2 id="gateway-title"><StyledWords accentWords={["private"]}>Leopold is building private, prize-linked savings for the onchain economy.</StyledWords></h2>
           <div className={styles["feature-masonry"]} id="product">
             {featureCards.map((card) => (
-              <a className={classes("feature-card", card.size, card.image)} href="#protocol" key={card.label}>
+              <a className={classes("feature-card", card.size, card.image, ...(card.variant ? [card.variant] : []), ...(card.video ? ["feature-card--video"] : []))} href="#protocol" key={card.label}>
+                {card.video ? <FeatureCardVideo src={card.video} /> : null}
                 <span className={styles["card-label"]}><StyledWords accentWords={card.accentWords}>{card.label}</StyledWords></span>
                 <p><StyledWords accentWords={card.accentWords}>{card.copy}</StyledWords></p>
                 <Arrow />
@@ -449,10 +452,10 @@ export function LeopoldMarketingHome() {
           </article>
           <article className={classes("product-row", "product-row--image-right")}>
             <div className={styles["product-copy"]}>
-              <p className={styles["section-label"]}>VERIFIABLE PRIZE DRAW</p>
-              <h3><StyledWords accentWords={["winner"]}>A winner without a visible ticket.</StyledWords></h3>
-              <p>Zama-native encrypted randomness selects the draw outcome. The accepted ticket remains encrypted throughout selection and is never authorized for administrative decryption.</p>
-              <Link href="/transparency">See the draw model <Arrow /></Link>
+              <p className={styles["section-label"]}>PRIZE SAVINGS</p>
+              <h3>Prize Savings, without re-entering every round</h3>
+              <p>Add money, turn Prize Savings on once, and Leopold keeps preparing your savings for upcoming eligible draws. Your principal remains yours, and you can turn Prize Savings off or withdraw when you choose.</p>
+              <Link href="/app">Explore Prize Savings <Arrow /></Link>
             </div>
             <div className={classes("product-image", "product-image--draw")} role="img" aria-label="Encrypted lines converging on a private prize draw"><PixelCutouts /></div>
           </article>
@@ -468,7 +471,12 @@ export function LeopoldMarketingHome() {
         </section>
 
         <section className={classes("built", "cadences")} id="vaults" aria-labelledby="cadences-title">
-          <h2 id="cadences-title">Built for saving.</h2>
+          <h2 id="cadences-title">Two ways to save with Leopold.</h2>
+          <article className={classes("product-row", "cadence")}>
+            <CadenceCopy cadence={prizeSavingsCadence} />
+            <CadenceImage cadence={prizeSavingsCadence} />
+          </article>
+          <h2 className={styles["classic-vaults-heading"]}>Classic Vaults</h2>
           <div className={styles["cadence-list"]}>
             {savingCadences.map((cadence, index) => (
               <article className={classes("product-row", "cadence")} key={cadence.title}>
@@ -501,6 +509,7 @@ export function LeopoldMarketingHome() {
               </li>
             ))}
           </ol>
+          <p className={styles["classic-note"]}><strong>Using Classic Vaults?</strong> Choose Daily, Weekly, Monthly or Boost and participate according to that vault&apos;s schedule.</p>
         </section>
 
         <section className={styles.principle} id="principle" aria-labelledby="principle-title">
@@ -529,11 +538,11 @@ export function LeopoldMarketingHome() {
 
       <footer className={styles["site-footer"]}>
         <div className={styles["footer-brandline"]}>
-          <a className={classes("brand", "brand--large")} href="#top"><BrandMark /><span>Leop<span className={styles["brand-word-accent"]}>old</span></span></a>
+          <a className={classes("brand", "brand--large")} href="#top"><BrandMark /><span>Leopold</span></a>
           <h2>Private prize savings, built to be verified.</h2>
         </div>
         <div className={styles["footer-grid"]}>
-          <nav aria-label="Product links"><h3>PRODUCT</h3><Link href="/app">Dashboard</Link><Link href="/app/vaults">Vaults</Link><Link href="/app/prizes">Prizes</Link><Link href="/app/rewards">Rewards</Link></nav>
+          <nav aria-label="Product links"><h3>PRODUCT</h3><Link href="/app">Dashboard</Link><Link href="/app">Prize Savings</Link><Link href="/app/vaults">Classic Vaults</Link><Link href="/app/prizes">Prizes</Link><Link href="/app/rewards">Rewards</Link></nav>
           <nav aria-label="Account links"><h3>ACCOUNT</h3><Link href="/login">Sign in</Link><Link href="/onboarding">Onboarding</Link><Link href="/app/profile">Profile</Link></nav>
           <nav aria-label="Trust links"><h3>TRUST</h3><Link href="/transparency">Transparency</Link><Link href="/ops">Status</Link><Link href="/app/help">Help</Link></nav>
           <div className={styles["footer-privacy"]}><h3>PRIVACY</h3><p>Confidential, not anonymous.</p><p>Private values reveal only on explicit user action.</p></div>
@@ -545,7 +554,16 @@ export function LeopoldMarketingHome() {
   );
 }
 
-type Cadence = (typeof savingCadences)[number];
+type Cadence = {
+  label: string;
+  title: string;
+  copy: string;
+  round: string;
+  image: string;
+  imageAlt: string;
+  width: number;
+  height: number;
+};
 
 function CadenceCopy({ cadence }: { cadence: Cadence }) {
   return (
