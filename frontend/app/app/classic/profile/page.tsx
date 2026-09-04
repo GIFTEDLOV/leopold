@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { useExperience } from "@/components/experience-provider";
 import { useFinancial } from "@/components/financial-provider";
 import { useWalletIdentity } from "@/components/wallet-identity-provider";
 import styles from "@/components/full-site/leopold-app-ui.module.css";
@@ -12,6 +13,7 @@ export default function ClassicProfilePage() {
   const auth = useAuth();
   const walletIdentity = useWalletIdentity();
   const router = useRouter();
+  const { setExperience } = useExperience();
   const [amount, setAmount] = useState("1");
   const session = walletIdentity.walletSession;
 
@@ -19,12 +21,32 @@ export default function ClassicProfilePage() {
     <div className={styles.content}>
       <div className={styles.pageHeading}>
         <div>
-          <p className={styles.eyebrow}>Account &amp; wallet</p>
-          <h1>Identity, without <em>custody.</em></h1>
+          <p className={styles.eyebrow}>PROFILE</p>
+          <h1>Profile</h1>
           <p>Your Leopold identity stays offchain; your external wallet controls the financial state.</p>
         </div>
       </div>
       <div className={styles.profileGrid}>
+        <article className={`${styles.panel} ${styles.experiencePanel}`}>
+          <div className={styles.panelTitle}>
+            <div>
+              <p className={styles.eyebrow}>EXPERIENCE</p>
+              <h2>Choose how Leopold feels</h2>
+            </div>
+            <span className={styles.status}>NO FUNDS MOVE</span>
+          </div>
+          <p>Switch between Prize Savings and Classic Vaults any time. This only changes the app view; each product keeps its own balance and history.</p>
+          <div className={styles.experienceSwitcher} role="group" aria-label="Choose your Leopold experience">
+            <button type="button" aria-pressed={false} onClick={() => { setExperience("v2"); router.push("/app"); }}>
+              <strong>Prize Savings</strong>
+              <span>Save and enter upcoming draws automatically</span>
+            </button>
+            <button type="button" className={styles.experienceSelected} aria-pressed={true} onClick={() => { setExperience("v1"); router.push("/app/classic"); }}>
+              <strong>Classic Vaults</strong>
+              <span>Daily, Weekly, Monthly, Boost</span>
+            </button>
+          </div>
+        </article>
         <article className={styles.panel}>
           <p className={styles.eyebrow}>Leopold account</p><h2>Account identity.</h2>
           <div className={styles.listRow}><div><strong>Username</strong><span>Offchain application identity</span></div><span>{auth.username ?? "Incomplete"}</span></div>

@@ -47,6 +47,11 @@ function shortAddress(address: string | null): string {
   return address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "Not connected";
 }
 
+export function isNavigationItemActive(pathname: string, href: string): boolean {
+  const isHomeRoute = href === "/app" || href === "/app/classic";
+  return isHomeRoute ? pathname === href : pathname === href || pathname.startsWith(href);
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const financial = useFinancial();
@@ -285,19 +290,22 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <p className={styles.navLabel}>PRIVATE SAVINGS</p>
         <nav className={styles.nav} aria-label="Authenticated application">
-          {navigation.map(([label, href, icon]) => (
-            <Link
-              key={href}
-              className={pathname === href || (href !== "/app" && pathname.startsWith(href)) ? styles.active : ""}
-              href={href}
-              aria-current={pathname === href || (href !== "/app" && pathname.startsWith(href)) ? "page" : undefined}
-              onClick={() => setMobileOpen(false)}
-            >
-              <i><NavIcon name={icon} /></i>
-              <span>{label}</span>
-              <b aria-hidden="true">↗</b>
-            </Link>
-          ))}
+          {navigation.map(([label, href, icon]) => {
+            const active = isNavigationItemActive(pathname, href);
+            return (
+              <Link
+                key={href}
+                className={active ? styles.active : ""}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                onClick={() => setMobileOpen(false)}
+              >
+                <i><NavIcon name={icon} /></i>
+                <span>{label}</span>
+                <b aria-hidden="true">↗</b>
+              </Link>
+            );
+          })}
         </nav>
         <div className={styles.sidebarFoot}>
           <p>Private values stay hidden until you deliberately reveal them.</p>
