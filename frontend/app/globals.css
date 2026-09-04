@@ -434,6 +434,27 @@ input:focus-visible {
   font-size: 13px;
   margin-bottom: 6px;
 }
+.account-experience-link {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+.account-experience-link:hover,
+.account-experience-link:focus-visible,
+.account-experience-link.selected {
+  border-color: var(--line);
+  background: var(--paper);
+}
+.account-experience-link span { margin: 0; color: inherit; font-size: 13px; font-weight: 650; }
+.account-experience-link small { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.account-experience-note { font-size: 11px !important; line-height: 1.35; }
+.account-profile-link { color: var(--ink); font-size: 12px; font-weight: 650; padding: 4px 10px 8px; }
 .dot {
   background: #53a475;
   border-radius: 50%;

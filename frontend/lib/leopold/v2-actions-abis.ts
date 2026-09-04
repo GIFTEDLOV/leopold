@@ -1,0 +1,238 @@
+export const v2WrapperActionAbi = [
+  {
+    type: "event",
+    name: "UnwrapRequested",
+    anonymous: false,
+    inputs: [
+      { name: "receiver", type: "address", indexed: true },
+      { name: "unwrapRequestId", type: "bytes32", indexed: true },
+      { name: "amount", type: "bytes32", indexed: false },
+    ],
+  },
+  {
+    type: "function",
+    name: "underlying",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "wrap",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "confidentialTransferAndCall",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "encryptedAmount", type: "bytes32" },
+      { name: "inputProof", type: "bytes" },
+      { name: "data", type: "bytes" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "unwrap",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "from", type: "address" },
+      { name: "to", type: "address" },
+      { name: "encryptedAmount", type: "bytes32" },
+      { name: "inputProof", type: "bytes" },
+    ],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    type: "function",
+    name: "finalizeUnwrap",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "unwrapRequestId", type: "bytes32" },
+      { name: "unwrapAmountCleartext", type: "uint64" },
+      { name: "decryptionProof", type: "bytes" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+export const v2VaultActionAbi = [
+  {
+    type: "function",
+    name: "activeRoundId",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "ASSET",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "UNDERLYING",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "roundInfo",
+    stateMutability: "view",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [
+      { name: "opensAt", type: "uint64" },
+      { name: "closesAt", type: "uint64" },
+      { name: "state", type: "uint8" },
+      { name: "publicAggregateTwab", type: "uint128" },
+      { name: "publicPrize", type: "uint64" },
+      { name: "participantCountSnapshot", type: "uint256" },
+      { name: "selectionCursor", type: "uint256" },
+      { name: "allocationCursor", type: "uint256" },
+    ],
+  },
+  {
+    type: "function",
+    name: "principalOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    type: "function",
+    name: "winningsOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    type: "function",
+    name: "withdraw",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "encryptedAmount", type: "bytes32" },
+      { name: "inputProof", type: "bytes" },
+    ],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    type: "function",
+    name: "withdrawWinnings",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "encryptedAmount", type: "bytes32" },
+      { name: "inputProof", type: "bytes" },
+    ],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+] as const;
+
+export const v2EscrowActionAbi = [
+  {
+    type: "function",
+    name: "BOND_AMOUNT",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "automationBondCredit",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "autoEntryPreference",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [
+      { name: "enabledBeforeEffectiveRound", type: "bool" },
+      { name: "enabledAtAndAfterEffectiveRound", type: "bool" },
+      { name: "effectiveRound", type: "uint256" },
+    ],
+  },
+  {
+    type: "function",
+    name: "isAutoEntryEnabled",
+    stateMutability: "view",
+    inputs: [
+      { name: "account", type: "address" },
+      { name: "roundId", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "depositAutomationBondCredit",
+    stateMutability: "payable",
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "withdrawAutomationBondCredit",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "setAutoEntry",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "enabled", type: "bool" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "isRegistered",
+    stateMutability: "view",
+    inputs: [
+      { name: "roundId", type: "uint256" },
+      { name: "account", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "refundClaimed",
+    stateMutability: "view",
+    inputs: [
+      { name: "roundId", type: "uint256" },
+      { name: "account", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "claimBondRefund",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "settlementRewardCredit",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "withdrawSettlementRewards",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+] as const;

@@ -10,6 +10,8 @@ import { useAuth } from "./auth-provider";
 import { useFinancial } from "./financial-provider";
 import { useWalletIdentity } from "./wallet-identity-provider";
 import { addMoneyButtonDisabled } from "@/lib/auth/hydration";
+import { V2_ADD_MONEY_EVENT, experienceForPath, type AppExperience } from "@/lib/ui/experience";
+import { useExperience } from "./experience-provider";
 import styles from "@/components/full-site/leopold-app-ui.module.css";
 
 const classicNavigation = [
@@ -58,7 +60,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [walletMenu, setWalletMenu] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
-  const isV2 = pathname === "/app" || pathname === "/app/profile" || pathname.startsWith("/app/v2");
+  const { experience, setExperience } = useExperience();
+  const routeExperience = experienceForPath(pathname);
+  const activeExperience: AppExperience = pathname === "/app" && experience === "v1" ? "v1" : routeExperience ?? experience;
+  const isV2 = activeExperience === "v2";
   const navigation = isV2 ? v2Navigation : classicNavigation;
 
   const networkLabel =
@@ -194,6 +199,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
         {walletMenu ? (
           <div className="account-popover" role="menu">
+            <strong>Experience</strong>
+            <Link className={`account-experience-link ${activeExperience === "v2" ? "selected" : ""}`} role="menuitem" href="/app" onClick={() => { setExperience("v2"); setWalletMenu(false); }}>
+              <span>Prize Savings</span>
+              <small>Save and enter upcoming draws automatically</small>
+            </Link>
+            <Link className={`account-experience-link ${activeExperience === "v1" ? "selected" : ""}`} role="menuitem" href="/app/classic" onClick={() => { setExperience("v1"); setWalletMenu(false); }}>
+              <span>Classic Vaults</span>
+              <small>Choose Daily, Weekly, Monthly, or Boost</small>
+            </Link>
+            <span className="account-experience-note">Switching views never moves your money.</span>
+            <Link className="account-profile-link" href="/app/profile" onClick={() => setWalletMenu(false)}>Profile &amp; settings</Link>
             <strong>Financial wallet</strong>
             <span>{shortAddress(session.verifiedAddress)}</span>
             <strong>Wallet session</strong>
@@ -226,14 +242,26 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : null}
           </div>
         ) : null}
-        {isV2 ? <button className={styles.wallet} type="button" aria-label="Prize Savings status: disconnected">Disconnected</button> : null}
-        <button
-          className={styles.primaryButton}
-          onClick={() => setAddMoney(true)}
-          disabled={addMoneyButtonDisabled(clientReady, auth.accountStatus === "SIGNED_IN_READY", financial.fixture)}
-        >
-          + Add Money
-        </button>
+        {isV2 ? <button className={styles.wallet} type="button" aria-label={`Prize Savings status: ${session.status.toLowerCase()}`}>
+          {session.status === "CONNECTED" ? "Connected" : session.status === "WRONG_NETWORK" ? "Wrong network" : session.status === "BOOTSTRAPPING" ? "Checking…" : "Disconnected"}
+        </button> : null}
+        {isV2 ? pathname === "/app" ? (
+          <button className={styles.primaryButton} type="button" onClick={() => window.dispatchEvent(new Event(V2_ADD_MONEY_EVENT))}>
+            + Add Money
+          </button>
+        ) : (
+          <Link className={styles.primaryButton} href="/app#add-money">
+            + Add Money
+          </Link>
+        ) : (
+          <button
+            className={styles.primaryButton}
+            onClick={() => setAddMoney(true)}
+            disabled={addMoneyButtonDisabled(clientReady, auth.accountStatus === "SIGNED_IN_READY", financial.fixture)}
+          >
+            + Add Money
+          </button>
+        )}
       </div>
     </>
   );

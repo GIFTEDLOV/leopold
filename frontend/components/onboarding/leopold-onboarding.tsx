@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useRef, useState, type KeyboardEvent, type UIEvent } from "react";
 import { OnboardingClient } from "@/components/auth-flow";
 import { useAuth } from "@/components/auth-provider";
+import { onboardingSurface } from "@/lib/auth/onboarding-surface";
 import styles from "./leopold-onboarding.module.css";
 
 const assetRoot = "/marketing/leopold";
@@ -264,13 +265,8 @@ function OnboardingWalkthrough() {
   );
 }
 
-function OnboardingLoading() {
-  return <div className={styles.loading} role="status"><Brand /><span>Preparing your Leopold experience…</span></div>;
-}
-
 export function LeopoldOnboardingRoute() {
   const auth = useAuth();
-  if (auth.loading) return <OnboardingLoading />;
-  if (auth.authenticated) return <OnboardingClient />;
+  if (onboardingSurface(auth) === "authenticated") return <OnboardingClient />;
   return <OnboardingWalkthrough />;
 }

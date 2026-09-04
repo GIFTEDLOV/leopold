@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
+import { ExperienceProvider } from "@/components/experience-provider";
 import { WalletGate } from "@/components/wallet-gate";
 
 export default function FinancialLayout({ children }: { children: ReactNode }) {
   return (
-    <>
+    <ExperienceProvider>
       <AppShell>
         <WalletGate>{children}</WalletGate>
       </AppShell>
@@ -15,6 +16,6 @@ export default function FinancialLayout({ children }: { children: ReactNode }) {
           display: none;
         }
       `}</style>
-    </>
+    </ExperienceProvider>
   );
 }
