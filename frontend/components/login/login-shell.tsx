@@ -135,6 +135,12 @@ export function LoginShell({
         .${styles.mosaic} {
           border-radius: 0 5px 5px 0;
         }
+        .${styles.formContent} .button {
+          font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+          font-size: 11px !important;
+          font-weight: 650 !important;
+          letter-spacing: .08em !important;
+        }
         .${styles.formContent} .profile-actions .button {
           height: 46px !important;
           min-height: 46px !important;
@@ -172,6 +178,9 @@ export function LoginShell({
           .${styles.formPanel},
           .${styles.mosaic} {
             border-radius: 0;
+          }
+          .${styles.formContent} .button {
+            font-size: 11px !important;
           }
           .${styles.formContent} .profile-actions .button {
             height: 39px !important;
