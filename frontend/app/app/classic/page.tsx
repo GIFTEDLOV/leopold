@@ -1,5 +1,5 @@
-import { ClassicDashboardExperience } from "@/components/final-ui/classic-dashboard-experience";
+import { ClassicDashboardSitesParity } from "@/components/final-ui/classic-dashboard-sites-parity";
 
 export default function ClassicHomePage() {
-  return <ClassicDashboardExperience />;
+  return <ClassicDashboardSitesParity />;
 }
