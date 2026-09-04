@@ -8,10 +8,10 @@ import { useFinancial } from "./financial-provider";
 import styles from "@/components/full-site/leopold-app-ui.module.css";
 
 const descriptions: Record<VaultId, string> = {
-  daily: "Fast rhythm",
+  daily: "Fast cycle",
   weekly: "Recommended",
-  monthly: "Long horizon",
-  boost: "Sponsor enhanced",
+  monthly: "Longer cycle",
+  boost: "Sponsor-enhanced prizes",
 };
 const durations: Record<VaultId, string> = { daily: "1 day", weekly: "7 days", monthly: "30 days", boost: "7 days" };
 const images: Record<VaultId, string> = {
@@ -53,36 +53,36 @@ export function VaultCards() {
                 <span>{String(index + 1).padStart(2, "0")}</span>
               </figure>
               <div>
-              <div className={styles.vaultTitleRow}>
-                <div>
-                  <h3>{vault.name}</h3>
-                  <span>{descriptions[vault.slug]}</span>
+                <div className={styles.vaultTitleRow}>
+                  <div>
+                    <h3>{vault.name}</h3>
+                    <span>{descriptions[vault.slug]}</span>
+                  </div>
+                  {vault.slug === "weekly" ? (
+                    <span className={styles.status}>Recommended</span>
+                  ) : entered ? (
+                    <span className={styles.status}>Entered</span>
+                  ) : null}
                 </div>
-                {vault.slug === "weekly" ? (
-                  <span className={styles.status}>Recommended</span>
-                ) : entered ? (
-                  <span className={styles.status}>Entered</span>
-                ) : null}
-              </div>
-              <dl>
-                <div><dt>Cadence</dt><dd>{durations[vault.slug]}</dd></div>
-                <div><dt>Prize</dt><dd>{state ? `${Number(state.publicPrize) / 1_000_000} USDC` : "Unavailable"}</dd></div>
-                <div><dt>Status</dt><dd>{financial.fixture && !state ? "Open" : status.label}</dd></div>
-              </dl>
-              <div className={styles.buttonRow}>
-                <Link className={styles.outlineButton} href={`/app/vaults/${vault.slug}`}>
-                  View
-                </Link>
-                {saveEnabled ? (
-                  <Link className={styles.primaryButton} href={`/app/vaults/${vault.slug}#save`}>
-                    Save
+                <dl>
+                  <div><dt>Round duration</dt><dd>{durations[vault.slug]}</dd></div>
+                  <div><dt>Prize</dt><dd>{state ? `${Number(state.publicPrize) / 1_000_000} USDC` : "Unavailable"}</dd></div>
+                  <div><dt>Round status</dt><dd>{financial.fixture && !state ? "Open" : status.label}</dd></div>
+                </dl>
+                <div className={styles.buttonRow}>
+                  <Link className={styles.outlineButton} href={`/app/vaults/${vault.slug}`}>
+                    View
                   </Link>
-                ) : (
-                  <button className={styles.primaryButton} disabled type="button">
-                    Save
-                  </button>
-                )}
-              </div>
+                  {saveEnabled ? (
+                    <Link className={styles.primaryButton} href={`/app/vaults/${vault.slug}#save`}>
+                      Save
+                    </Link>
+                  ) : (
+                    <button className={styles.primaryButton} disabled type="button">
+                      Save
+                    </button>
+                  )}
+                </div>
               </div>
             </article>
           );
