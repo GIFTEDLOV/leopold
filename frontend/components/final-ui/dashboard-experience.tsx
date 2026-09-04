@@ -82,7 +82,7 @@ function V2ActionDialog({ v2 }: { v2: V2State }) {
 export function V2HomePage() {
   const v2 = useV2FunctionalState();
   const data = v2.data;
-  const privateBalance = v2.revealedSavingsValue !== null ? `${formatUnits(v2.revealedSavingsValue, 6)} USDC` : data?.privateHandlesRead === true ? "•••••• USDC" : data ? "0.00 USDC" : v2.readStatus === "error" ? "Unavailable" : "Checking";
+  const privateBalance = v2.revealedSavingsValue !== null ? `${formatUnits(v2.revealedSavingsValue, 6)} USDC` : data?.privateHandlesRead === true ? "•••••• USDC" : data?.privateHandlesRead === false ? "0.00 USDC" : v2.readStatus === "error" ? "Unavailable" : "Checking";
   const resultCopy = v2.revealedResultValue !== null ? v2.revealedResultValue > 0n ? `You won ${formatUnits(v2.revealedResultValue, 6)} USDC` : "No prize this time" : v2.resultReady ? "Your result is ready" : data ? "No result yet" : "Checking result";
   return <>
     <PageHeader kicker="PRIZE SAVINGS · DAILY" title="Your savings, with a chance to win." copy="Save once, stay in the draw, and check back when the next result is ready." action={<Status tone={data ? "good" : "neutral"}>{data ? "Live" : "Checking"}</Status>} compactTitle />
