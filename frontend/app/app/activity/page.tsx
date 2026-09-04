@@ -11,9 +11,9 @@ export default function ActivityPage() {
       <FixtureStatus />
       <div className={styles.pageHeading}>
         <div>
-          <p className={styles.eyebrow}>Privacy-safe history</p>
-          <h1>Activity without <em>exposure.</em></h1>
-          <p>Public transaction references for this wallet. Confidential values are never reconstructed in this view.</p>
+          <p className={styles.eyebrow}>ACTIVITY</p>
+          <h1>Activity</h1>
+          <p>Review your Classic Vault actions and public transaction references without reconstructing private values.</p>
         </div>
       </div>
       <section className={styles.filterBar}><span>Browser session</span><div><button className={styles.selected}>All</button><button>Deposits</button><button>Withdrawals</button><button>Prizes</button></div></section>
@@ -34,8 +34,8 @@ export default function ActivityPage() {
         ) : (
           <div className={styles.empty}>
             <span>◇</span>
-            <h3>No recent Leopold activity</h3>
-            <p>Deposits, withdrawals, entries, reveals and claims will appear after the existing actions report them.</p>
+            <h3>No recent activity</h3>
+            <p>Your Classic Vault deposits, withdrawals, prize entries, reveals, and claims will appear here.</p>
           </div>
         )}
       </article>
