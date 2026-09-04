@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState, type KeyboardEvent, type UIEvent } from "react";
+import { OnboardingClient } from "@/components/auth-flow";
+import { useAuth } from "@/components/auth-provider";
+import { onboardingSurface } from "@/lib/auth/onboarding-surface";
 import styles from "./leopold-onboarding.module.css";
 
 const onboardingSlides = [
@@ -27,7 +30,7 @@ function Brand() {
   return <Link className={styles.brand} href="/" aria-label="Leopold home"><img className={styles["brand-mark"]} src="/marketing/leopold/leopold-monogram.png" width="512" height="512" alt="" aria-hidden="true" /><span>Leop<span className={styles["brand-accent"]}>old</span></span></Link>;
 }
 
-export function LeopoldOnboardingRoute() {
+function OnboardingWalkthrough() {
   const trackRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -90,4 +93,10 @@ export function LeopoldOnboardingRoute() {
       </main>
     </div>
   );
+}
+
+export function LeopoldOnboardingRoute() {
+  const auth = useAuth();
+  if (onboardingSurface(auth) === "authenticated") return <OnboardingClient />;
+  return <OnboardingWalkthrough />;
 }
