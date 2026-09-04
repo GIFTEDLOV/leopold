@@ -80,6 +80,14 @@ export function ClassicDashboardSitesParity() {
     await controller.balances.actions.revealPrivateUsdc();
   };
 
+  const connectFinancialWallet = () => {
+    if (controller.wallet.financialWalletStatus === "not-linked") {
+      controller.wallet.actions.linkFinancialWallet();
+      return;
+    }
+    void controller.wallet.actions.connect().catch(() => undefined);
+  };
+
   return (
     <div className={styles.content}>
       <section className={styles.pageHeading}>
@@ -97,9 +105,7 @@ export function ClassicDashboardSitesParity() {
             <strong>Financial wallet not connected.</strong>
             <span>Connect your verified wallet to save, enter, reveal, withdraw, or claim.</span>
           </div>
-          <button type="button" onClick={() => void controller.wallet.actions.connect().catch(() => undefined)}>
-            Connect verified wallet
-          </button>
+          <button type="button" onClick={connectFinancialWallet}>Connect verified wallet</button>
         </section>
       ) : null}
 
@@ -178,7 +184,7 @@ export function ClassicDashboardSitesParity() {
                 </Link>
                 <div className={styles.buttonRow} style={{ padding: "0 18px 18px", marginTop: 0 }}>
                   <Link className={styles.outlineButton} href={`/app/classic/vaults/${vault.id}`}>View</Link>
-                  <Link className={styles.primaryButton} href={`/app/classic/vaults/${vault.id}`}>Save</Link>
+                  <Link className={styles.primaryButton} href={`/app/classic/vaults/${vault.id}#save`}>Save</Link>
                 </div>
               </article>
             );
