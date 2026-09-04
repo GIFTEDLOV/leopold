@@ -135,13 +135,8 @@ function OnboardingWalkthrough() {
   );
 }
 
-function OnboardingLoading() {
-  return <div className={styles.loading} role="status"><Brand /><span>Preparing your Leopold experience…</span></div>;
-}
-
 export function LeopoldOnboardingRoute() {
   const auth = useAuth();
-  if (auth.loading) return <OnboardingLoading />;
   if (auth.authenticated) return <OnboardingClient />;
   return <OnboardingWalkthrough />;
 }
