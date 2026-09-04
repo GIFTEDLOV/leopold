@@ -267,6 +267,8 @@ export function LeopoldMarketingHome() {
   const [principleHeadline, setPrincipleHeadline] = useState(0);
   const [protocolEntered, setProtocolEntered] = useState(false);
   const [savingProcessEntered, setSavingProcessEntered] = useState(false);
+  const heroRef = useRef<HTMLElement>(null);
+  const heroTitleRef = useRef<HTMLHeadingElement>(null);
   const protocolRef = useRef<HTMLElement>(null);
   const savingProcessRef = useRef<HTMLElement>(null);
 
@@ -331,6 +333,55 @@ export function LeopoldMarketingHome() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const hero = heroRef.current;
+    const heroTitle = heroTitleRef.current;
+    const heroCopy = hero?.querySelector<HTMLElement>(`.${styles["hero-copy"]}`);
+    if (!hero || !heroTitle || !heroCopy) return;
+
+    let animationFrame = 0;
+    let currentCopyOffset = 0;
+    let copyOffsetInitialized = false;
+
+    const updateScrollEffects = () => {
+      animationFrame = 0;
+      const heroRect = hero.getBoundingClientRect();
+      const heroProgress = Math.min(1, Math.max(0, -heroRect.top / Math.max(heroRect.height, 1)));
+      const viewportHeight = window.innerHeight;
+      const targetCopyOffset = -Math.max(0, heroRect.bottom - viewportHeight);
+      if (!copyOffsetInitialized || reducedMotion.matches) {
+        currentCopyOffset = targetCopyOffset;
+        copyOffsetInitialized = true;
+      } else {
+        currentCopyOffset += (targetCopyOffset - currentCopyOffset) * 0.2;
+      }
+      heroCopy.style.setProperty("--hero-copy-pin", `${currentCopyOffset.toFixed(2)}px`);
+      if (reducedMotion.matches) return;
+
+      const growthCap = viewportHeight < 660 ? 0.22 : viewportHeight < 780 ? 0.34 : 0.55;
+      heroTitle.style.setProperty("--hero-scroll-scale", (1 + heroProgress * growthCap).toFixed(3));
+      heroTitle.style.setProperty("--hero-scroll-lift", `${(-heroProgress * 12).toFixed(1)}px`);
+      if (Math.abs(targetCopyOffset - currentCopyOffset) > 0.1) {
+        animationFrame = window.requestAnimationFrame(updateScrollEffects);
+      }
+    };
+
+    const requestUpdate = () => {
+      if (animationFrame) return;
+      animationFrame = window.requestAnimationFrame(updateScrollEffects);
+    };
+
+    updateScrollEffects();
+    window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+    return () => {
+      window.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("resize", requestUpdate);
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+    };
+  }, []);
+
   return (
     <div className={styles.marketing}>
       <a className={styles["skip-link"]} href="#marketing-main">Skip to content</a>
@@ -362,7 +413,7 @@ export function LeopoldMarketingHome() {
       </header>
 
       <main id="marketing-main">
-        <section className={styles.hero} id="top" aria-label="Leopold introduction">
+        <section className={styles.hero} id="top" aria-label="Leopold introduction" ref={heroRef}>
           <div className={styles["hero-tiles"]} aria-hidden="true">
             {Array.from({ length: 96 }).map((_, index) => (
               <span
@@ -384,7 +435,7 @@ export function LeopoldMarketingHome() {
           <div className={styles["hero-shade"]} />
           <div className={styles["hero-copy"]}>
             <p className={styles.eyebrow}>PRIVATE PRIZE SAVINGS</p>
-            <h1>Private savings.<br /><StyledWords accentWords={["provable"]}>Publicly provable.</StyledWords></h1>
+            <h1 className={styles["hero-scroll-title"]} ref={heroTitleRef}>Private savings.<br /><StyledWords accentWords={["provable"]}>Publicly provable.</StyledWords></h1>
             <p>Save USDC and choose how you want to participate. Prize Savings keeps you automatically entered in future eligible draws, while Classic Vaults gives you direct control over Daily, Weekly, Monthly and Boost.</p>
           </div>
           <button

@@ -12,16 +12,26 @@ import { useWalletIdentity } from "./wallet-identity-provider";
 import { addMoneyButtonDisabled } from "@/lib/auth/hydration";
 import styles from "@/components/full-site/leopold-app-ui.module.css";
 
-const navigation = [
-  ["Home", "/app", "home"],
-  ["Vaults", "/app/vaults", "vaults"],
-  ["Prizes", "/app/prizes", "prizes"],
-  ["Activity", "/app/activity", "activity"],
-  ["Rewards", "/app/rewards", "rewards"],
+const classicNavigation = [
+  ["Home", "/app/classic", "home"],
+  ["Vaults", "/app/classic/vaults", "vaults"],
+  ["Prizes", "/app/classic/prizes", "prizes"],
+  ["Activity", "/app/classic/activity", "activity"],
+  ["Rewards", "/app/classic/rewards", "rewards"],
+  ["Profile", "/app/classic/profile", "profile"],
+] as const;
+
+const v2Navigation = [
+  ["Overview", "/app", "home"],
+  ["Draws", "/app/v2/draws", "prizes"],
+  ["Activity", "/app/v2/activity", "activity"],
+  ["Rewards", "/app/v2/rewards", "rewards"],
   ["Profile", "/app/profile", "profile"],
 ] as const;
 
-function NavIcon({ name }: { name: (typeof navigation)[number][2] }) {
+type NavigationIcon = "home" | "vaults" | "prizes" | "activity" | "rewards" | "profile";
+
+function NavIcon({ name }: { name: NavigationIcon }) {
   const common = { fill: "none", stroke: "currentColor", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, strokeWidth: 1.7 };
   if (name === "home") return <svg viewBox="0 0 24 24" aria-hidden="true"><path {...common} d="m4 10 8-6 8 6v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1Z" /></svg>;
   if (name === "vaults") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect {...common} x="3" y="4" width="18" height="16" rx="2" /><path {...common} d="M8 4v16M8 9h13M8 15h13" /></svg>;
@@ -46,6 +56,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const clientReady = auth.clientReady;
   const [addMoney, setAddMoney] = useState(false);
   const [walletMenu, setWalletMenu] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
+  const isV2 = pathname === "/app" || pathname === "/app/profile" || pathname.startsWith("/app/v2");
+  const navigation = isV2 ? v2Navigation : classicNavigation;
 
   const networkLabel =
     auth.accountStatus === "AUTH_LOADING"
@@ -152,20 +166,104 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   })();
 
+  const topbarContent = (
+    <>
+      <button
+        className={styles.menuButton}
+        type="button"
+        onClick={() => setMobileOpen((open) => !open)}
+        aria-controls="app-navigation"
+        aria-expanded={mobileOpen}
+        aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+      >
+        ☰
+      </button>
+      <Link className={styles.networkBrand} href={isV2 ? "/app" : "/app/classic"} aria-label={`${isV2 ? "Prize Savings" : "Classic Vaults"} home. ${networkLabel}`}>
+        <Image src="/marketing/leopold/leopold-monogram.png" width={24} height={24} alt="" aria-hidden="true" />
+        <span>Leop<span>old</span></span>
+      </Link>
+      <div className={`${styles.topActions} account-control`}>
+        <button
+          className={`${styles.wallet} account-pill`}
+          onClick={() => setWalletMenu((open) => !open)}
+          disabled={!clientReady}
+          aria-expanded={walletMenu}
+          aria-haspopup="menu"
+        >
+          {headerWalletLabel}
+        </button>
+        {walletMenu ? (
+          <div className="account-popover" role="menu">
+            <strong>Financial wallet</strong>
+            <span>{shortAddress(session.verifiedAddress)}</span>
+            <strong>Wallet session</strong>
+            <span>
+              {session.status === "CONNECTED" || session.status === "WRONG_NETWORK" ? "Connected" : "Disconnected"}
+            </span>
+            {session.status === "CONNECTED" || session.status === "WRONG_NETWORK" ? (
+              <>
+                <strong>Network</strong>
+                <span>{session.status === "CONNECTED" ? "Ethereum Sepolia" : "Wrong network"}</span>
+                <button
+                  className="button secondary small"
+                  role="menuitem"
+                  onClick={() => {
+                    walletIdentity.disconnectLeopoldWallet();
+                    setWalletMenu(false);
+                  }}
+                >
+                  Disconnect
+                </button>
+              </>
+            ) : auth.financialWallet ? (
+              <button
+                className="button secondary small"
+                role="menuitem"
+                onClick={() => void walletIdentity.connectVerifiedWallet()}
+              >
+                Reconnect verified wallet
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        {isV2 ? <button className={styles.wallet} type="button" aria-label="Prize Savings status: disconnected">Disconnected</button> : null}
+        <button
+          className={styles.primaryButton}
+          onClick={() => setAddMoney(true)}
+          disabled={addMoneyButtonDisabled(clientReady, auth.accountStatus === "SIGNED_IN_READY", financial.fixture)}
+        >
+          + Add Money
+        </button>
+      </div>
+    </>
+  );
+
   return (
-    <div className={`${styles.frame} app-frame`}>
-      <aside className={styles.sidebar}>
+    <div className={`${styles.frame} app-frame ${pathname === "/app/help" ? "" : styles.currencyGlow} ${isV2 ? styles.v2Frame : styles.v1Frame}`}>
+      <a className={styles.skipApp} href="#app-content">Skip to content</a>
+      <aside
+        id="app-navigation"
+        className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ""}`}
+        onMouseEnter={() => setRailOpen(true)}
+        onMouseLeave={() => setRailOpen(false)}
+        onFocus={() => setRailOpen(true)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setRailOpen(false);
+        }}
+      >
         <Link className={styles.brand} href="/">
           <Image src="/marketing/leopold/leopold-monogram.png" width={30} height={30} alt="" aria-hidden="true" />
           <span>Leop<span>old</span></span>
         </Link>
-        <p className={styles.navLabel}>Private savings</p>
-        <nav className={styles.nav} aria-label="Primary navigation">
+        <p className={styles.navLabel}>PRIVATE SAVINGS</p>
+        <nav className={styles.nav} aria-label="Authenticated application">
           {navigation.map(([label, href, icon]) => (
             <Link
               key={href}
               className={pathname === href || (href !== "/app" && pathname.startsWith(href)) ? styles.active : ""}
               href={href}
+              aria-current={pathname === href || (href !== "/app" && pathname.startsWith(href)) ? "page" : undefined}
+              onClick={() => setMobileOpen(false)}
             >
               <i><NavIcon name={icon} /></i>
               <span>{label}</span>
@@ -180,91 +278,37 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ThemeToggle className={styles.sidebarThemeToggle} />
         </div>
       </aside>
-      <main className={styles.mainColumn}>
-        <header className={styles.topbar}>
-          <Link className={styles.networkBrand} href="/app" aria-label={`Leopold home. ${networkLabel}`}>
-            <Image src="/marketing/leopold/leopold-monogram.png" width={24} height={24} alt="" aria-hidden="true" />
-            <span>Leop<span>old</span></span>
-          </Link>
-          <div className={`${styles.topActions} account-control`}>
-            <button
-              className="account-pill"
-              onClick={() => setWalletMenu((open) => !open)}
-              disabled={!clientReady}
-              aria-expanded={walletMenu}
-              aria-haspopup="menu"
-            >
-              {headerWalletLabel}
-            </button>
-            {walletMenu ? (
-              <div className="account-popover" role="menu">
-                <strong>Financial wallet</strong>
-                <span>{shortAddress(session.verifiedAddress)}</span>
-                <strong>Wallet session</strong>
-                <span>
-                  {session.status === "CONNECTED" || session.status === "WRONG_NETWORK" ? "Connected" : "Disconnected"}
-                </span>
-                {session.status === "CONNECTED" || session.status === "WRONG_NETWORK" ? (
-                  <>
-                    <strong>Network</strong>
-                    <span>{session.status === "CONNECTED" ? "Ethereum Sepolia" : "Wrong network"}</span>
-                    <button
-                      className="button secondary small"
-                      role="menuitem"
-                      onClick={() => {
-                        walletIdentity.disconnectLeopoldWallet();
-                        setWalletMenu(false);
-                      }}
-                    >
-                      Disconnect
-                    </button>
-                  </>
-                ) : auth.financialWallet ? (
-                  <button
-                    className="button secondary small"
-                    role="menuitem"
-                    onClick={() => void walletIdentity.connectVerifiedWallet()}
-                  >
-                    Reconnect verified wallet
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-          <button
-            className={styles.primaryButton}
-            onClick={() => setAddMoney(true)}
-            disabled={addMoneyButtonDisabled(clientReady, auth.accountStatus === "SIGNED_IN_READY", financial.fixture)}
-          >
-            + Add Money
-          </button>
-        </header>
-
-        {recovery.visible ? (
-          <div className={`${styles.alert} inline-notice`} role="alert">
-            <strong>{recovery.message}</strong>
-            <span>{recovery.detail}</span>
-            {auth.authError ? <span className="error">{auth.authError}</span> : null}
-            {recoveryButton}
-            {health.state === "WALLET_RPC_UNAVAILABLE" ? (
-              <details>
-                <summary>How to fix</summary>
-                <p>
-                  In MetaMask, open Networks → Sepolia → Edit → Default RPC URL. Choose or add a working Sepolia RPC.
-                  The tested option is <code>https://ethereum-sepolia-rpc.publicnode.com</code>.
-                </p>
-              </details>
-            ) : null}
-            {session.technicalDetail || health.technicalDetail ? (
-              <details>
-                <summary>Technical detail</summary>
-                <code>{session.technicalDetail ?? health.technicalDetail}</code>
-              </details>
-            ) : null}
-          </div>
-        ) : null}
-        {children}
-      </main>
+      {mobileOpen ? <button className={styles.mobileScrim} type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)} /> : null}
+      <div className={styles.mainColumn}>
+        <div className={`${styles.contentBackdrop} ${railOpen || mobileOpen ? styles.contentBackdropOpen : ""}`} aria-hidden="true" />
+        <div className={styles.v2TopControls}>{topbarContent}</div>
+        <main id="app-content" className={isV2 ? `${styles.content} ${styles.v2Content}` : undefined}>
+          {recovery.visible ? (
+            <div className={`${styles.alert} inline-notice`} role="alert">
+              <strong>{recovery.message}</strong>
+              <span>{recovery.detail}</span>
+              {auth.authError ? <span className="error">{auth.authError}</span> : null}
+              {recoveryButton}
+              {health.state === "WALLET_RPC_UNAVAILABLE" ? (
+                <details>
+                  <summary>How to fix</summary>
+                  <p>
+                    In MetaMask, open Networks → Sepolia → Edit → Default RPC URL. Choose or add a working Sepolia RPC.
+                    The tested option is <code>https://ethereum-sepolia-rpc.publicnode.com</code>.
+                  </p>
+                </details>
+              ) : null}
+              {session.technicalDetail || health.technicalDetail ? (
+                <details>
+                  <summary>Technical detail</summary>
+                  <code>{session.technicalDetail ?? health.technicalDetail}</code>
+                </details>
+              ) : null}
+            </div>
+          ) : null}
+          {children}
+        </main>
+      </div>
       {addMoney ? <AddMoneyModal onClose={() => setAddMoney(false)} /> : null}
     </div>
   );

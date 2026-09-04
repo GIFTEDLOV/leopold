@@ -186,14 +186,6 @@ function OnboardingWalkthrough() {
   return (
     <div className={styles.onboarding}>
       <a className={styles["skip-link"]} href="#onboarding-track">Skip to walkthrough</a>
-      <header className={styles.header}>
-        <Brand />
-        <div className={styles["header-links"]}>
-          <span>PRIVATE PRIZE SAVINGS</span>
-          <Link className={styles["skip-onboarding"]} href="/login">Jump to sign in <span aria-hidden="true">↗</span></Link>
-        </div>
-      </header>
-
       <main>
         <section className={styles.carousel} aria-label="How Leopold works">
           <div
@@ -208,32 +200,47 @@ function OnboardingWalkthrough() {
             onScroll={syncActiveSlide}
           >
             {onboardingSlides.map((slide, index) => (
-              <article className={styles.slide} key={slide.label} aria-label={`Step ${index + 1} of ${onboardingSlides.length}: ${slide.title}`}>
+              <article
+                className={styles.slide}
+                key={slide.label}
+                aria-label={`Step ${index + 1} of ${onboardingSlides.length}: ${slide.title}`}
+                aria-current={activeIndex === index ? "step" : undefined}
+              >
                 <div className={styles["slide-image"]}>
                   <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 720px) 100vw, 55vw" priority={index === 0} unoptimized style={{ objectPosition: slide.position }} />
                   <span className={styles["image-grid"]} aria-hidden="true" />
                   <span className={styles["image-index"]} aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                 </div>
                 <div className={styles["slide-copy"]}>
+                  <div className={styles["board-brand"]}>
+                    <Brand />
+                    <span>ONBOARDING</span>
+                  </div>
                   <div className={styles["board-intro"]}>
                     <p>LEOPOLD ORIENTATION</p>
                     <div>
                       <span>From sign in to <strong>private saving.</strong></span>
-                      <small>{String(index + 1).padStart(2, "0")} / {String(onboardingSlides.length).padStart(2, "0")}</small>
+                      <small aria-live="polite">{String(index + 1).padStart(2, "0")} / {String(onboardingSlides.length).padStart(2, "0")}</small>
                     </div>
                   </div>
                   <p className={styles.label}>{slide.label}</p>
                   <h2><AccentTitle accentWords={slide.accentWords}>{slide.title}</AccentTitle></h2>
                   <p className={styles.copy}>{slide.copy}</p>
                   <p className={styles.note}>{slide.note}</p>
-                  {"complete" in slide && slide.complete ? (
-                    <div className={styles["completion-actions"]}>
-                      <Link className={styles.primary} href="/login">Continue to sign in <span aria-hidden="true">↗</span></Link>
-                      <Link className={styles.secondary} href="/">Return to landing page</Link>
-                    </div>
-                  ) : (
-                    <button className={styles["step-next"]} type="button" onClick={() => goTo(index + 1)}>Next step <span aria-hidden="true">→</span></button>
-                  )}
+                  <div className={styles["slide-actions"]}>
+                    {index > 0 ? <button className={styles["step-previous"]} type="button" onClick={() => goTo(index - 1)}><span aria-hidden="true">←</span> Previous step</button> : null}
+                    {"complete" in slide && slide.complete ? (
+                      <div className={styles["completion-actions"]}>
+                        <Link className={styles.primary} href="/login">Continue to sign in <span aria-hidden="true">↗</span></Link>
+                        <Link className={styles.secondary} href="/">Return to landing page</Link>
+                      </div>
+                    ) : (
+                      <>
+                        <button className={styles["step-next"]} type="button" onClick={() => goTo(index + 1)}>Next step <span aria-hidden="true">→</span></button>
+                        <div className={styles["jump-row"]}><Link className={styles["jump-sign-in"]} href="/login">Jump to sign in <span aria-hidden="true">↗</span></Link></div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </article>
             ))}
