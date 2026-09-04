@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      { source: "/app/v2", destination: "/app", permanent: false },
+      { source: "/app/prize-savings", destination: "/app", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
