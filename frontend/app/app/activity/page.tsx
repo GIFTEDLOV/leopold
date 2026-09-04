@@ -8,6 +8,23 @@ export default function ActivityPage() {
   const financial = useFinancial();
   return (
     <div className={styles.content}>
+      <style jsx global>{`
+        .sites-activity-row {
+          display: grid;
+          grid-template-columns: 2fr 1.2fr .8fr .8fr;
+          align-items: center;
+          gap: 16px;
+          padding: 15px 0;
+          border-bottom: 1px solid var(--app-line);
+        }
+        .sites-activity-row strong { font: 15px Georgia, serif; }
+        .sites-activity-row span { color: #718095; font-size: 10px; }
+        .sites-activity-row .sites-activity-status { width: max-content; color: inherit; }
+        @media (max-width: 760px) {
+          .sites-activity-row { grid-template-columns: 1fr auto; gap: 8px 14px; }
+          .sites-activity-row > :nth-child(4) { display: none; }
+        }
+      `}</style>
       <FixtureStatus />
       <div className={styles.pageHeading}>
         <div>
@@ -23,12 +40,11 @@ export default function ActivityPage() {
         </div>
         {financial.activity.length ? (
           financial.activity.map((item) => (
-            <div className={styles.listRow} key={item.id}>
-              <div>
-                <strong>{item.label}</strong>
-                <span>{item.vault ? `${item.vault} Vault · ` : ""}Ethereum Sepolia</span>
-              </div>
-              <span className={styles.status}>{item.status}</span>
+            <div className="sites-activity-row" key={item.id}>
+              <strong>{item.label}</strong>
+              <span>{item.vault ? `${item.vault} Vault` : "Ethereum Sepolia"}</span>
+              <span className={`${styles.status} sites-activity-status`}>{item.status}</span>
+              <span>Browser session</span>
             </div>
           ))
         ) : (
