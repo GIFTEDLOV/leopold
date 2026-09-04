@@ -163,28 +163,26 @@ export function ClassicDashboardSitesParity() {
             const presentation = vaultPresentation[vault.id];
             return (
               <article className={`${styles.vaultCard} ${vault.recommended ? styles.recommended : ""}`} key={vault.id}>
-                <Link href={`/app/classic/vaults/${vault.id}`}>
-                  <figure>
-                    <Image src={presentation.image} alt={`${vault.name} Classic Vault`} fill sizes="(max-width: 760px) 100vw, (max-width: 1200px) 50vw, 25vw" />
-                    <span>{String(index + 1).padStart(2, "0")}</span>
-                    <span className={styles.status}>{status}</span>
-                  </figure>
-                  <div>
-                    <div className={styles.vaultTitleRow}>
-                      <h3>{vault.name}</h3>
-                      <span>{presentation.note}</span>
-                    </div>
-                    <dl>
-                      <div><dt>Round duration</dt><dd>{durationLabel(vault.durationSeconds)}</dd></div>
-                      <div><dt>Prize</dt><dd>{vault.round.publicPrizeReserve !== null ? `${formatUsdc(vault.round.publicPrizeReserve)} USDC` : "—"}</dd></div>
-                      <div><dt>Round status</dt><dd>{status}</dd></div>
-                    </dl>
-                    <p><span>Your savings</span><strong>{protectedAmount(vault.privateSavings)}</strong></p>
+                <figure>
+                  <Image src={presentation.image} alt={`${vault.name} Classic Vault`} fill sizes="(max-width: 760px) 100vw, (max-width: 1200px) 50vw, 25vw" />
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <span className={styles.status}>{status}</span>
+                </figure>
+                <div>
+                  <div className={styles.vaultTitleRow}>
+                    <h3>{vault.name}</h3>
+                    <span>{presentation.note}</span>
                   </div>
-                </Link>
-                <div className={styles.buttonRow} style={{ padding: "0 18px 18px", marginTop: 0 }}>
-                  <Link className={styles.outlineButton} href={`/app/classic/vaults/${vault.id}`}>View</Link>
-                  <Link className={styles.primaryButton} href={`/app/classic/vaults/${vault.id}#save`}>Save</Link>
+                  <dl>
+                    <div><dt>Round duration</dt><dd>{durationLabel(vault.durationSeconds)}</dd></div>
+                    <div><dt>Prize</dt><dd>{vault.round.publicPrizeReserve !== null ? `${formatUsdc(vault.round.publicPrizeReserve)} USDC` : "—"}</dd></div>
+                    <div><dt>Round status</dt><dd>{status}</dd></div>
+                  </dl>
+                  <p><span>Your savings</span><strong>{protectedAmount(vault.privateSavings)}</strong></p>
+                  <div className={styles.buttonRow}>
+                    <Link className={styles.outlineButton} href={`/app/classic/vaults/${vault.id}`}>View</Link>
+                    <Link className={styles.primaryButton} href={`/app/classic/vaults/${vault.id}#save`}>Save</Link>
+                  </div>
                 </div>
               </article>
             );
