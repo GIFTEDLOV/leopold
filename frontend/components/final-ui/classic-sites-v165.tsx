@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { formatEther } from "viem";
 
 import { ConfigurationStatus, FixtureStatus } from "@/components/configuration-status";
@@ -39,6 +39,20 @@ const vaultIndex: Record<VaultId, string> = {
   monthly: "03",
   boost: "04",
 };
+
+function subscribeToHashChange(onChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+}
+
+function getSaveHashSnapshot() {
+  return typeof window !== "undefined" && window.location.hash === "#save";
+}
+
+function getServerSaveHashSnapshot() {
+  return false;
+}
 
 function PageFrame({ children }: { children: ReactNode }) {
   return <div className={styles.content}>{children}</div>;
@@ -296,7 +310,9 @@ export function ClassicVaultDetailSitesPage({ slug }: { slug: VaultId }) {
   const entered = financial.enteredVaults.has(slug);
   const revealed = financial.revealedVaults.has(slug);
   const busy = transactionIsBusy(financial.txStage);
-  const [flow, setFlow] = useState<"save" | "withdraw" | null>(null);
+  const [flowOverride, setFlow] = useState<"save" | "withdraw" | null | undefined>(undefined);
+  const saveHashActive = useSyncExternalStore(subscribeToHashChange, getSaveHashSnapshot, getServerSaveHashSnapshot);
+  const flow = flowOverride === undefined ? (saveHashActive ? "save" : null) : flowOverride;
 
   useEffect(() => {
     if (!flow) return;
@@ -304,11 +320,6 @@ export function ClassicVaultDetailSitesPage({ slug }: { slug: VaultId }) {
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [flow]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.location.hash === "#save") setFlow("save");
-  }, []);
 
   return (
     <PageFrame>
