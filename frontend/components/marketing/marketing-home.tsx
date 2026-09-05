@@ -125,6 +125,8 @@ function FeatureCardVideo({ src }: { src: string }) {
 
 type PixelTile = { blink: boolean; cell: number; delay: number };
 
+type HeroImageStatus = "pending" | "loaded" | "failed";
+
 function createPixelTiles(): PixelTile[] {
   const cells = Array.from({ length: 60 }, (_, index) => index);
 
@@ -211,6 +213,7 @@ function AnimatedCounter({ active, delay, format = String, sequence, target }: {
 export function MarketingHome() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [heroFrame, setHeroFrame] = useState({ previous: 0, current: 0, revision: 0 });
+  const [heroImageStatus, setHeroImageStatus] = useState<HeroImageStatus[]>(() => heroImages.map(() => "pending"));
   const [principleHeadline, setPrincipleHeadline] = useState(0);
   const [protocolEntered, setProtocolEntered] = useState(false);
   const [savingProcessEntered, setSavingProcessEntered] = useState(false);
@@ -218,24 +221,49 @@ export function MarketingHome() {
   const heroTitleRef = useRef<HTMLHeadingElement>(null);
   const protocolRef = useRef<HTMLElement>(null);
   const savingProcessRef = useRef<HTMLElement>(null);
+  const heroImageStatusRef = useRef(heroImageStatus);
 
   useEffect(() => {
-    heroImages.forEach((source) => {
+    const markImageStatus = (index: number, status: HeroImageStatus) => {
+      const nextStatus = heroImageStatusRef.current.map((currentStatus, currentIndex) => currentIndex === index ? status : currentStatus);
+      heroImageStatusRef.current = nextStatus;
+      setHeroImageStatus(nextStatus);
+    };
+
+    const preloadedImages = heroImages.map((source, index) => {
       const image = new window.Image();
+      image.onload = () => markImageStatus(index, "loaded");
+      image.onerror = () => markImageStatus(index, "failed");
       image.src = source;
+      return image;
     });
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return () => preloadedImages.forEach((image) => {
+        image.onload = null;
+        image.onerror = null;
+      });
+    }
 
     const interval = window.setInterval(() => {
-      setHeroFrame((frame) => ({
-        previous: frame.current,
-        current: (frame.current + 1) % heroImages.length,
-        revision: frame.revision + 1,
-      }));
+      setHeroFrame((frame) => {
+        const nextFrame = (frame.current + 1) % heroImages.length;
+        if (heroImageStatusRef.current[nextFrame] !== "loaded") return frame;
+        return {
+          previous: frame.current,
+          current: nextFrame,
+          revision: frame.revision + 1,
+        };
+      });
     }, 5000);
 
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearInterval(interval);
+      preloadedImages.forEach((image) => {
+        image.onload = null;
+        image.onerror = null;
+      });
+    };
   }, []);
 
   useEffect(() => {
@@ -330,6 +358,11 @@ export function MarketingHome() {
     };
   }, []);
 
+  const firstLoadedHeroImage = heroImageStatus[0] === "loaded" ? heroImages[0] : undefined;
+  const resolveHeroImage = (index: number) => heroImageStatus[index] === "loaded" ? heroImages[index] : firstLoadedHeroImage;
+  const previousHeroImage = resolveHeroImage(heroFrame.previous);
+  const currentHeroImage = resolveHeroImage(heroFrame.current);
+
   return (
     <div className="marketing-home">
       <a className="skip-link" href="#main">Skip to content</a>
@@ -353,13 +386,13 @@ export function MarketingHome() {
               <span
                 className="hero-tile"
                 key={index}
-                style={{ backgroundImage: `url(${heroImages[heroFrame.previous]})` }}
+                style={previousHeroImage ? { backgroundImage: `url(${previousHeroImage})` } : undefined}
               >
                 <i
                   className="hero-tile-image"
                   key={`${heroFrame.revision}-${index}`}
                   style={{
-                    backgroundImage: `url(${heroImages[heroFrame.current]})`,
+                    ...(currentHeroImage ? { backgroundImage: `url(${currentHeroImage})` } : {}),
                     "--stagger": (index * 37) % 96,
                   } as React.CSSProperties}
                 />
