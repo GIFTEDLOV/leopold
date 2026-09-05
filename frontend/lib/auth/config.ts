@@ -17,7 +17,7 @@ const isProduction = process.env.NODE_ENV === "production";
 export const dynamicEnvironmentId = process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID?.trim() ?? "";
 export const dynamicApiBaseUrl = process.env.NEXT_PUBLIC_DYNAMIC_API_BASE_URL?.trim() ?? "";
 export const dynamicAuthConfigured = dynamicEnvironmentId.length > 0;
-export const dynamicXEnabled = !isProduction && process.env.NEXT_PUBLIC_LEOPOLD_ENABLE_X_AUTH === "1";
+export const dynamicXEnabled = process.env.NEXT_PUBLIC_LEOPOLD_ENABLE_X_AUTH === "1";
 
 const requestedFixture = process.env.NEXT_PUBLIC_LEOPOLD_AUTH_FIXTURE?.trim() as AuthFixtureMode | undefined;
 
