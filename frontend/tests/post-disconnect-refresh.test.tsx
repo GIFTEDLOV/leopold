@@ -213,7 +213,7 @@ describe("explicit wallet disconnect followed by account rehydration", () => {
 
     await act(async () => buttonWithText(container, dynamic.address.slice(0, 6)).click());
     await act(async () => buttonWithText(container, "Disconnect").click());
-    await waitFor(container, "Connect verified wallet");
+    await waitFor(container, `SIGNED_IN_READY|verified@example.com|leopold_user|PRESENT|${dynamic.address}|DISCONNECTED|CONNECT_VERIFIED_WALLET`);
 
     expect(window.sessionStorage.getItem(WALLET_SESSION_STORAGE_KEY)).toBeNull();
     expect(dynamic.handleLogOut).not.toHaveBeenCalled();
@@ -235,7 +235,7 @@ describe("explicit wallet disconnect followed by account rehydration", () => {
 
     dynamic.completedUser = profile;
     await act(async () => root?.render(<TestApplication />));
-    await waitFor(container, "Connect verified wallet");
+    await waitFor(container, `SIGNED_IN_READY|verified@example.com|leopold_user|PRESENT|${dynamic.address}|DISCONNECTED|CONNECT_VERIFIED_WALLET`);
 
     const rendered = container.textContent ?? "";
     expect(rendered).toContain(

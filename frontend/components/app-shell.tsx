@@ -60,6 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const session = walletIdentity.walletSession;
   const health = walletIdentity.networkHealth;
   const recovery = walletIdentity.recovery;
+  const showShellRecovery = recovery.visible && recovery.action !== "CONNECT_VERIFIED_WALLET";
   const clientReady = auth.clientReady;
   const [addMoney, setAddMoney] = useState(false);
   const [walletMenu, setWalletMenu] = useState(false);
@@ -247,9 +248,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : null}
           </div>
         ) : null}
-        {isV2 ? <button className={styles.wallet} type="button" aria-label={`Wallet status: ${session.status.toLowerCase()}`}>
-          {session.status === "CONNECTED" ? "Connected" : session.status === "WRONG_NETWORK" ? "Wrong network" : session.status === "BOOTSTRAPPING" ? "Checking…" : "Disconnected"}
-        </button> : null}
         {isV2 ? pathname === "/app" ? (
           <button className={styles.primaryButton} type="button" onClick={() => window.dispatchEvent(new Event(V2_ADD_MONEY_EVENT))}>
             + Add Money
@@ -319,7 +317,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className={`${styles.contentBackdrop} ${railOpen || mobileOpen ? styles.contentBackdropOpen : ""}`} aria-hidden="true" />
         <div className={styles.v2TopControls}>{topbarContent}</div>
         <main id="app-content" className={isV2 ? `${styles.content} ${styles.v2Content}` : undefined}>
-          {recovery.visible ? (
+          {showShellRecovery ? (
             <div className={`${styles.alert} inline-notice`} role="alert">
               <strong>{recovery.message}</strong>
               <span>{recovery.detail}</span>
