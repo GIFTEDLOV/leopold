@@ -6,8 +6,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertAgreedBlockIdentities,
+  assertPinnedBlockIdentity,
   circularScanPage,
+  MAX_ALLOWED_RPC_HEAD_LAG_BLOCKS,
   persistentCircularScanPage,
+  requireCompleteBlockIdentity,
+  selectCommonBlockHeight,
   verifySepoliaRpcIdentity,
 } from "../src/ethers-gateway.js";
 import { FileJournalStore, MemoryJournalStore } from "../src/journal.js";
@@ -51,6 +55,38 @@ describe("ethers gateway bounded scanning", () => {
     expect(assertAgreedBlockIdentities([first, { ...first }])).toEqual(first);
     expect(() => assertAgreedBlockIdentities([first, { ...first, hash: `0x${"22".repeat(32)}` }])).toThrow("disagree");
     expect(() => assertAgreedBlockIdentities([first, { ...first, timestamp: 457 }])).toThrow("disagree");
+  });
+
+  it("pins the minimum common height when healthy heads are one block apart", () => {
+    const common = { number: 123, hash: `0x${"11".repeat(32)}`, timestamp: 456 };
+    const latest = [common, { number: 124, hash: `0x${"22".repeat(32)}`, timestamp: 468 }];
+    expect(selectCommonBlockHeight([common, { ...common }])).toBe(123);
+    expect(selectCommonBlockHeight(latest)).toBe(123);
+    expect(assertPinnedBlockIdentity(common, [common, { ...common }])).toEqual(common);
+  });
+
+  it("allows a two-block head difference but rejects larger lag", () => {
+    const first = { number: 123, hash: `0x${"11".repeat(32)}`, timestamp: 456 };
+    expect(selectCommonBlockHeight([first, { ...first, number: 123 + MAX_ALLOWED_RPC_HEAD_LAG_BLOCKS }])).toBe(123);
+    expect(() => selectCommonBlockHeight([first, { ...first, number: 126 }])).toThrow("head lag");
+  });
+
+  it("fails closed when the pinned common block cannot agree canonically", () => {
+    const first = { number: 123, hash: `0x${"11".repeat(32)}`, timestamp: 456 };
+    expect(() => assertPinnedBlockIdentity(first, [first, { ...first, hash: `0x${"22".repeat(32)}` }])).toThrow(
+      "disagree",
+    );
+    expect(() => assertPinnedBlockIdentity(first, [first, { ...first, timestamp: 457 }])).toThrow("disagree");
+  });
+
+  it("fails closed when the pinned block changes during snapshot construction", () => {
+    const expected = { number: 123, hash: `0x${"11".repeat(32)}`, timestamp: 456 };
+    const reorganized = { number: 123, hash: `0x${"22".repeat(32)}`, timestamp: 456 };
+    expect(() => assertPinnedBlockIdentity(expected, [reorganized, { ...reorganized }])).toThrow("reorganized");
+  });
+
+  it("fails closed when a provider cannot return the pinned block", () => {
+    expect(() => requireCompleteBlockIdentity(null)).toThrow("complete block identity");
   });
 
   it("persists bounded scan cursors across keeper restart for thousands of accounts", async () => {

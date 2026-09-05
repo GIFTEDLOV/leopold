@@ -31,6 +31,13 @@ import { applyGasPolicy, DEFAULT_GAS_POLICY, type GasPolicyConfig } from "./gas-
 const vaultInterface = new Interface(LEOPOLD_VAULT_ABI);
 const escrowInterface = new Interface(LEOPOLD_BOND_ESCROW_ABI);
 
+/**
+ * Sepolia normally advances in roughly twelve-second blocks. Two blocks is a
+ * deliberately small safety window: it absorbs ordinary head timing while
+ * still failing closed if an endpoint is materially behind the quorum.
+ */
+export const MAX_ALLOWED_RPC_HEAD_LAG_BLOCKS = 2;
+
 export function circularScanPage(
   count: bigint,
   cursor: bigint,
@@ -82,6 +89,45 @@ export function assertAgreedBlockIdentities(blocks: readonly RpcBlockIdentity[])
     throw new Error("RPC endpoints disagree on the authoritative block identity");
   }
   return first;
+}
+
+type RpcBlockIdentityCandidate = {
+  readonly number: number;
+  readonly hash: string | null | undefined;
+  readonly timestamp: number;
+};
+
+export function requireCompleteBlockIdentity(
+  block: RpcBlockIdentityCandidate | null | undefined,
+): RpcBlockIdentity {
+  if (!block?.hash) throw new Error("RPC returned no complete block identity");
+  return { number: block.number, hash: block.hash, timestamp: block.timestamp };
+}
+
+export function selectCommonBlockHeight(latestBlocks: readonly RpcBlockIdentity[]): number {
+  if (latestBlocks.length === 0) throw new Error("RPC block agreement requires at least one endpoint");
+  const latestHeight = latestBlocks.map((block) => block.number);
+  const minimum = Math.min(...latestHeight);
+  const maximum = Math.max(...latestHeight);
+  if (maximum - minimum > MAX_ALLOWED_RPC_HEAD_LAG_BLOCKS) {
+    throw new Error(`RPC head lag exceeds ${MAX_ALLOWED_RPC_HEAD_LAG_BLOCKS} blocks`);
+  }
+  return minimum;
+}
+
+export function assertPinnedBlockIdentity(
+  expected: RpcBlockIdentity,
+  pinnedBlocks: readonly RpcBlockIdentity[],
+): RpcBlockIdentity {
+  const canonical = assertAgreedBlockIdentities(pinnedBlocks);
+  if (
+    canonical.number !== expected.number ||
+    canonical.hash.toLowerCase() !== expected.hash.toLowerCase() ||
+    canonical.timestamp !== expected.timestamp
+  ) {
+    throw new Error("Pinned block was reorganized during snapshot construction");
+  }
+  return canonical;
 }
 
 export async function verifySepoliaRpcIdentity(endpoints: readonly RpcChainIdEndpoint[]): Promise<bigint> {
@@ -297,29 +343,30 @@ export class EthersKeeperGateway implements KeeperGateway {
 
   async readSnapshot(requiredAutoEntry?: SnapshotReadHint): Promise<ProtocolSnapshot> {
     await this.getChainId();
-    const blocks = await Promise.all(this.#rpcProviders.map((provider) => provider.getBlock("latest")));
-    if (blocks.some((block) => !block?.hash)) throw new Error("RPC returned no complete latest block identity");
-    const block = assertAgreedBlockIdentities(
-      blocks.map((candidate) => ({
-        number: candidate!.number,
-        hash: candidate!.hash!,
-        timestamp: candidate!.timestamp,
-      })),
+    const latestBlocks = await Promise.all(
+      this.#rpcProviders.map(async (provider) => {
+        const candidate = requireCompleteBlockIdentity(await provider.getBlock("latest"));
+        return { number: candidate.number, hash: candidate.hash, timestamp: candidate.timestamp };
+      }),
     );
+    const commonBlockNumber = selectCommonBlockHeight(latestBlocks);
+    const commonBlocks = await Promise.all(
+      this.#rpcProviders.map(async (provider) => {
+        const candidate = requireCompleteBlockIdentity(await provider.getBlock(commonBlockNumber));
+        return { number: candidate.number, hash: candidate.hash, timestamp: candidate.timestamp };
+      }),
+    );
+    const block = assertAgreedBlockIdentities(commonBlocks);
     const vaults = await Promise.all(
       this.#vaults.map((vault) => this.#readVault(vault, block.number, requiredAutoEntry)),
     );
     const canonicalBlocks = await Promise.all(
       this.#rpcProviders.map(async (provider) => {
-        const candidate = await provider.getBlock(block.number);
-        if (!candidate?.hash) throw new Error("RPC lost the pinned block during snapshot construction");
+        const candidate = requireCompleteBlockIdentity(await provider.getBlock(block.number));
         return { number: candidate.number, hash: candidate.hash, timestamp: candidate.timestamp };
       }),
     );
-    const canonical = assertAgreedBlockIdentities(canonicalBlocks);
-    if (canonical.hash.toLowerCase() !== block.hash.toLowerCase()) {
-      throw new Error("Pinned block was reorganized during snapshot construction");
-    }
+    assertPinnedBlockIdentity(block, canonicalBlocks);
     return {
       chainId: SEPOLIA_CHAIN_ID,
       blockNumber: BigInt(block.number),
