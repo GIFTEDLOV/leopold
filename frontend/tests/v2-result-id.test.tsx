@@ -31,6 +31,10 @@ vi.mock("@/components/final-ui/v2-functional-state", () => ({
   v2StageLabel: () => "Working",
 }));
 
+vi.mock("@/components/wallet-identity-provider", () => ({
+  useWalletIdentity: () => ({ connectVerifiedWallet: vi.fn() }),
+}));
+
 import { V2DrawsPage } from "@/components/final-ui/dashboard-experience";
 
 describe("V2 result round presentation", () => {

@@ -56,8 +56,9 @@ function V2Dialog({ state }: { state: ReturnType<typeof useV2FunctionalState> })
 }
 
 function WalletNotice({ state }: { state: ReturnType<typeof useV2FunctionalState> }) {
+  const walletIdentity = useWalletIdentity();
   if (!state.shouldShowWalletNotice) return null;
-  return <section className={styles.walletNotice} role="status"><div><strong>Connect your verified financial wallet to continue.</strong><span>Financial and private actions remain paused. Public Leopold information remains available.</span></div><Link className={`${styles.button} ${styles.buttonSecondary}`} href="/login">Connect verified wallet</Link></section>;
+  return <section className={styles.walletNotice} role="status"><div><strong>Connect your verified financial wallet to continue.</strong><span>Financial and private actions remain paused. Public Leopold information remains available.</span></div><button className={`${styles.button} ${styles.buttonSecondary}`} type="button" onClick={() => void walletIdentity.connectVerifiedWallet()}>Connect verified wallet</button></section>;
 }
 
 function CurrentDrawBoard({ state }: { state: ReturnType<typeof useV2FunctionalState> }) {
