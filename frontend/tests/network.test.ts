@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { createPublicClient } from "viem";
+import { sepolia } from "viem/chains";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   beginFinancialNetworkCheck,
@@ -9,13 +11,52 @@ import {
   getFinancialNetworkStatus,
   isFinancialNetworkHealthFresh,
   LEOPOLD_SEPOLIA_RPC_URL,
+  LEOPOLD_SEPOLIA_RPC_URLS,
   normalizeNetworkChainId,
   runFinancialNetworkPreflight,
+  createLeopoldSepoliaPublicTransport,
   type FinancialNetworkPreflightInput,
 } from "../lib/leopold/network";
 import { classifyLeopoldError } from "../lib/leopold/errors";
 
 const ACCOUNT = "0x1111111111111111111111111111111111111111" as const;
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+function installFallbackFetch(primary: "success" | "fail" | "timeout" | "malformed" = "success") {
+  const fetchFn = vi.fn<typeof fetch>(async (input, init) => {
+    const isPrimary = String(input).includes("publicnode.com");
+    const mode = isPrimary ? primary : "success";
+    if (mode === "fail") throw new TypeError("primary fetch failed");
+    if (mode === "timeout") {
+      return new Promise<never>((_, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), {
+          once: true,
+        });
+      });
+    }
+    if (mode === "malformed") {
+      return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, error: { code: -32_000, message: "bad gateway" } }));
+    }
+    const request = JSON.parse(String(init?.body)) as { method: string };
+    return new Response(
+      JSON.stringify({ jsonrpc: "2.0", id: 1, result: request.method === "eth_chainId" ? "0xaa36a7" : "0x123" }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  });
+  vi.stubGlobal("fetch", fetchFn);
+  return fetchFn;
+}
+
+async function readFallbackBlockNumber(timeoutMs = 100) {
+  const client = createPublicClient({
+    chain: sepolia,
+    transport: createLeopoldSepoliaPublicTransport(timeoutMs),
+  });
+  return client.getBlockNumber();
+}
 
 function makePreflight(
   overrides: {
@@ -113,6 +154,72 @@ describe("financial wallet network authority", () => {
 
   it("uses the project-approved PublicNode Sepolia read transport", () => {
     expect(LEOPOLD_SEPOLIA_RPC_URL).toBe("https://ethereum-sepolia-rpc.publicnode.com");
+    expect(LEOPOLD_SEPOLIA_RPC_URLS).toEqual([
+      "https://ethereum-sepolia-rpc.publicnode.com",
+      "https://1rpc.io/sepolia",
+    ]);
+  });
+
+  it("uses the primary application read endpoint normally", async () => {
+    const fetchFn = installFallbackFetch();
+
+    await expect(readFallbackBlockNumber()).resolves.toBe(0x123n);
+    expect(fetchFn.mock.calls.filter(([input]) => String(input).includes("publicnode.com"))).toHaveLength(1);
+    expect(fetchFn.mock.calls.filter(([input]) => String(input).includes("1rpc.io"))).toHaveLength(0);
+  });
+
+  it("falls back to the distinct provider when the primary fails", async () => {
+    const fetchFn = installFallbackFetch("fail");
+
+    await expect(readFallbackBlockNumber()).resolves.toBe(0x123n);
+    expect(fetchFn.mock.calls.some(([input]) => String(input).includes("publicnode.com"))).toBe(true);
+    expect(fetchFn.mock.calls.some(([input]) => String(input).includes("1rpc.io"))).toBe(true);
+  });
+
+  it("falls back to the distinct provider when the primary times out", async () => {
+    const fetchFn = installFallbackFetch("timeout");
+
+    await expect(readFallbackBlockNumber(25)).resolves.toBe(0x123n);
+    expect(fetchFn.mock.calls.some(([input]) => String(input).includes("1rpc.io"))).toBe(true);
+  });
+
+  it("falls back after a malformed primary JSON-RPC response", async () => {
+    const fetchFn = installFallbackFetch("malformed");
+
+    await expect(readFallbackBlockNumber()).resolves.toBe(0x123n);
+    expect(fetchFn.mock.calls.some(([input]) => String(input).includes("1rpc.io"))).toBe(true);
+  });
+
+  it("fails real application reads when every endpoint fails", async () => {
+    const fetchFn = vi.fn<typeof fetch>(async (input) => {
+      if (String(input).includes("publicnode.com") || String(input).includes("1rpc.io")) {
+        throw new TypeError("RPC unavailable");
+      }
+      throw new Error("unexpected endpoint");
+    });
+    vi.stubGlobal("fetch", fetchFn);
+
+    await expect(readFallbackBlockNumber()).rejects.toThrow();
+    expect(fetchFn.mock.calls.some(([input]) => String(input).includes("publicnode.com"))).toBe(true);
+    expect(fetchFn.mock.calls.some(([input]) => String(input).includes("1rpc.io"))).toBe(true);
+  });
+
+  it("rejects a wrong-chain application response instead of accepting it", async () => {
+    const probe = makePreflight({
+      appRequest: (method) => (method === "eth_chainId" ? "0x1" : "0x123"),
+    });
+    const health = await runFinancialNetworkPreflight(probe.input);
+
+    expect(health.state).toBe("APP_RPC_UNAVAILABLE");
+    expect(health.technicalDetail).toContain("chain-1");
+  });
+
+  it("keeps wallet RPC and signing authority separate from application fallback reads", async () => {
+    const probe = makePreflight();
+    await expect(runFinancialNetworkPreflight(probe.input)).resolves.toMatchObject({ state: "HEALTHY" });
+
+    expect(probe.appRequest.mock.calls.some(([request]) => request.method === "eth_getTransactionCount")).toBe(false);
+    expect(probe.walletRequest.mock.calls.some(([request]) => request.method === "eth_sendTransaction")).toBe(false);
   });
 
   it("returns HEALTHY only after both wallet and app RPC probes succeed", async () => {

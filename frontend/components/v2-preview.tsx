@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { createPublicClient, formatEther, formatUnits, http, type Address } from "viem";
+import { createPublicClient, formatEther, formatUnits, type Address } from "viem";
 import { sepolia } from "viem/chains";
 import { useAccount } from "wagmi";
 import {
@@ -10,10 +10,10 @@ import {
   V2_PREVIEW_CADENCE,
   V2_PREVIEW_CANDIDATE_SHA,
   V2_PREVIEW_CHAIN_ID,
-  V2_PREVIEW_RPC_URL,
   V2_PREVIEW_RUNTIME_HASHES,
   V2_PREVIEW_SG4_BINDING_DIGEST,
 } from "@/lib/leopold/v2-preview-config";
+import { createLeopoldSepoliaPublicTransport } from "@/lib/leopold/network";
 import {
   v2AdapterPreviewAbi,
   v2CometPreviewAbi,
@@ -24,7 +24,7 @@ import { erc20Abi } from "@/lib/leopold/abis";
 
 const publicClient = createPublicClient({
   chain: sepolia,
-  transport: http(V2_PREVIEW_RPC_URL, { timeout: 10_000, retryCount: 0 }),
+  transport: createLeopoldSepoliaPublicTransport(10_000),
 });
 
 export const roundStateLabels = [

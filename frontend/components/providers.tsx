@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
-import { WagmiProvider, createConfig, http } from "wagmi";
+import { WagmiProvider, createConfig } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 import {
@@ -16,13 +16,13 @@ import { dynamicApiBaseUrl, dynamicAuthConfigured, dynamicEnvironmentId } from "
 import { AuthProvider } from "@/components/auth-provider";
 import { WalletIdentityProvider } from "@/components/wallet-identity-provider";
 import { FinancialProvider } from "@/components/financial-provider";
-import { LEOPOLD_SEPOLIA_RPC_URL } from "@/lib/leopold/network";
+import { createLeopoldSepoliaPublicTransport, LEOPOLD_SEPOLIA_RPC_URL } from "@/lib/leopold/network";
 
 const wagmiConfig = createConfig({
   chains: [sepolia],
   connectors: [injected()],
   transports: {
-    [sepolia.id]: http(LEOPOLD_SEPOLIA_RPC_URL, { timeout: 8_000, retryCount: 0 }),
+    [sepolia.id]: createLeopoldSepoliaPublicTransport(),
   },
   multiInjectedProviderDiscovery: false,
   ssr: true,

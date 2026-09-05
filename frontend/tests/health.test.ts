@@ -103,10 +103,31 @@ describe("Leopold public health model", () => {
     expect(fetchFn.mock.calls.every(([, init]) => init?.method === "GET" || init?.method === "POST")).toBe(true);
   });
 
+  it("uses the secondary public RPC when PublicNode is unavailable", async () => {
+    const fetchFn = healthyFetch();
+    fetchFn.mockImplementation(async (input, init) => {
+      if (String(input).includes("publicnode.com")) throw new TypeError("primary RPC unavailable");
+      return healthyFetch()(input, init);
+    });
+
+    const health = await getPublicHealth({
+      fetchFn,
+      now: () => NOW_MS,
+      dynamicConfigured: true,
+      dynamicEnvironment: "public-environment-id",
+      retry: { jitterRatio: 0, sleep: async () => undefined },
+    });
+
+    expect(health.network.state).toBe("HEALTHY");
+    expect(fetchFn.mock.calls.some(([input]) => String(input).includes("1rpc.io"))).toBe(true);
+  });
+
   it("reports an RPC outage as service unavailability without claiming funds are at risk", async () => {
     const fetchFn = healthyFetch();
     fetchFn.mockImplementation(async (input, init) => {
-      if (String(input).includes("publicnode.com")) throw new TypeError("fetch failed");
+      if (String(input).includes("publicnode.com") || String(input).includes("1rpc.io")) {
+        throw new TypeError("fetch failed");
+      }
       if (String(input).includes("relayer")) return json({ response: { fheKeyInfo: [], crs: {} } });
       if (String(input).includes("dynamicauth")) return json({ sdk: {} });
       return healthyFetch()(input, init);

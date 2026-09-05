@@ -13,6 +13,7 @@ describe("operations surface and release hardening", () => {
     expect(csp).toContain("'wasm-unsafe-eval'");
     expect(csp).not.toMatch(/(?:^|\s)'unsafe-eval'(?:\s|;|$)/u);
     expect(csp).toContain("ethereum-sepolia-rpc.publicnode.com");
+    expect(csp).toContain("1rpc.io");
     expect(csp).toContain("relayer.testnet.zama.org");
     expect(csp).toContain("dynamicauth.com");
     expect(csp).toContain("dynamic-static-assets.com");

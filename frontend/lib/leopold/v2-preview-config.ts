@@ -1,4 +1,5 @@
 import { getAddress, type Address } from "viem";
+import { LEOPOLD_SEPOLIA_RPC_URL, LEOPOLD_SEPOLIA_RPC_URLS } from "./network";
 
 /**
  * Preview-only wiring for the project-owner's adopted V2 Sepolia topology.
@@ -7,7 +8,8 @@ import { getAddress, type Address } from "viem";
  * that manifest is the historical V1 frontend configuration and is not replaced
  * by the visual preview.
  */
-export const V2_PREVIEW_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+export const V2_PREVIEW_RPC_URL = LEOPOLD_SEPOLIA_RPC_URL;
+export const V2_PREVIEW_RPC_URLS = LEOPOLD_SEPOLIA_RPC_URLS;
 export const V2_PREVIEW_CHAIN_ID = 11_155_111;
 export const V2_PREVIEW_CANDIDATE_SHA = "d6ebae63cec660fc5f11bd84e4b581980d3e12f7";
 export const V2_PREVIEW_ADOPTION_CHECKPOINT = "92dd90ad0d20e68e114cdafc3bc4e496a43ff7af";

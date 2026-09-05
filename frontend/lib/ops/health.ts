@@ -3,10 +3,10 @@ import { decodeFunctionResult, encodeFunctionData, type Address, type Hex } from
 import { dynamicApiBaseUrl, dynamicAuthConfigured, dynamicEnvironmentId } from "@/lib/auth/config";
 import { registryAbi } from "@/lib/leopold/abis";
 import { LEOPOLD_CHAIN_ID, leopoldConfig, requireConfiguredAddress } from "@/lib/leopold/config";
-import { LEOPOLD_SEPOLIA_RPC_URL } from "@/lib/leopold/network";
+import { LEOPOLD_SEPOLIA_RPC_URLS } from "@/lib/leopold/network";
 import { recordMetric, type MetricFailureCategory, type MetricOperation } from "./metrics";
 import { productionRelease } from "./release";
-import { HttpReadError, classifyReadFailure, withReadReliability } from "./reliability";
+import { DEFAULT_READ_TIMEOUT_MS, HttpReadError, classifyReadFailure, withReadReliability } from "./reliability";
 
 export const ZAMA_RELAYER_KEY_METADATA_URL = "https://relayer.testnet.zama.org/v2/keyurl";
 export const DYNAMIC_DEFAULT_API_BASE_URL = "https://app.dynamicauth.com/api/v0";
@@ -74,20 +74,44 @@ function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-async function rpcCall<T>(fetchFn: typeof fetch, method: string, params: readonly unknown[], signal: AbortSignal) {
-  const response = await fetchFn(LEOPOLD_SEPOLIA_RPC_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    cache: "no-store",
-    signal,
-  });
-  if (!response.ok) throw new HttpReadError(response.status);
-  const payload = (await response.json()) as JsonRpcResponse;
-  if (!record(payload) || payload.error !== undefined || payload.result === undefined) {
-    throw new Error(`INVALID_RPC_RESPONSE:${method}`);
+async function rpcCall<T>(
+  fetchFn: typeof fetch,
+  method: string,
+  params: readonly unknown[],
+  signal: AbortSignal,
+  timeoutMs = DEFAULT_READ_TIMEOUT_MS,
+) {
+  const endpointTimeoutMs = Math.max(1, Math.floor(timeoutMs / LEOPOLD_SEPOLIA_RPC_URLS.length));
+  let lastError: unknown = new Error(`APP_RPC_UNAVAILABLE:${method}`);
+  for (const rpcUrl of LEOPOLD_SEPOLIA_RPC_URLS) {
+    if (signal.aborted) throw signal.reason ?? lastError;
+    const endpointController = new AbortController();
+    const abortFromParent = () => endpointController.abort(signal.reason);
+    signal.addEventListener("abort", abortFromParent, { once: true });
+    const timeout = setTimeout(() => endpointController.abort(), endpointTimeoutMs);
+    try {
+      const response = await fetchFn(rpcUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+        cache: "no-store",
+        signal: endpointController.signal,
+      });
+      if (!response.ok) throw new HttpReadError(response.status);
+      const payload = (await response.json()) as JsonRpcResponse;
+      if (!record(payload) || payload.error !== undefined || payload.result === undefined) {
+        throw new Error(`INVALID_RPC_RESPONSE:${method}`);
+      }
+      return payload.result as T;
+    } catch (error) {
+      lastError = error;
+      if (signal.aborted) throw error;
+    } finally {
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", abortFromParent);
+    }
   }
-  return payload.result as T;
+  throw lastError;
 }
 
 function checkFailure(error: unknown, durationMs: number, fallback: string): HealthCheck {
@@ -137,8 +161,8 @@ async function checkRpc(
       "RPC_HEALTH",
       async (signal) => {
         const [chainHex, block] = await Promise.all([
-          rpcCall<string>(fetchFn, "eth_chainId", [], signal),
-          rpcCall<Record<string, unknown>>(fetchFn, "eth_getBlockByNumber", ["latest", false], signal),
+          rpcCall<string>(fetchFn, "eth_chainId", [], signal, retry?.timeoutMs),
+          rpcCall<Record<string, unknown>>(fetchFn, "eth_getBlockByNumber", ["latest", false], signal, retry?.timeoutMs),
         ]);
         if (!/^0x[\da-f]+$/iu.test(chainHex) || Number(BigInt(chainHex)) !== LEOPOLD_CHAIN_ID) {
           throw new Error("WRONG_CHAIN_ID:rpc");
@@ -196,11 +220,19 @@ async function checkDeployment(
       async (signal) => {
         const addresses = [registry, lcUsdc, ...vaults.map((vault) => vault.address as Address)];
         const [codes, officialVaults] = await Promise.all([
-          Promise.all(addresses.map((address) => rpcCall<Hex>(fetchFn, "eth_getCode", [address, "latest"], signal))),
+          Promise.all(
+            addresses.map((address) => rpcCall<Hex>(fetchFn, "eth_getCode", [address, "latest"], signal, retry?.timeoutMs)),
+          ),
           Promise.all(
             leopoldConfig.vaults.map(async (vault) => {
               const data = encodeFunctionData({ abi: registryAbi, functionName: "officialVault", args: [vault.id] });
-              const result = await rpcCall<Hex>(fetchFn, "eth_call", [{ to: registry, data }, "latest"], signal);
+              const result = await rpcCall<Hex>(
+                fetchFn,
+                "eth_call",
+                [{ to: registry, data }, "latest"],
+                signal,
+                retry?.timeoutMs,
+              );
               return decodeFunctionResult({ abi: registryAbi, functionName: "officialVault", data: result });
             }),
           ),
