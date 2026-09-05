@@ -6,19 +6,13 @@ import { useEffect, type FormEvent, type ReactNode, useState } from "react";
 import { useAuth } from "./auth-provider";
 import { useWalletIdentity } from "./wallet-identity-provider";
 import { normalizeEmail } from "@/lib/auth/email";
+import { LoginShell } from "./login/login-shell";
 
-function AuthFrame({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
+function AuthFrame({ eyebrow, title, children }: { eyebrow: string; title: ReactNode; children: ReactNode }) {
   return (
-    <main className="landing">
-      <div className="auth-card">
-        <Link className="brand" href="/">
-          <span className="brand-mark">L</span>Leopold
-        </Link>
-        <span className="eyebrow">{eyebrow}</span>
-        <h1>{title}</h1>
-        {children}
-      </div>
-    </main>
+    <LoginShell eyebrow={eyebrow} title={title}>
+      {children}
+    </LoginShell>
   );
 }
 
@@ -62,10 +56,9 @@ export function LoginClient() {
   }
 
   return (
-    <AuthFrame eyebrow="Private prize savings" title="Your Leopold account, your wallet">
+    <LoginShell>
       <p className="subtle">
-        Use email to create your Leopold identity. When you choose to save, you will explicitly verify the external
-        wallet that controls your funds.
+        Sign in with email or prove ownership with your external wallet. No funds move until you choose to save.
       </p>
       {!auth.configured ? (
         <div className="card" role="status">
@@ -138,7 +131,7 @@ export function LoginClient() {
         Wallet authentication proves ownership; it does not create an embedded wallet or sign financial transactions for
         you.
       </p>
-    </AuthFrame>
+    </LoginShell>
   );
 }
 
@@ -204,7 +197,7 @@ export function OnboardingClient() {
   }
 
   return (
-    <AuthFrame eyebrow="Welcome to Leopold" title="Finish your profile">
+    <AuthFrame eyebrow="Welcome to Leopold" title={<>Finish your <span>profile</span></>}>
       <p className="subtle">
         Choose a unique lowercase username. It stays offchain and is not a public mapping to your financial wallet.
       </p>
@@ -291,36 +284,38 @@ export function OnboardingClient() {
           </p>
         </div>
       )}
-      {auth.profileStatus === "COMPLETE" &&
-      auth.emailVerified &&
-      (auth.readiness === "WALLET_REQUIRED" ||
-        (auth.financialWallet && walletIdentity.walletSession.status !== "CONNECTED")) ? (
-        <button
-          className="button secondary"
-          onClick={() => {
-            if (walletIdentity.walletSession.status === "WRONG_NETWORK") void walletIdentity.switchToSepolia();
-            else if (auth.financialWalletMetadata.status === "PRESENT") void walletIdentity.connectVerifiedWallet();
-            else if (auth.financialWalletMetadata.status === "NONE") {
-              if (auth.canConfirmCurrentWalletAsFinancial) void auth.confirmCurrentWalletAsFinancial();
-              else auth.openWalletLink();
-            }
-          }}
-          type="button"
-        >
-          {auth.financialWallet
-            ? walletIdentity.walletSession.status === "WRONG_NETWORK"
-              ? "Switch to Sepolia"
-              : walletIdentity.walletSession.status === "CONNECTING"
-                ? "Connecting wallet…"
-                : "Connect verified wallet"
-            : auth.canConfirmCurrentWalletAsFinancial
-              ? "Confirm financial wallet"
-              : "Connect wallet now"}
-        </button>
-      ) : null}
-      <Link className="button secondary" href="/app">
-        Enter Leopold shell
-      </Link>
+      <div className="profile-actions">
+        {auth.profileStatus === "COMPLETE" &&
+        auth.emailVerified &&
+        (auth.readiness === "WALLET_REQUIRED" ||
+          (auth.financialWallet && walletIdentity.walletSession.status !== "CONNECTED")) ? (
+          <button
+            className="button secondary"
+            onClick={() => {
+              if (walletIdentity.walletSession.status === "WRONG_NETWORK") void walletIdentity.switchToSepolia();
+              else if (auth.financialWalletMetadata.status === "PRESENT") void walletIdentity.connectVerifiedWallet();
+              else if (auth.financialWalletMetadata.status === "NONE") {
+                if (auth.canConfirmCurrentWalletAsFinancial) void auth.confirmCurrentWalletAsFinancial();
+                else auth.openWalletLink();
+              }
+            }}
+            type="button"
+          >
+            {auth.financialWallet
+              ? walletIdentity.walletSession.status === "WRONG_NETWORK"
+                ? "Switch to Sepolia"
+                : walletIdentity.walletSession.status === "CONNECTING"
+                  ? "Connecting wallet…"
+                  : "Connect verified wallet"
+              : auth.canConfirmCurrentWalletAsFinancial
+                ? "Confirm financial wallet"
+                : "Connect wallet now"}
+          </button>
+        ) : null}
+        <Link className="button profile-primary" href="/app">
+          Enter Leopold shell
+        </Link>
+      </div>
       {error ? (
         <div className="error" role="alert">
           {error}
