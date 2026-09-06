@@ -1,18 +1,23 @@
-import { LeopoldMarketingHome } from "@/components/marketing/leopold-marketing-home";
+import { MarketingHome } from "@/components/marketing/marketing-home";
 
 export default function HomePage() {
   return (
     <>
-      <LeopoldMarketingHome />
       <style>{`
-        #product > a {
-          color: #fffef9;
+        html,
+        body {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
         }
 
-        header a[href="/onboarding"] {
-          color: #c0a464;
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+          width: 0;
+          height: 0;
+          display: none;
         }
       `}</style>
+      <MarketingHome />
     </>
   );
 }
