@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
-import { isUnresolvedV2Transaction, loadSafeTransactions, persistSafeTransaction } from "../lib/leopold/transactions";
+import {
+  findLatestV2AddMoneyCheckpoint,
+  isUnresolvedV2Transaction,
+  loadSafeTransactions,
+  persistSafeTransaction,
+} from "../lib/leopold/transactions";
 
 describe("privacy-safe transaction persistence", () => {
   beforeEach(() => localStorage.clear());
@@ -64,6 +69,39 @@ describe("privacy-safe transaction persistence", () => {
     persistSafeTransaction({ ...record, stage: "confirming" });
     persistSafeTransaction({ ...record, stage: "complete", updatedAt: 5 });
     expect(loadSafeTransactions(record.account)).toEqual([{ ...record, stage: "complete", updatedAt: 5 }]);
+  });
+
+  it("tracks public Add Money stage checkpoints without storing private values", () => {
+    const account = "0x1111111111111111111111111111111111111111" as `0x${string}`;
+    persistSafeTransaction({
+      id: "operation:write:1",
+      operationId: "operation",
+      operationStage: "wrap",
+      kind: "v2-add-money",
+      hash: `0x${"5".repeat(64)}`,
+      chainId: 11_155_111,
+      account,
+      stage: "complete",
+      updatedAt: 10,
+    });
+    persistSafeTransaction({
+      id: "operation:failure",
+      operationId: "operation",
+      operationStage: "save",
+      kind: "v2-add-money",
+      chainId: 11_155_111,
+      account,
+      stage: "failed",
+      errorStage: "save-simulating",
+      updatedAt: 11,
+    });
+    const checkpoint = findLatestV2AddMoneyCheckpoint(loadSafeTransactions(account));
+    expect(checkpoint?.operationId).toBe("operation");
+    expect(checkpoint?.wrap?.hash).toBe(`0x${"5".repeat(64)}`);
+    expect(checkpoint?.save?.stage).toBe("failed");
+    expect(localStorage.getItem("leopold.public-transactions.v1")).not.toMatch(
+      /amount|cipher|proof|handle|plaintext|decrypted/iu,
+    );
   });
 
   it("keeps application auth and private-session modules out of browser credential storage and logs", () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Address } from "viem";
+import { encodeFunctionData, type Address } from "viem";
 
 import {
   addV2Money,
@@ -7,16 +7,20 @@ import {
   enableV2PrizeSavings,
   getV2TestUsdc,
   isV2TransactionReconciliationPendingError,
+  recoverConfirmedV2Wrap,
+  recoverConfirmedV2Approval,
   reconcileV2Transaction,
   revealLatestV2Result,
   revealV2Savings,
   topUpV2EntryBalance,
+  resumeV2AddMoneySave,
   withdrawV2EntryBalance,
   type V2ActionClients,
 } from "../lib/leopold/v2-actions";
 import { decryptPrivateValue, encryptPrivateAmount } from "../lib/leopold/zama";
 import { getTestUsdc } from "../lib/leopold/actions";
 import { V2_PREVIEW_ADDRESSES } from "../lib/leopold/v2-preview-config";
+import { v2WrapperActionAbi } from "../lib/leopold/v2-actions-abis";
 
 vi.mock("../lib/leopold/zama", () => ({
   decryptPrivateValue: vi.fn(),
@@ -148,8 +152,17 @@ describe("V2 wallet actions", () => {
     vi.mocked(getTestUsdc).mockResolvedValue(HASHES[0]);
   });
 
+  it("declares the confidential callback result as a bytes32 ebool handle", () => {
+    const wrap = v2WrapperActionAbi.find((item) => item.type === "function" && item.name === "wrap");
+    const callback = v2WrapperActionAbi.find((item) => item.type === "function" && item.name === "confidentialTransferAndCall");
+    expect(wrap && "outputs" in wrap ? wrap.outputs?.[0]?.type : undefined).toBe("bytes32");
+    expect(callback && "outputs" in callback ? callback.outputs?.[0]?.type : undefined).toBe("bytes32");
+  });
+
   it("adds money through approval, wrap, and the V2 callback when allowance is missing", async () => {
     const probe = makeClients();
+    const steps: unknown[] = [];
+    probe.clients.onStep = (step) => steps.push(step);
     const hashes = await addV2Money(probe.clients, 1_000_000n);
     expect(hashes).toHaveLength(3);
     expect(probe.writeContract.mock.calls.map(([request]) => request.functionName)).toEqual([
@@ -164,15 +177,104 @@ describe("V2 wallet actions", () => {
       1_000_000n,
       probe.clients.walletClient,
     );
+    expect(steps).toEqual([
+      { current: 1, total: 3, label: "Approve USDC" },
+      { current: 2, total: 3, label: "Make savings private" },
+      { current: 3, total: 3, label: "Add to Leopold savings" },
+    ]);
+    expect(probe.readContract.mock.calls.filter(([request]) => request.functionName === "allowance")).toHaveLength(2);
   });
 
   it("skips approval when the wrapper already has enough allowance", async () => {
     const probe = makeClients({ allowance: 2_000_000n });
+    const steps: unknown[] = [];
+    probe.clients.onStep = (step) => steps.push(step);
     await addV2Money(probe.clients, 1_000_000n);
     expect(probe.writeContract.mock.calls.map(([request]) => request.functionName)).toEqual([
       "wrap",
       "confidentialTransferAndCall",
     ]);
+    expect(steps).toEqual([
+      { current: 1, total: 2, label: "Make savings private" },
+      { current: 2, total: 2, label: "Add to Leopold savings" },
+    ]);
+  });
+
+  it("resumes a confirmed wrap with only the confidential save write", async () => {
+    const probe = makeClients({ allowance: 2_000_000n });
+    await expect(resumeV2AddMoneySave(probe.clients, 1_000_000n)).resolves.toHaveLength(1);
+    expect(probe.writeContract.mock.calls.map(([request]) => request.functionName)).toEqual([
+      "confidentialTransferAndCall",
+    ]);
+  });
+
+  it("retries a transient approval simulation before the first wallet write", async () => {
+    const probe = makeClients();
+    vi.mocked(probe.simulateContract).mockRejectedValueOnce(new Error("RPC timeout"));
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).resolves.toHaveLength(3);
+    expect(probe.simulateContract).toHaveBeenCalledTimes(4);
+    expect(probe.writeContract.mock.calls.map(([request]) => request.functionName)).toEqual([
+      "approve",
+      "wrap",
+      "confidentialTransferAndCall",
+    ]);
+  });
+
+  it("retries a transient wrap simulation without rebroadcasting approval", async () => {
+    const probe = makeClients({ allowance: 2_000_000n });
+    vi.mocked(probe.simulateContract).mockRejectedValueOnce(new Error("network connection reset"));
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).resolves.toHaveLength(2);
+    expect(probe.writeContract.mock.calls.map(([request]) => request.functionName)).toEqual([
+      "wrap",
+      "confidentialTransferAndCall",
+    ]);
+  });
+
+  it("retries a transient save simulation without rebroadcasting wrap", async () => {
+    const probe = makeClients({ allowance: 2_000_000n });
+    vi.mocked(probe.simulateContract)
+      .mockResolvedValueOnce({ request: { gas: 250_000n } } as never)
+      .mockRejectedValueOnce(new Error("HTTP 503 server unavailable"));
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).resolves.toHaveLength(2);
+    expect(probe.writeContract.mock.calls.map(([request]) => request.functionName)).toEqual([
+      "wrap",
+      "confidentialTransferAndCall",
+    ]);
+  });
+
+  it("stops before an approval write on a deterministic simulation revert", async () => {
+    const probe = makeClients();
+    vi.mocked(probe.simulateContract).mockRejectedValueOnce(new Error("execution reverted: paused"));
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).rejects.toThrow(
+      "add-money-approval:simulation:deterministic",
+    );
+    expect(probe.writeContract).not.toHaveBeenCalled();
+  });
+
+  it("stops before a wrap write on a deterministic simulation revert", async () => {
+    const probe = makeClients({ allowance: 2_000_000n });
+    vi.mocked(probe.simulateContract).mockRejectedValueOnce(new Error("execution reverted: paused"));
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).rejects.toThrow(
+      "add-money-wrap:simulation:deterministic",
+    );
+    expect(probe.writeContract).not.toHaveBeenCalled();
+  });
+
+  it("stops before a save write on a deterministic simulation revert", async () => {
+    const probe = makeClients({ allowance: 2_000_000n });
+    vi.mocked(probe.simulateContract)
+      .mockResolvedValueOnce({ request: { gas: 250_000n } } as never)
+      .mockRejectedValueOnce(new Error("execution reverted: RoundNotOpen"));
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).rejects.toThrow(
+      "add-money-save:simulation:deterministic",
+    );
+    expect(probe.writeContract.mock.calls.map(([request]) => request.functionName)).toEqual(["wrap"]);
   });
 
   it("does not blind-rebroadcast after a submission failure", async () => {
@@ -194,8 +296,46 @@ describe("V2 wallet actions", () => {
     } catch (error) {
       expect(isV2TransactionReconciliationPendingError(error)).toBe(true);
     }
-    expect(onHash).toHaveBeenCalledWith(HASHES[0]);
+    expect(onHash).toHaveBeenCalledWith(HASHES[0], "wrap");
     expect(probe.writeContract).toHaveBeenCalledOnce();
+  });
+
+  it("does not advance after an approval hash becomes pending", async () => {
+    const probe = makeClients();
+    vi.mocked(probe.waitForTransactionReceipt).mockRejectedValueOnce(new Error("RPC timeout"));
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).rejects.toSatisfy((error) =>
+      isV2TransactionReconciliationPendingError(error),
+    );
+    expect(probe.writeContract.mock.calls.map(([request]) => request.functionName)).toEqual(["approve"]);
+    expect(encryptPrivateAmount).not.toHaveBeenCalled();
+  });
+
+  it("does not start encrypted save while the wrap hash is pending", async () => {
+    const probe = makeClients({ allowance: 2_000_000n });
+    vi.mocked(probe.waitForTransactionReceipt).mockRejectedValueOnce(new Error("RPC timeout"));
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).rejects.toSatisfy((error) =>
+      isV2TransactionReconciliationPendingError(error),
+    );
+    expect(probe.writeContract.mock.calls.map(([request]) => request.functionName)).toEqual(["wrap"]);
+    expect(encryptPrivateAmount).not.toHaveBeenCalled();
+  });
+
+  it("does not duplicate save while the save hash is pending", async () => {
+    const probe = makeClients({ allowance: 2_000_000n });
+    vi.mocked(probe.waitForTransactionReceipt)
+      .mockResolvedValueOnce({ status: "success", logs: [] } as never)
+      .mockRejectedValueOnce(new Error("RPC timeout"));
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).rejects.toSatisfy((error) =>
+      isV2TransactionReconciliationPendingError(error),
+    );
+    expect(probe.writeContract.mock.calls.map(([request]) => request.functionName)).toEqual([
+      "wrap",
+      "confidentialTransferAndCall",
+    ]);
+    expect(encryptPrivateAmount).toHaveBeenCalledOnce();
   });
 
   it("treats a reverted receipt as a genuine transaction failure", async () => {
@@ -219,6 +359,68 @@ describe("V2 wallet actions", () => {
       status: "confirmed",
     });
     expect(probe.writeContract).not.toHaveBeenCalled();
+  });
+
+  it("recovers the public amount from the same confirmed wrap transaction", async () => {
+    const hash = HASHES[0];
+    const input = encodeFunctionData({
+      abi: v2WrapperActionAbi,
+      functionName: "wrap",
+      args: [ACCOUNT, 1_000_000n],
+    });
+    const publicClient = {
+      getChainId: vi.fn(async () => 11_155_111),
+      getTransaction: vi.fn(async () => ({ to: V2_PREVIEW_ADDRESSES.wrapper, from: ACCOUNT, input })),
+      getTransactionReceipt: vi.fn(async () => ({ status: "success" as const })),
+    };
+    await expect(recoverConfirmedV2Wrap(publicClient as never, ACCOUNT, hash)).resolves.toEqual({
+      hash,
+      amount: 1_000_000n,
+    });
+  });
+
+  it("blocks wrap recovery when the recipient is not the verified account", async () => {
+    const input = encodeFunctionData({
+      abi: v2WrapperActionAbi,
+      functionName: "wrap",
+      args: [OTHER_ACCOUNT, 1_000_000n],
+    });
+    const publicClient = {
+      getChainId: vi.fn(async () => 11_155_111),
+      getTransaction: vi.fn(async () => ({ to: V2_PREVIEW_ADDRESSES.wrapper, from: ACCOUNT, input })),
+      getTransactionReceipt: vi.fn(async () => ({ status: "success" as const })),
+    };
+    await expect(recoverConfirmedV2Wrap(publicClient as never, ACCOUNT, HASHES[0])).rejects.toThrow(
+      "V2_RECOVERY:WRONG_RECIPIENT",
+    );
+  });
+
+  it("recovers a confirmed approval amount and verifies its spender", async () => {
+    const input = encodeFunctionData({
+      abi: [{ type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }] }] as const,
+      functionName: "approve",
+      args: [V2_PREVIEW_ADDRESSES.wrapper, 1_000_000n],
+    });
+    const publicClient = {
+      getChainId: vi.fn(async () => 11_155_111),
+      getTransaction: vi.fn(async () => ({ to: V2_PREVIEW_ADDRESSES.usdc, from: ACCOUNT, input })),
+      getTransactionReceipt: vi.fn(async () => ({ status: "success" as const })),
+    };
+    await expect(recoverConfirmedV2Approval(publicClient as never, ACCOUNT, HASHES[0])).resolves.toEqual({
+      hash: HASHES[0],
+      amount: 1_000_000n,
+    });
+  });
+
+  it("blocks malformed or wrong-wrapper wrap recovery before any resume write", async () => {
+    const publicClient = {
+      getChainId: vi.fn(async () => 11_155_111),
+      getTransaction: vi.fn(async () => ({ to: V2_PREVIEW_ADDRESSES.usdc, from: ACCOUNT, input: "0x1234" })),
+      getTransactionReceipt: vi.fn(async () => ({ status: "success" as const })),
+    };
+    await expect(recoverConfirmedV2Wrap(publicClient as never, ACCOUNT, HASHES[0])).rejects.toThrow(
+      "V2_RECOVERY:WRONG_WRAPPER",
+    );
   });
 
   it("shows a pre-broadcast simulation failure without creating a pending hash", async () => {

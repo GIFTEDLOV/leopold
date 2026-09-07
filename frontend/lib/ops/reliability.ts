@@ -32,7 +32,13 @@ export function classifyReadFailure(error: unknown): MetricFailureCategory {
   if (/timeout|timed out|aborterror/iu.test(message)) return "TIMEOUT";
   if (/429|rate.?limit|too many requests/iu.test(message)) return "RATE_LIMIT";
   if (/5\d\d|server error|bad gateway|service unavailable|gateway timeout/iu.test(message)) return "SERVER";
-  if (/fetch|network|socket|econn|enotfound|connection|http request failed/iu.test(message)) return "NETWORK";
+  if (
+    /fetch|network|socket|econn|enotfound|connection|http request failed|request failed|connection refused|connection reset|temporarily unavailable/iu.test(
+      message,
+    )
+  ) {
+    return "NETWORK";
+  }
   return "UNKNOWN";
 }
 

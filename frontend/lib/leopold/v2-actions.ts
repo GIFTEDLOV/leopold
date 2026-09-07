@@ -1,7 +1,19 @@
 "use client";
 
-import { parseEventLogs, type Address, type Hex, type PublicClient, type WalletClient } from "viem";
-import { isTransientReadFailure, submitFinancialWriteOnce } from "@/lib/ops/reliability";
+import {
+  decodeFunctionData,
+  parseEventLogs,
+  type Address,
+  type Hex,
+  type PublicClient,
+  type WalletClient,
+} from "viem";
+import {
+  classifyReadFailure,
+  isTransientReadFailure,
+  submitFinancialWriteOnce,
+  withReadReliability,
+} from "@/lib/ops/reliability";
 import { getTestUsdc, type ActionClients } from "./actions";
 import { erc20Abi } from "./abis";
 import { V2_PREVIEW_ADDRESSES, V2_PREVIEW_CHAIN_ID } from "./v2-preview-config";
@@ -18,9 +30,18 @@ export type V2ActionClients = {
   walletClient: WalletClient;
   ethereum: BrowserEthereum;
   account: Address;
-  onHash?: (hash: `0x${string}`) => void;
-  onReceipt?: (hash: `0x${string}`) => void;
+  onHash?: (hash: `0x${string}`, stage?: V2AddMoneyStage) => void;
+  onReceipt?: (hash: `0x${string}`, stage?: V2AddMoneyStage) => void;
+  onStep?: (step: V2ActionStep) => void;
   onStage?: (stage: V2ActionStage) => void;
+};
+
+export type V2AddMoneyStage = "approval" | "wrap" | "save";
+
+export type V2ActionStep = {
+  current: number;
+  total: number;
+  label: "Approve USDC" | "Make savings private" | "Add to Leopold savings";
 };
 
 export type V2ActionStage =
@@ -44,12 +65,14 @@ export type V2TransactionReconciliation = {
 export class V2TransactionReconciliationPendingError extends Error {
   readonly hash: `0x${string}`;
   readonly readFailureClass: "transient" | "unknown";
+  readonly transactionStage?: V2AddMoneyStage;
 
-  constructor(stage: string, hash: `0x${string}`, error: unknown) {
+  constructor(stage: string, hash: `0x${string}`, error: unknown, transactionStage?: V2AddMoneyStage) {
     super(`V2_ACTION:${stage}:reconciliation-pending:${hash}`, { cause: error });
     this.name = "V2TransactionReconciliationPendingError";
     this.hash = hash;
     this.readFailureClass = isTransientReadFailure(error) ? "transient" : "unknown";
+    this.transactionStage = transactionStage;
   }
 }
 
@@ -78,6 +101,19 @@ function equalAddress(left: unknown, right: Address): boolean {
 function actionError(stage: string, error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error);
   return new Error(`V2_ACTION:${stage}: ${message}`, { cause: error });
+}
+
+function simulationError(stage: string, error: unknown): Error {
+  const failureClass = classifyReadFailure(error);
+  const kind = isTransientReadFailure(error) ? "transient" : "deterministic";
+  return actionError(`${stage}:simulation:${kind}:${failureClass}`, error);
+}
+
+function addMoneyStageForWrite(stage: string): V2AddMoneyStage | undefined {
+  if (stage === "add-money-approval") return "approval";
+  if (stage === "add-money-wrap") return "wrap";
+  if (stage === "add-money-save") return "save";
+  return undefined;
 }
 
 async function assertV2Wallet(clients: V2ActionClients, stage: string): Promise<void> {
@@ -147,16 +183,24 @@ async function writeV2(
   stage: string,
 ): Promise<`0x${string}`> {
   await assertV2Wallet(clients, stage);
+  const transactionStage = addMoneyStageForWrite(stage);
   let gas: bigint | undefined;
   try {
     clients.onStage?.("precondition-read");
-    const simulation = await clients.publicClient.simulateContract({
-      account: clients.account,
-      ...request,
-    } as never);
+    const simulation = await withReadReliability(
+      () =>
+        clients.publicClient.simulateContract({
+          account: clients.account,
+          ...request,
+        } as never),
+      {
+        operation: "VAULT_READ",
+        shouldRetry: isTransientReadFailure,
+      },
+    );
     gas = simulation.request.gas;
   } catch (error) {
-    throw actionError(`${stage}:simulation`, error);
+    throw simulationError(stage, error);
   }
   await assertV2Wallet(clients, stage);
   let hash: `0x${string}`;
@@ -172,7 +216,7 @@ async function writeV2(
   } catch (error) {
     throw actionError(`${stage}:signature`, error);
   }
-  clients.onHash?.(hash);
+  clients.onHash?.(hash, transactionStage);
   clients.onStage?.("reconcile");
   let receipt;
   try {
@@ -181,10 +225,10 @@ async function writeV2(
     // A hash is an authoritative submission boundary. Receipt reads are not.
     // Keep the same hash pending regardless of whether the current read failure
     // was classified as transient or is simply non-authoritative for now.
-    throw new V2TransactionReconciliationPendingError(`${stage}:reconcile`, hash, error);
+    throw new V2TransactionReconciliationPendingError(`${stage}:reconcile`, hash, error, transactionStage);
   }
   if (receipt.status !== "success") throw new Error(`V2_ACTION:${stage}:reverted:${hash}`);
-  clients.onReceipt?.(hash);
+  clients.onReceipt?.(hash, transactionStage);
   return hash;
 }
 
@@ -241,6 +285,77 @@ export async function getV2TestUsdc(clients: V2ActionClients): Promise<`0x${stri
   return getTestUsdc(clients as unknown as ActionClients);
 }
 
+async function saveV2Money(clients: V2ActionClients, amount: bigint): Promise<`0x${string}`> {
+  clients.onStage?.("adding-to-savings");
+  let encrypted;
+  try {
+    encrypted = await encryptPrivateAmount(
+      clients.ethereum,
+      clients.account,
+      V2_PREVIEW_ADDRESSES.wrapper,
+      amount,
+      clients.walletClient,
+    );
+  } catch (error) {
+    throw actionError("add-money:input", error);
+  }
+  return writeV2(
+    clients,
+    {
+      address: V2_PREVIEW_ADDRESSES.wrapper,
+      abi: v2WrapperActionAbi,
+      functionName: "confidentialTransferAndCall",
+      args: [V2_PREVIEW_ADDRESSES.vault, encrypted.encryptedValue, encrypted.inputProof, "0x"],
+    },
+    "add-money-save",
+  );
+}
+
+export async function resumeV2AddMoneySave(
+  clients: V2ActionClients,
+  amount: bigint,
+): Promise<readonly `0x${string}`[]> {
+  if (amount <= 0n) throw new Error("V2_ACTION:ADD_MONEY:amount-must-be-positive");
+  await assertV2Wallet(clients, "add-money-resume-save");
+  await readV2Topology(clients);
+  clients.onStep?.({ current: 2, total: 2, label: "Add to Leopold savings" });
+  return [await saveV2Money(clients, amount)];
+}
+
+export async function resumeV2AddMoneyAfterApproval(
+  clients: V2ActionClients,
+  amount: bigint,
+): Promise<readonly `0x${string}`[]> {
+  if (amount <= 0n) throw new Error("V2_ACTION:ADD_MONEY:amount-must-be-positive");
+  await assertV2Wallet(clients, "add-money-resume-approval");
+  await readV2Topology(clients);
+  const allowance = await withReadReliability(
+    () =>
+      clients.publicClient.readContract({
+        address: V2_PREVIEW_ADDRESSES.usdc,
+        abi: erc20Abi,
+        functionName: "allowance",
+        args: [clients.account, V2_PREVIEW_ADDRESSES.wrapper],
+      }),
+    { operation: "VAULT_READ", shouldRetry: isTransientReadFailure },
+  );
+  if (allowance < amount) return addV2Money(clients, amount);
+  clients.onStep?.({ current: 1, total: 2, label: "Make savings private" });
+  const wrapHash = await writeV2(
+    clients,
+    {
+      address: V2_PREVIEW_ADDRESSES.wrapper,
+      abi: v2WrapperActionAbi,
+      functionName: "wrap",
+      args: [clients.account, amount],
+    },
+    "add-money-wrap",
+  );
+  clients.onStep?.({ current: 2, total: 2, label: "Add to Leopold savings" });
+  const saveHash = await saveV2Money(clients, amount);
+  return [wrapHash, saveHash];
+}
+
 export async function addV2Money(clients: V2ActionClients, amount: bigint): Promise<readonly `0x${string}`[]> {
   if (amount <= 0n) throw new Error("V2_ACTION:ADD_MONEY:amount-must-be-positive");
   await assertV2Wallet(clients, "add-money");
@@ -262,7 +377,10 @@ export async function addV2Money(clients: V2ActionClients, amount: bigint): Prom
   ]);
   if (balance < amount) throw new Error("INSUFFICIENT_USDC");
   const hashes: `0x${string}`[] = [];
-  if (allowance < amount) {
+  const approvalRequired = allowance < amount;
+  const totalSteps = approvalRequired ? 3 : 2;
+  if (approvalRequired) {
+    clients.onStep?.({ current: 1, total: totalSteps, label: "Approve USDC" });
     clients.onStage?.("approval");
     hashes.push(
       await writeV2(
@@ -276,14 +394,19 @@ export async function addV2Money(clients: V2ActionClients, amount: bigint): Prom
         "add-money-approval",
       ),
     );
-    const allowanceAfter = await clients.publicClient.readContract({
-      address: V2_PREVIEW_ADDRESSES.usdc,
-      abi: erc20Abi,
-      functionName: "allowance",
-      args: [clients.account, V2_PREVIEW_ADDRESSES.wrapper],
-    });
+    const allowanceAfter = await withReadReliability(
+      () =>
+        clients.publicClient.readContract({
+          address: V2_PREVIEW_ADDRESSES.usdc,
+          abi: erc20Abi,
+          functionName: "allowance",
+          args: [clients.account, V2_PREVIEW_ADDRESSES.wrapper],
+        }),
+      { operation: "VAULT_READ", shouldRetry: isTransientReadFailure },
+    );
     if (allowanceAfter < amount) throw new Error("V2_ACTION:ADD_MONEY:allowance-not-confirmed");
   }
+  clients.onStep?.({ current: approvalRequired ? 2 : 1, total: totalSteps, label: "Make savings private" });
   hashes.push(
     await writeV2(
       clients,
@@ -296,32 +419,62 @@ export async function addV2Money(clients: V2ActionClients, amount: bigint): Prom
       "add-money-wrap",
     ),
   );
-  clients.onStage?.("adding-to-savings");
-  let encrypted;
-  try {
-    encrypted = await encryptPrivateAmount(
-      clients.ethereum,
-      clients.account,
-      V2_PREVIEW_ADDRESSES.wrapper,
-      amount,
-      clients.walletClient,
-    );
-  } catch (error) {
-    throw actionError("add-money:input", error);
-  }
-  hashes.push(
-    await writeV2(
-      clients,
-      {
-        address: V2_PREVIEW_ADDRESSES.wrapper,
-        abi: v2WrapperActionAbi,
-        functionName: "confidentialTransferAndCall",
-        args: [V2_PREVIEW_ADDRESSES.vault, encrypted.encryptedValue, encrypted.inputProof, "0x"],
-      },
-      "add-money-save",
-    ),
-  );
+  clients.onStep?.({ current: approvalRequired ? 3 : 2, total: totalSteps, label: "Add to Leopold savings" });
+  hashes.push(await saveV2Money(clients, amount));
   return hashes;
+}
+
+export type V2RecoveredWrap = {
+  hash: `0x${string}`;
+  amount: bigint;
+};
+
+export async function recoverConfirmedV2Wrap(
+  publicClient: Pick<PublicClient, "getChainId" | "getTransaction" | "getTransactionReceipt">,
+  account: Address,
+  hash: `0x${string}`,
+): Promise<V2RecoveredWrap> {
+  const [chainId, transaction, receipt] = await Promise.all([
+    publicClient.getChainId(),
+    publicClient.getTransaction({ hash }),
+    publicClient.getTransactionReceipt({ hash }),
+  ]);
+  if (chainId !== V2_PREVIEW_CHAIN_ID) throw new Error("V2_RECOVERY:WRONG_NETWORK");
+  if (receipt.status !== "success") throw new Error("V2_RECOVERY:WRAP_NOT_CONFIRMED");
+  if (!transaction.to || !equalAddress(transaction.to, V2_PREVIEW_ADDRESSES.wrapper)) {
+    throw new Error("V2_RECOVERY:WRONG_WRAPPER");
+  }
+  if (!equalAddress(transaction.from, account)) throw new Error("V2_RECOVERY:WRONG_SENDER");
+  const decoded = decodeFunctionData({ abi: v2WrapperActionAbi, data: transaction.input });
+  if (decoded.functionName !== "wrap" || !decoded.args) throw new Error("V2_RECOVERY:WRONG_CALL");
+  const [recipient, amount] = decoded.args as readonly [Address, bigint];
+  if (!equalAddress(recipient, account)) throw new Error("V2_RECOVERY:WRONG_RECIPIENT");
+  if (amount <= 0n) throw new Error("V2_RECOVERY:INVALID_AMOUNT");
+  return { hash, amount };
+}
+
+export async function recoverConfirmedV2Approval(
+  publicClient: Pick<PublicClient, "getChainId" | "getTransaction" | "getTransactionReceipt">,
+  account: Address,
+  hash: `0x${string}`,
+): Promise<{ hash: `0x${string}`; amount: bigint }> {
+  const [chainId, transaction, receipt] = await Promise.all([
+    publicClient.getChainId(),
+    publicClient.getTransaction({ hash }),
+    publicClient.getTransactionReceipt({ hash }),
+  ]);
+  if (chainId !== V2_PREVIEW_CHAIN_ID) throw new Error("V2_RECOVERY:WRONG_NETWORK");
+  if (receipt.status !== "success") throw new Error("V2_RECOVERY:APPROVAL_NOT_CONFIRMED");
+  if (!transaction.to || !equalAddress(transaction.to, V2_PREVIEW_ADDRESSES.usdc)) {
+    throw new Error("V2_RECOVERY:WRONG_USDC");
+  }
+  if (!equalAddress(transaction.from, account)) throw new Error("V2_RECOVERY:WRONG_SENDER");
+  const decoded = decodeFunctionData({ abi: erc20Abi, data: transaction.input });
+  if (decoded.functionName !== "approve" || !decoded.args) throw new Error("V2_RECOVERY:WRONG_APPROVAL_CALL");
+  const [spender, amount] = decoded.args as readonly [Address, bigint];
+  if (!equalAddress(spender, V2_PREVIEW_ADDRESSES.wrapper)) throw new Error("V2_RECOVERY:WRONG_SPENDER");
+  if (amount <= 0n) throw new Error("V2_RECOVERY:INVALID_AMOUNT");
+  return { hash, amount };
 }
 
 function tupleValue<T>(value: unknown, index: number): T {

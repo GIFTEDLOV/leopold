@@ -17,6 +17,8 @@ const fixtures = vi.hoisted(() => ({
     readTransient: false,
     topologyError: false,
     action: { status: "idle", hashes: [], stage: "idle" },
+    addMoneyRecovery: null,
+    addMoneyRecoveryBlocked: false,
     shouldShowWalletNotice: true,
     dialog: null,
     busy: false,
@@ -68,7 +70,7 @@ vi.mock("@/components/wallet-identity-provider", () => ({
 import { V2HomePage } from "@/components/final-ui/dashboard-experience";
 
 const mutableState = fixtures.state as unknown as {
-  action: { status: string; hashes: readonly string[]; stage?: string };
+  action: { status: string; hashes: readonly string[]; stage?: string; step?: { current: number; total: number; label: string } };
   readStatus: string;
   readError: string | null;
   readTransient: boolean;
@@ -86,6 +88,9 @@ describe("V2 dashboard presentation connections", () => {
     mutableState.readTransient = false;
     mutableState.topologyError = false;
     mutableState.action = { status: "idle", hashes: [], stage: "idle" };
+    (fixtures.state as unknown as { addMoneyRecovery: unknown }).addMoneyRecovery = null;
+    (fixtures.state as unknown as { addMoneyRecoveryBlocked: boolean }).addMoneyRecoveryBlocked = false;
+    fixtures.state.dialog = null;
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -138,5 +143,33 @@ describe("V2 dashboard presentation connections", () => {
   it("keeps a topology warning visible when the read is not transient", () => {
     mutableState.topologyError = true;
     expect(renderToStaticMarkup(<V2HomePage />)).toContain("Prize Savings data needs attention.");
+  });
+
+  it("shows the Add Money transaction count and current step in the dialog", () => {
+    (fixtures.state as unknown as { dialog: "add-money" | null }).dialog = "add-money";
+    mutableState.action = {
+      status: "running",
+      hashes: [],
+      stage: "precondition-read",
+      step: { current: 1, total: 3, label: "Approve USDC" },
+    };
+    fixtures.state.busy = true;
+
+    expect(renderToStaticMarkup(<V2HomePage />)).toContain("Step 1 of 3: Approve USDC");
+    fixtures.state.busy = false;
+    (fixtures.state as unknown as { dialog: "add-money" | null }).dialog = null;
+  });
+
+  it("shows a local resume state after a confirmed wrap", () => {
+    (fixtures.state as unknown as { dialog: "add-money" | null }).dialog = "add-money";
+    (fixtures.state as unknown as { addMoneyRecovery: unknown }).addMoneyRecovery = {
+      message: "Your USDC was made private, but it has not been added to Leopold savings yet. Resume to finish.",
+    };
+    mutableState.action = { status: "error", hashes: ["0xwrap"], stage: "adding-to-savings" };
+
+    const markup = renderToStaticMarkup(<V2HomePage />);
+    expect(markup).toContain("Resume Add Money");
+    expect(markup).toContain("Your USDC was made private");
+    expect(markup).not.toContain("No funds were moved");
   });
 });

@@ -11,18 +11,25 @@ import {
   disableV2PrizeSavings,
   enableV2PrizeSavings,
   isV2TransactionReconciliationPendingError,
+  recoverConfirmedV2Approval,
+  recoverConfirmedV2Wrap,
   reconcileV2Transaction,
   revealLatestV2Result,
   revealV2Savings,
+  resumeV2AddMoneyAfterApproval,
+  resumeV2AddMoneySave,
   topUpV2EntryBalance,
   withdrawV2EntryBalance,
   withdrawV2Savings,
   type V2ActionClients,
+  type V2AddMoneyStage,
+  type V2ActionStep,
   type V2ActionStage,
 } from "@/lib/leopold/v2-actions";
 import { V2_PREVIEW_CHAIN_ID } from "@/lib/leopold/v2-preview-config";
 import {
   isUnresolvedV2Transaction,
+  findLatestV2AddMoneyCheckpoint,
   persistSafeTransaction,
   loadSafeTransactions,
   type SafeTransactionRecord,
@@ -48,15 +55,61 @@ export type V2ActionState = {
   stage?: V2ActionStage;
   error?: string;
   hashes: readonly `0x${string}`[];
+  step?: V2ActionStep;
   recoveryRequired?: boolean;
 };
 
 type RevealedValue = { identityKey: string; value: bigint };
 
+type AddMoneyRecovery = {
+  operationId: string;
+  resumeStage: "wrap" | "save";
+  amount: bigint;
+  hashes: readonly `0x${string}`[];
+  confirmedStages: readonly V2AddMoneyStage[];
+  message: string;
+};
+
+type RunActionOptions = {
+  operationId?: string;
+  initialHashes?: readonly `0x${string}`[];
+  initialConfirmedStages?: readonly V2AddMoneyStage[];
+};
+
+function addMoneyTransactionStage(stage: V2AddMoneyStage, phase: "confirming" | "simulating"): TransactionStage {
+  return `${stage}-${phase}` as TransactionStage;
+}
+
+function addMoneyStageFromError(error: unknown): V2AddMoneyStage | undefined {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/add-money-approval/iu.test(message)) return "approval";
+  if (/add-money-wrap/iu.test(message)) return "wrap";
+  if (/add-money-save/iu.test(message)) return "save";
+  return undefined;
+}
+
+function addMoneyRecoveryMessage(resumeStage: "wrap" | "save"): string {
+  return resumeStage === "save"
+    ? "Your USDC was made private, but it has not been added to Leopold savings yet. Resume to finish."
+    : "USDC approval was confirmed, but your funds have not moved yet. Resume to continue.";
+}
+
 function friendlyActionError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (/reconciliation-pending/iu.test(message)) return "Transaction submitted. Confirming...";
   if (/V2_ACTION:.*:reverted:/iu.test(message)) return "The transaction reverted. No funds were moved.";
+  if (/simulation:transient:(?:TIMEOUT|NETWORK|RATE_LIMIT|SERVER)/iu.test(message)) {
+    return "Network confirmation is temporarily unavailable. No transaction was submitted.";
+  }
+  if (/V2_ACTION:add-money-approval:simulation/iu.test(message)) {
+    return "USDC approval could not be simulated. No transaction was submitted.";
+  }
+  if (/V2_ACTION:add-money-wrap:simulation/iu.test(message)) {
+    return "Private conversion could not be simulated. No transaction was submitted.";
+  }
+  if (/V2_ACTION:add-money-save:simulation/iu.test(message)) {
+    return "Savings deposit could not be simulated. No transaction was submitted.";
+  }
   if (/simulation/iu.test(message)) return "This transaction could not be simulated. No funds were moved.";
   if (/signature|user rejected|rejected request/iu.test(message)) return "The wallet did not submit that transaction. You can try again.";
   if (/AUTH_REQUIRED|ACCOUNT_NOT_READY|financial session/iu.test(message)) return "Sign in and connect your financial wallet to continue.";
@@ -151,6 +204,8 @@ export function useV2FunctionalState() {
   const [amount, setAmount] = useState("0.001");
   const [draws, setDraws] = useState("2");
   const [action, setAction] = useState<V2ActionState>({ status: "idle", kind: null, hashes: [] });
+  const [addMoneyRecovery, setAddMoneyRecovery] = useState<AddMoneyRecovery | null>(null);
+  const [addMoneyRecoveryBlocked, setAddMoneyRecoveryBlocked] = useState(false);
   const [revealedSavings, setRevealedSavings] = useState<RevealedValue | null>(null);
   const [revealedResult, setRevealedResult] = useState<RevealedValue | null>(null);
   const [history, setHistory] = useState<SafeTransactionRecord[]>([]);
@@ -283,7 +338,11 @@ export function useV2FunctionalState() {
   }, []);
 
   const runAction = useCallback(
-    async (kind: string, operation: (clients: V2ActionClients) => Promise<unknown>) => {
+    async (
+      kind: string,
+      operation: (clients: V2ActionClients) => Promise<unknown>,
+      options: RunActionOptions = {},
+    ) => {
       if (action.status === "running" || action.status === "pending") return;
       const unresolved = readAccount
         ? loadSafeTransactions(readAccount).find(
@@ -301,11 +360,19 @@ export function useV2FunctionalState() {
         });
         return;
       }
-      let operationId = "";
-      let writeIndex = 0;
-      const hashes: `0x${string}`[] = [];
+      let operationId = options.operationId ?? "";
+      let writeIndex = options.initialHashes?.length ?? 0;
+      const hashes: `0x${string}`[] = [...(options.initialHashes ?? [])];
       let operationAccount: Address | undefined;
-      setAction({ status: "running", kind, hashes: [] });
+      let lastWriteStage: V2AddMoneyStage | undefined;
+      const confirmedStages = new Set<V2AddMoneyStage>(options.initialConfirmedStages ?? []);
+      let persistRecord: (
+        stage: TransactionStage,
+        hash?: `0x${string}`,
+        errorStage?: TransactionStage,
+        operationStage?: V2AddMoneyStage,
+      ) => void = () => undefined;
+      setAction({ status: "running", kind, hashes: [...hashes] });
       try {
         if (!auth.authenticated || auth.accountStatus !== "SIGNED_IN_READY") throw new Error("AUTH_REQUIRED");
         const session = await walletIdentity.requireConnectedFinancialSession();
@@ -316,11 +383,18 @@ export function useV2FunctionalState() {
         if (address && address.toLowerCase() !== account.toLowerCase()) throw new Error("WALLET_IDENTITY_MISMATCH");
         const ethereum = typeof window !== "undefined" ? (window as unknown as { ethereum?: V2ActionClients["ethereum"] }).ethereum : undefined;
         const fallbackEthereum = ethereum ?? { request: async () => { throw new Error("UNSUPPORTED_WALLET:ethereum-provider-required"); } };
-        operationId = crypto.randomUUID();
-        const persist = (stage: TransactionStage, hash?: `0x${string}`, errorStage?: TransactionStage) => {
+        operationId ||= crypto.randomUUID();
+        persistRecord = (
+          stage: TransactionStage,
+          hash?: `0x${string}`,
+          errorStage?: TransactionStage,
+          operationStage?: V2AddMoneyStage,
+        ) => {
           persistSafeTransaction({
             id: errorStage ? `${operationId}:failure` : hash ? `${operationId}:write:${writeIndex}` : operationId,
             kind,
+            operationId,
+            operationStage,
             hash,
             chainId: V2_PREVIEW_CHAIN_ID,
             account,
@@ -329,37 +403,47 @@ export function useV2FunctionalState() {
             updatedAt: Date.now(),
           });
         };
-        persist("wallet");
+        if (!options.operationId) persistRecord("wallet");
         const clients: V2ActionClients = {
           publicClient,
           walletClient: walletClient.data,
           ethereum: fallbackEthereum,
           account,
+          onStep: (step) => setAction((current) => ({ ...current, step })),
           onStage: (stage) => setAction((current) => ({ ...current, stage })),
-          onHash: (hash) => {
+          onHash: (hash, stage) => {
             writeIndex += 1;
             hashes.push(hash);
-            persist("confirming", hash);
+            lastWriteStage = stage;
+            persistRecord(stage ? addMoneyTransactionStage(stage, "confirming") : "confirming", hash, undefined, stage);
             setAction((current) => ({ ...current, hashes: [...hashes], stage: "reconcile" }));
           },
-          onReceipt: (hash) => persist("complete", hash),
+          onReceipt: (hash, stage) => {
+            if (stage) {
+              lastWriteStage = stage;
+              confirmedStages.add(stage);
+            }
+            persistRecord("complete", hash, undefined, stage);
+          },
         };
         await operation(clients);
-        persist("complete", hashes.at(-1));
+        persistRecord("complete", hashes.at(-1), undefined, lastWriteStage);
+        if (kind === "v2-add-money") {
+          setAddMoneyRecovery(null);
+          setAddMoneyRecoveryBlocked(false);
+        }
         setAction({ status: "success", kind, hashes: [...hashes] });
         setDialog(null);
         await load();
       } catch (error) {
         if (isV2TransactionReconciliationPendingError(error) && operationAccount) {
-          persistSafeTransaction({
-            id: `${operationId}:write:${writeIndex}`,
-            kind,
-            hash: error.hash,
-            chainId: V2_PREVIEW_CHAIN_ID,
-            account: operationAccount,
-            stage: "confirming",
-            updatedAt: Date.now(),
-          });
+          const pendingStage = error.transactionStage ?? lastWriteStage;
+          persistRecord(
+            pendingStage ? addMoneyTransactionStage(pendingStage, "confirming") : "confirming",
+            error.hash,
+            undefined,
+            pendingStage,
+          );
           setAction({
             status: "pending",
             kind,
@@ -371,30 +455,138 @@ export function useV2FunctionalState() {
           return;
         }
         if (operationId) {
-          if (operationAccount && hashes.at(-1) && /V2_ACTION:.*:reverted:/iu.test(error instanceof Error ? error.message : String(error))) {
-            persistSafeTransaction({ id: `${operationId}:write:${writeIndex}`, kind, hash: hashes.at(-1), chainId: V2_PREVIEW_CHAIN_ID, account: operationAccount, stage: "failed", errorStage: "failed", updatedAt: Date.now() });
-          } else if (operationAccount) {
-            persistSafeTransaction({ id: `${operationId}:failure`, kind, hash: hashes.at(-1), chainId: V2_PREVIEW_CHAIN_ID, account: operationAccount, stage: "failed", errorStage: "failed", updatedAt: Date.now() });
+          const failedStage = addMoneyStageFromError(error) ?? lastWriteStage;
+          if (operationAccount) {
+            const reverted = /V2_ACTION:.*:reverted:/iu.test(error instanceof Error ? error.message : String(error));
+            persistRecord(
+              "failed",
+              reverted ? hashes.at(-1) : undefined,
+              "failed",
+              failedStage,
+            );
           }
         }
-        setAction({ status: "error", kind, error: friendlyActionError(error), hashes: [...hashes], recoveryRequired: hashes.length > 0 });
+        const hasCompletedAddMoneyStage =
+          kind === "v2-add-money" && confirmedStages.size > 0 && !confirmedStages.has("save");
+        if (hasCompletedAddMoneyStage) setAddMoneyRecoveryBlocked(true);
+        const recoveryMessage =
+          kind === "v2-add-money" && confirmedStages.has("wrap") && !confirmedStages.has("save")
+            ? addMoneyRecoveryMessage("save")
+            : kind === "v2-add-money" && confirmedStages.has("approval") && !confirmedStages.has("wrap")
+              ? addMoneyRecoveryMessage("wrap")
+              : friendlyActionError(error);
+        setAction({
+          status: "error",
+          kind,
+          error: recoveryMessage,
+          hashes: [...hashes],
+          recoveryRequired: hashes.length > 0,
+        });
       }
     },
     [action.status, address, auth, load, publicClient, readAccount, walletClient.data, walletIdentity],
   );
 
+  const discoverAddMoneyRecovery = useCallback(async () => {
+    if (!readAccount || !publicClient || action.status === "running" || action.status === "pending") return;
+    const records = loadSafeTransactions(readAccount).filter(
+      (record) => record.chainId === V2_PREVIEW_CHAIN_ID,
+    );
+    const checkpoint = findLatestV2AddMoneyCheckpoint(records);
+    if (!checkpoint) {
+      setAddMoneyRecoveryBlocked(false);
+      return;
+    }
+    if (checkpoint.save?.stage === "complete") return;
+    if (checkpoint.approval && isUnresolvedV2Transaction(checkpoint.approval)) return;
+    if (checkpoint.wrap && isUnresolvedV2Transaction(checkpoint.wrap)) return;
+    if (checkpoint.save && isUnresolvedV2Transaction(checkpoint.save)) return;
+
+    const completedApproval = checkpoint.approval?.stage === "complete" && checkpoint.approval.hash;
+    const completedWrap = checkpoint.wrap?.stage === "complete" && checkpoint.wrap.hash;
+    const hashes = [completedApproval ? checkpoint.approval?.hash : undefined, completedWrap ? checkpoint.wrap?.hash : undefined].filter(
+      (hash): hash is `0x${string}` => Boolean(hash),
+    );
+    try {
+      if (completedWrap) {
+        const recovered = await recoverConfirmedV2Wrap(publicClient, readAccount as Address, completedWrap);
+        const recovery: AddMoneyRecovery = {
+          operationId: checkpoint.operationId,
+          resumeStage: "save",
+          amount: recovered.amount,
+          hashes,
+          confirmedStages: completedApproval ? ["approval", "wrap"] : ["wrap"],
+          message: addMoneyRecoveryMessage("save"),
+        };
+        setAddMoneyRecoveryBlocked(false);
+        setAddMoneyRecovery(recovery);
+        setAmount(formatUnits(recovered.amount, 6));
+        setDialog("add-money");
+        setAction({ status: "error", kind: "v2-add-money", error: recovery.message, hashes, recoveryRequired: true });
+        return;
+      }
+      if (completedApproval) {
+        const recovered = await recoverConfirmedV2Approval(publicClient, readAccount as Address, completedApproval);
+        const recovery: AddMoneyRecovery = {
+          operationId: checkpoint.operationId,
+          resumeStage: "wrap",
+          amount: recovered.amount,
+          hashes,
+          confirmedStages: ["approval"],
+          message: addMoneyRecoveryMessage("wrap"),
+        };
+        setAddMoneyRecoveryBlocked(false);
+        setAddMoneyRecovery(recovery);
+        setAmount(formatUnits(recovered.amount, 6));
+        setDialog("add-money");
+        setAction({ status: "error", kind: "v2-add-money", error: recovery.message, hashes, recoveryRequired: true });
+      }
+    } catch {
+      setAddMoneyRecovery(null);
+      setAddMoneyRecoveryBlocked(true);
+      setDialog("add-money");
+      setAction({
+        status: "error",
+        kind: "v2-add-money",
+        error: "A previous Add Money step could not be verified. Do not submit another amount yet.",
+        hashes,
+        recoveryRequired: true,
+      });
+    }
+  }, [action.status, publicClient, readAccount]);
+
+  useEffect(() => {
+    const recoveryTimer = window.setTimeout(() => void discoverAddMoneyRecovery(), 0);
+    return () => window.clearTimeout(recoveryTimer);
+  }, [discoverAddMoneyRecovery, history.length]);
+
   const openDialog = useCallback((kind: V2DialogKind) => {
-    if (kind === "add-money" || kind === "withdraw") setAmount("0.001");
+    if (kind === "add-money" && !addMoneyRecovery) setAmount("0.001");
+    if (kind === "withdraw") setAmount("0.001");
     if (kind === "entry-top-up") setAmount("0.005");
     if (kind === "entry-withdraw") setAmount("0.001");
     if (kind === "turn-on") setDraws("2");
     setDialog(kind);
-  }, []);
+  }, [addMoneyRecovery]);
 
   const submitDialog = useCallback(() => {
     if (!dialog) return;
+    if (dialog === "add-money" && addMoneyRecoveryBlocked) return;
     try {
-      if (dialog === "add-money") void runAction("v2-add-money", (clients) => addV2Money(clients, parseUnits(amount.trim(), 6)));
+      if (dialog === "add-money") {
+        if (addMoneyRecovery) {
+          const resume = addMoneyRecovery.resumeStage === "save"
+            ? (clients: V2ActionClients) => resumeV2AddMoneySave(clients, addMoneyRecovery.amount)
+            : (clients: V2ActionClients) => resumeV2AddMoneyAfterApproval(clients, addMoneyRecovery.amount);
+          void runAction("v2-add-money", resume, {
+            operationId: addMoneyRecovery.operationId,
+            initialHashes: addMoneyRecovery.hashes,
+            initialConfirmedStages: addMoneyRecovery.confirmedStages,
+          });
+        } else {
+          void runAction("v2-add-money", (clients) => addV2Money(clients, parseUnits(amount.trim(), 6)));
+        }
+      }
       else if (dialog === "withdraw") void runAction("v2-withdraw-savings", (clients) => withdrawV2Savings(clients, parseUnits(amount.trim(), 6)));
       else if (dialog === "entry-top-up") void runAction("v2-entry-balance-top-up", (clients) => topUpV2EntryBalance(clients, parseUnits(amount.trim(), 18)));
       else if (dialog === "entry-withdraw") void runAction("v2-entry-balance-withdraw", (clients) => withdrawV2EntryBalance(clients, parseUnits(amount.trim(), 18)));
@@ -403,7 +595,7 @@ export function useV2FunctionalState() {
     } catch (error) {
       setAction({ status: "error", kind: `v2-${dialog}`, error: friendlyActionError(error), hashes: [] });
     }
-  }, [amount, dialog, draws, runAction]);
+  }, [addMoneyRecovery, addMoneyRecoveryBlocked, amount, dialog, draws, runAction]);
 
   const runAmountAction = useCallback((kind: string, value: string, decimals: number, operation: (clients: V2ActionClients, amount: bigint) => Promise<unknown>) => {
     try {
@@ -461,6 +653,8 @@ export function useV2FunctionalState() {
     submitDialog,
     runAmountAction,
     action,
+    addMoneyRecovery,
+    addMoneyRecoveryBlocked,
     dismissAction: () => setAction({ status: "idle", kind: null, hashes: [] }),
     busy: action.status === "running" || action.status === "pending",
     readTransient: Boolean(readState.transient),

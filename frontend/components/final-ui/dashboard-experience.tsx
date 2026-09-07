@@ -39,18 +39,38 @@ function v2ActionLabel(kind: V2DialogKind): string {
   })[kind];
 }
 
+function v2DialogProgressLabel(state: ReturnType<typeof useV2FunctionalState>): string {
+  if (state.action.step) {
+    return `Step ${state.action.step.current} of ${state.action.step.total}: ${state.action.step.label}`;
+  }
+  return v2StageLabel(state.action.stage);
+}
+
 function V2Dialog({ state }: { state: ReturnType<typeof useV2FunctionalState> }) {
   if (!state.dialog) return null;
   const isToggle = state.dialog === "turn-on" || state.dialog === "turn-off";
   const isTurnOn = state.dialog === "turn-on";
+  const isAddMoneyRecovery = state.dialog === "add-money" && Boolean(state.addMoneyRecovery || state.addMoneyRecoveryBlocked);
+  const dialogCopy = isAddMoneyRecovery
+    ? state.addMoneyRecovery?.message ?? "A previous Add Money step needs recovery before another amount can be submitted."
+    : isToggle
+      ? isTurnOn
+        ? "Choose how many upcoming draws your entry balance should cover."
+        : "Future automatic entries will stop. Your savings remain available to you."
+      : "Your wallet will ask you to review each step before anything happens.";
+  const dialogActionLabel = isAddMoneyRecovery
+    ? state.addMoneyRecoveryBlocked
+      ? "Recovery unavailable"
+      : "Resume Add Money"
+    : v2ActionLabel(state.dialog);
   return <div className={styles.dialogBackdrop} role="presentation" onMouseDown={state.closeDialog}>
     <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="v2-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
       <p className={styles.panelKicker}>PRIZE SAVINGS</p>
-      <h2 id="v2-dialog-title" className={styles.panelTitle}>{v2ActionLabel(state.dialog)}</h2>
-      <p className={styles.panelCopy}>{isToggle ? isTurnOn ? "Choose how many upcoming draws your entry balance should cover." : "Future automatic entries will stop. Your savings remain available to you." : "Your wallet will ask you to review each step before anything happens."}</p>
-      {isTurnOn ? <label className={styles.dialogField}>Upcoming draws<input className={styles.dialogInput} inputMode="numeric" value={state.draws} onChange={(event) => state.setDraws(event.target.value)} /></label> : isToggle ? null : <label className={styles.dialogField}>Amount <span>USDC</span><input className={styles.dialogInput} inputMode="decimal" value={state.amount} onChange={(event) => state.setAmount(event.target.value)} /></label>}
+      <h2 id="v2-dialog-title" className={styles.panelTitle}>{isAddMoneyRecovery ? "Resume Add Money" : v2ActionLabel(state.dialog)}</h2>
+      <p className={styles.panelCopy}>{dialogCopy}</p>
+      {isTurnOn ? <label className={styles.dialogField}>Upcoming draws<input className={styles.dialogInput} inputMode="numeric" value={state.draws} onChange={(event) => state.setDraws(event.target.value)} /></label> : isToggle ? null : <label className={styles.dialogField}>Amount <span>USDC</span><input className={styles.dialogInput} inputMode="decimal" value={state.amount} readOnly={isAddMoneyRecovery} onChange={(event) => state.setAmount(event.target.value)} /></label>}
       {state.action.status === "pending" ? <p className={styles.dialogStatus} role="status">Transaction submitted. Confirming...</p> : state.action.status === "error" ? <p className={styles.dialogError}>{state.action.error}</p> : null}
-      <div className={styles.dialogActions}><button className={`${styles.button} ${styles.buttonSecondary}`} type="button" onClick={state.closeDialog} disabled={state.action.status === "running"}>Cancel</button><button className={styles.button} type="button" onClick={state.submitDialog} disabled={state.busy}>{state.busy ? v2StageLabel(state.action.stage) : v2ActionLabel(state.dialog)}</button></div>
+      <div className={styles.dialogActions}><button className={`${styles.button} ${styles.buttonSecondary}`} type="button" onClick={state.closeDialog} disabled={state.action.status === "running"}>Cancel</button><button className={styles.button} type="button" onClick={state.submitDialog} disabled={state.busy || state.addMoneyRecoveryBlocked}>{state.busy ? v2DialogProgressLabel(state) : dialogActionLabel}</button></div>
     </section>
   </div>;
 }

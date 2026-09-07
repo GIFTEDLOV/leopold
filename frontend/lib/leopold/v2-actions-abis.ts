@@ -24,7 +24,7 @@ export const v2WrapperActionAbi = [
       { name: "to", type: "address" },
       { name: "amount", type: "uint256" },
     ],
-    outputs: [{ name: "", type: "bool" }],
+    outputs: [{ name: "", type: "bytes32" }],
   },
   {
     type: "function",
@@ -36,7 +36,7 @@ export const v2WrapperActionAbi = [
       { name: "inputProof", type: "bytes" },
       { name: "data", type: "bytes" },
     ],
-    outputs: [{ name: "", type: "bool" }],
+    outputs: [{ name: "", type: "bytes32" }],
   },
   {
     type: "function",

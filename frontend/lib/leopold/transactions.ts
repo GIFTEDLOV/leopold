@@ -112,6 +112,8 @@ export function transactionIsBusy(stage: TransactionStage): boolean {
 export type SafeTransactionRecord = {
   id: string;
   kind: string;
+  operationId?: string;
+  operationStage?: "approval" | "wrap" | "save";
   hash?: `0x${string}`;
   chainId: number;
   account: `0x${string}`;
@@ -119,6 +121,38 @@ export type SafeTransactionRecord = {
   errorStage?: TransactionStage;
   updatedAt: number;
 };
+
+export type V2AddMoneyCheckpoint = {
+  operationId: string;
+  records: SafeTransactionRecord[];
+  approval?: SafeTransactionRecord;
+  wrap?: SafeTransactionRecord;
+  save?: SafeTransactionRecord;
+};
+
+export function findLatestV2AddMoneyCheckpoint(records: SafeTransactionRecord[]): V2AddMoneyCheckpoint | null {
+  const grouped = new Map<string, SafeTransactionRecord[]>();
+  for (const record of records) {
+    if (record.kind !== "v2-add-money" || !record.operationId) continue;
+    const group = grouped.get(record.operationId) ?? [];
+    group.push(record);
+    grouped.set(record.operationId, group);
+  }
+  const [operation] = [...grouped.values()]
+    .map((group) => group.slice().sort((left, right) => right.updatedAt - left.updatedAt))
+    .sort((left, right) => (right[0]?.updatedAt ?? 0) - (left[0]?.updatedAt ?? 0));
+  if (!operation?.[0]?.operationId) return null;
+  const latestForStage = (stage: "approval" | "wrap" | "save") =>
+    operation.find((record) => record.operationStage === stage && record.hash) ??
+    operation.find((record) => record.operationStage === stage);
+  return {
+    operationId: operation[0].operationId,
+    records: operation,
+    approval: latestForStage("approval"),
+    wrap: latestForStage("wrap"),
+    save: latestForStage("save"),
+  };
+}
 
 export function isUnresolvedV2Transaction(record: SafeTransactionRecord): boolean {
   return (
