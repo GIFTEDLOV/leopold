@@ -14,6 +14,7 @@ const fixtures = vi.hoisted(() => ({
     data: { roundId: 2n, latestResultRoundId: 1n, latestResultRound: [0n, 0n, 0, 0n, 0n, 0n, 0n, 0n] as const, automationCredit: 0n },
     readStatus: "ready",
     readError: null,
+    readTransient: false,
     topologyError: false,
     action: { status: "idle", hashes: [], stage: "idle" },
     shouldShowWalletNotice: true,
@@ -66,12 +67,25 @@ vi.mock("@/components/wallet-identity-provider", () => ({
 
 import { V2HomePage } from "@/components/final-ui/dashboard-experience";
 
+const mutableState = fixtures.state as unknown as {
+  action: { status: string; hashes: readonly string[]; stage?: string };
+  readStatus: string;
+  readError: string | null;
+  readTransient: boolean;
+  topologyError: boolean;
+};
+
 describe("V2 dashboard presentation connections", () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mutableState.readStatus = "ready";
+    mutableState.readError = null;
+    mutableState.readTransient = false;
+    mutableState.topologyError = false;
+    mutableState.action = { status: "idle", hashes: [], stage: "idle" };
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -106,5 +120,23 @@ describe("V2 dashboard presentation connections", () => {
 
     const css = readFileSync(join(process.cwd(), "components/final-ui/dashboard-experience.module.css"), "utf8");
     expect(css).toContain(".panel > .panelCopy + .button,.panel > .homeFine + .button{margin-top:16px}");
+  });
+
+  it("does not render global action notices or transient read-failure banners", () => {
+    mutableState.action = { status: "success", hashes: ["0xabc"], stage: "reconcile" };
+    expect(renderToStaticMarkup(<V2HomePage />)).not.toContain("Your wallet activity was confirmed.");
+
+    mutableState.action = { status: "running", hashes: [], stage: "reconcile" };
+    expect(renderToStaticMarkup(<V2HomePage />)).not.toContain("Confirming in your wallet");
+
+    mutableState.readStatus = "error";
+    mutableState.readTransient = true;
+    mutableState.readError = "RPC timeout";
+    expect(renderToStaticMarkup(<V2HomePage />)).not.toContain("Prize Savings data needs attention.");
+  });
+
+  it("keeps a topology warning visible when the read is not transient", () => {
+    mutableState.topologyError = true;
+    expect(renderToStaticMarkup(<V2HomePage />)).toContain("Prize Savings data needs attention.");
   });
 });

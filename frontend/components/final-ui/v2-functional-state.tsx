@@ -10,6 +10,8 @@ import {
   addV2Money,
   disableV2PrizeSavings,
   enableV2PrizeSavings,
+  isV2TransactionReconciliationPendingError,
+  reconcileV2Transaction,
   revealLatestV2Result,
   revealV2Savings,
   topUpV2EntryBalance,
@@ -19,7 +21,14 @@ import {
   type V2ActionStage,
 } from "@/lib/leopold/v2-actions";
 import { V2_PREVIEW_CHAIN_ID } from "@/lib/leopold/v2-preview-config";
-import { persistSafeTransaction, loadSafeTransactions, type SafeTransactionRecord, type TransactionStage } from "@/lib/leopold/transactions";
+import {
+  isUnresolvedV2Transaction,
+  persistSafeTransaction,
+  loadSafeTransactions,
+  type SafeTransactionRecord,
+  type TransactionStage,
+} from "@/lib/leopold/transactions";
+import { isTransientReadFailure } from "@/lib/ops/reliability";
 import { V2_ADD_MONEY_EVENT } from "@/lib/ui/experience";
 import { getV2EntryStatus } from "@/lib/ui/v2-entry-status";
 import { readPreviewState, type PreviewReadState } from "@/components/v2-preview";
@@ -30,10 +39,11 @@ type ReadState = {
   status: "loading" | "ready" | "error";
   data?: PreviewReadState;
   error?: string;
+  transient?: boolean;
 };
 
 export type V2ActionState = {
-  status: "idle" | "running" | "success" | "error";
+  status: "idle" | "running" | "pending" | "success" | "error";
   kind: string | null;
   stage?: V2ActionStage;
   error?: string;
@@ -45,13 +55,20 @@ type RevealedValue = { identityKey: string; value: bigint };
 
 function friendlyActionError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
+  if (/reconciliation-pending/iu.test(message)) return "Transaction submitted. Confirming...";
+  if (/V2_ACTION:.*:reverted:/iu.test(message)) return "The transaction reverted. No funds were moved.";
+  if (/simulation/iu.test(message)) return "This transaction could not be simulated. No funds were moved.";
+  if (/signature|user rejected|rejected request/iu.test(message)) return "The wallet did not submit that transaction. You can try again.";
   if (/AUTH_REQUIRED|ACCOUNT_NOT_READY|financial session/iu.test(message)) return "Sign in and connect your financial wallet to continue.";
   if (/WRONG_NETWORK|Sepolia|chain/iu.test(message)) return "Switch your wallet to Ethereum Sepolia, then try again.";
   if (/INSUFFICIENT_USDC/iu.test(message)) return "Your wallet does not have enough USDC for that amount.";
   if (/INSUFFICIENT_ENTRY_BALANCE/iu.test(message)) return "That amount is already reserved or is not available to withdraw.";
   if (/RESULT_NOT_READY/iu.test(message)) return "Your result is not ready yet.";
   if (/UNSUPPORTED_WALLET/iu.test(message)) return "This wallet connection cannot complete the requested action.";
-  return "We couldn't complete that yet. Check your wallet activity before trying again.";
+  if (/RPC|network|timeout|rate.?limit|server|fetch|socket/iu.test(message)) {
+    return "Sepolia is temporarily unavailable. No transaction was confirmed.";
+  }
+  return "We couldn't submit that transaction. No funds were moved. You can try again after resolving the issue.";
 }
 
 export function v2StageLabel(stage: V2ActionStage | undefined): string {
@@ -139,11 +156,18 @@ export function useV2FunctionalState() {
   const [history, setHistory] = useState<SafeTransactionRecord[]>([]);
 
   const load = useCallback(async () => {
-    setReadState({ status: "loading" });
+    setReadState((current) => ({ status: "loading", data: current.data, error: current.error, transient: current.transient }));
     try {
-      setReadState({ status: "ready", data: await readPreviewState(readAccount as Address | null) });
+      setReadState({ status: "ready", data: await readPreviewState(readAccount as Address | null), transient: false });
     } catch (error) {
-      setReadState({ status: "error", error: error instanceof Error ? error.message : "Prize Savings reads failed" });
+      const transient = isTransientReadFailure(error);
+      const message = error instanceof Error ? error.message : "Prize Savings reads failed";
+      setReadState((current) => ({
+        status: transient && current.data ? "ready" : "error",
+        data: current.data,
+        error: message,
+        transient,
+      }));
     }
   }, [readAccount]);
 
@@ -152,23 +176,77 @@ export function useV2FunctionalState() {
   }, [readAccount]);
 
   useEffect(() => {
-    let cancelled = false;
-    void readPreviewState(readAccount as Address | null).then(
-      (data) => {
-        if (!cancelled) setReadState({ status: "ready", data });
-      },
-      (error: unknown) => {
-        if (!cancelled) setReadState({ status: "error", error: error instanceof Error ? error.message : "Prize Savings reads failed" });
-      },
-    );
+    const initialLoadTimer = window.setTimeout(() => void load(), 0);
     const refreshTimer = window.setInterval(() => void load(), 30_000);
     const clockTimer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => {
-      cancelled = true;
+      window.clearTimeout(initialLoadTimer);
       window.clearInterval(refreshTimer);
       window.clearInterval(clockTimer);
     };
   }, [load, readAccount]);
+
+  const reconcilePendingTransactions = useCallback(async () => {
+    if (!readAccount || !publicClient) return;
+    const pending = loadSafeTransactions(readAccount).filter(
+      (record) => record.chainId === V2_PREVIEW_CHAIN_ID && isUnresolvedV2Transaction(record),
+    );
+    if (!pending.length) return;
+
+    setAction((current) =>
+      current.status === "idle"
+        ? {
+            status: "pending",
+            kind: pending[0].kind,
+            stage: "reconcile",
+            error: "Transaction submitted. Confirming...",
+            hashes: pending.flatMap((record) => (record.hash ? [record.hash] : [])),
+            recoveryRequired: true,
+          }
+        : current,
+    );
+
+    for (const record of pending) {
+      if (!record.hash) continue;
+      const result = await reconcileV2Transaction(publicClient, record.hash);
+      if (result.status === "pending") continue;
+      persistSafeTransaction({
+        ...record,
+        stage: result.status === "confirmed" ? "complete" : "failed",
+        errorStage: result.status === "reverted" ? "failed" : undefined,
+        updatedAt: Date.now(),
+      });
+      if (result.status === "confirmed") {
+        setAction((current) =>
+          current.status === "pending" && current.hashes.includes(record.hash as `0x${string}`)
+            ? { status: "success", kind: current.kind, stage: "reconcile", hashes: current.hashes }
+            : current,
+        );
+      } else {
+        setAction((current) =>
+          current.status === "pending" && current.hashes.includes(record.hash as `0x${string}`)
+            ? {
+                status: "error",
+                kind: current.kind,
+                error: "The transaction reverted. No funds were moved.",
+                hashes: current.hashes,
+                recoveryRequired: false,
+              }
+            : current,
+        );
+      }
+    }
+    refreshHistory();
+  }, [publicClient, readAccount, refreshHistory]);
+
+  useEffect(() => {
+    const initialRecoveryTimer = window.setTimeout(() => void reconcilePendingTransactions(), 0);
+    const recoveryTimer = window.setInterval(() => void reconcilePendingTransactions(), 15_000);
+    return () => {
+      window.clearTimeout(initialRecoveryTimer);
+      window.clearInterval(recoveryTimer);
+    };
+  }, [reconcilePendingTransactions]);
 
   useEffect(() => {
     const refreshTimer = window.setTimeout(refreshHistory, 0);
@@ -206,16 +284,34 @@ export function useV2FunctionalState() {
 
   const runAction = useCallback(
     async (kind: string, operation: (clients: V2ActionClients) => Promise<unknown>) => {
-      if (action.status === "running") return;
+      if (action.status === "running" || action.status === "pending") return;
+      const unresolved = readAccount
+        ? loadSafeTransactions(readAccount).find(
+            (record) => record.chainId === V2_PREVIEW_CHAIN_ID && isUnresolvedV2Transaction(record),
+          )
+        : undefined;
+      if (unresolved?.hash) {
+        setAction({
+          status: "pending",
+          kind: unresolved.kind,
+          stage: "reconcile",
+          error: "Transaction submitted. Confirming...",
+          hashes: [unresolved.hash],
+          recoveryRequired: true,
+        });
+        return;
+      }
       let operationId = "";
       let writeIndex = 0;
       const hashes: `0x${string}`[] = [];
+      let operationAccount: Address | undefined;
       setAction({ status: "running", kind, hashes: [] });
       try {
         if (!auth.authenticated || auth.accountStatus !== "SIGNED_IN_READY") throw new Error("AUTH_REQUIRED");
         const session = await walletIdentity.requireConnectedFinancialSession();
         const account = session.verifiedAddress ?? session.address;
         if (!account || !publicClient || !walletClient.data) throw new Error("UNSUPPORTED_WALLET");
+        operationAccount = account;
         if (session.address?.toLowerCase() !== account.toLowerCase()) throw new Error("WALLET_IDENTITY_MISMATCH");
         if (address && address.toLowerCase() !== account.toLowerCase()) throw new Error("WALLET_IDENTITY_MISMATCH");
         const ethereum = typeof window !== "undefined" ? (window as unknown as { ethereum?: V2ActionClients["ethereum"] }).ethereum : undefined;
@@ -243,24 +339,48 @@ export function useV2FunctionalState() {
           onHash: (hash) => {
             writeIndex += 1;
             hashes.push(hash);
-            persist("submitted", hash);
+            persist("confirming", hash);
             setAction((current) => ({ ...current, hashes: [...hashes], stage: "reconcile" }));
           },
+          onReceipt: (hash) => persist("complete", hash),
         };
         await operation(clients);
-        persist("complete");
+        persist("complete", hashes.at(-1));
         setAction({ status: "success", kind, hashes: [...hashes] });
         setDialog(null);
         await load();
       } catch (error) {
+        if (isV2TransactionReconciliationPendingError(error) && operationAccount) {
+          persistSafeTransaction({
+            id: `${operationId}:write:${writeIndex}`,
+            kind,
+            hash: error.hash,
+            chainId: V2_PREVIEW_CHAIN_ID,
+            account: operationAccount,
+            stage: "confirming",
+            updatedAt: Date.now(),
+          });
+          setAction({
+            status: "pending",
+            kind,
+            stage: "reconcile",
+            error: "Transaction submitted. Confirming...",
+            hashes: [...hashes],
+            recoveryRequired: true,
+          });
+          return;
+        }
         if (operationId) {
-          const account = walletIdentity.walletSession.verifiedAddress;
-          if (account) persistSafeTransaction({ id: `${operationId}:failure`, kind, hash: hashes.at(-1), chainId: V2_PREVIEW_CHAIN_ID, account, stage: "failed", errorStage: "failed", updatedAt: Date.now() });
+          if (operationAccount && hashes.at(-1) && /V2_ACTION:.*:reverted:/iu.test(error instanceof Error ? error.message : String(error))) {
+            persistSafeTransaction({ id: `${operationId}:write:${writeIndex}`, kind, hash: hashes.at(-1), chainId: V2_PREVIEW_CHAIN_ID, account: operationAccount, stage: "failed", errorStage: "failed", updatedAt: Date.now() });
+          } else if (operationAccount) {
+            persistSafeTransaction({ id: `${operationId}:failure`, kind, hash: hashes.at(-1), chainId: V2_PREVIEW_CHAIN_ID, account: operationAccount, stage: "failed", errorStage: "failed", updatedAt: Date.now() });
+          }
         }
         setAction({ status: "error", kind, error: friendlyActionError(error), hashes: [...hashes], recoveryRequired: hashes.length > 0 });
       }
     },
-    [action.status, address, auth, load, publicClient, walletClient.data, walletIdentity],
+    [action.status, address, auth, load, publicClient, readAccount, walletClient.data, walletIdentity],
   );
 
   const openDialog = useCallback((kind: V2DialogKind) => {
@@ -342,7 +462,8 @@ export function useV2FunctionalState() {
     runAmountAction,
     action,
     dismissAction: () => setAction({ status: "idle", kind: null, hashes: [] }),
-    busy: action.status === "running",
+    busy: action.status === "running" || action.status === "pending",
+    readTransient: Boolean(readState.transient),
     revealSavings,
     revealResult,
     revealedSavingsValue,

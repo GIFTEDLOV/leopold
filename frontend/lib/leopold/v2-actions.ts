@@ -1,7 +1,7 @@
 "use client";
 
 import { parseEventLogs, type Address, type Hex, type PublicClient, type WalletClient } from "viem";
-import { submitFinancialWriteOnce } from "@/lib/ops/reliability";
+import { isTransientReadFailure, submitFinancialWriteOnce } from "@/lib/ops/reliability";
 import { getTestUsdc, type ActionClients } from "./actions";
 import { erc20Abi } from "./abis";
 import { V2_PREVIEW_ADDRESSES, V2_PREVIEW_CHAIN_ID } from "./v2-preview-config";
@@ -19,6 +19,7 @@ export type V2ActionClients = {
   ethereum: BrowserEthereum;
   account: Address;
   onHash?: (hash: `0x${string}`) => void;
+  onReceipt?: (hash: `0x${string}`) => void;
   onStage?: (stage: V2ActionStage) => void;
 };
 
@@ -34,6 +35,29 @@ export type V2ActionStage =
   | "reveal"
   | "claim"
   | "reconcile";
+
+export type V2TransactionReconciliation = {
+  hash: `0x${string}`;
+  status: "confirmed" | "reverted" | "pending";
+};
+
+export class V2TransactionReconciliationPendingError extends Error {
+  readonly hash: `0x${string}`;
+  readonly readFailureClass: "transient" | "unknown";
+
+  constructor(stage: string, hash: `0x${string}`, error: unknown) {
+    super(`V2_ACTION:${stage}:reconciliation-pending:${hash}`, { cause: error });
+    this.name = "V2TransactionReconciliationPendingError";
+    this.hash = hash;
+    this.readFailureClass = isTransientReadFailure(error) ? "transient" : "unknown";
+  }
+}
+
+export function isV2TransactionReconciliationPendingError(
+  error: unknown,
+): error is V2TransactionReconciliationPendingError {
+  return error instanceof V2TransactionReconciliationPendingError;
+}
 
 const ZERO_HANDLE = `0x${"0".repeat(64)}` as Hex;
 
@@ -154,10 +178,28 @@ async function writeV2(
   try {
     receipt = await clients.publicClient.waitForTransactionReceipt({ hash });
   } catch (error) {
-    throw actionError(`${stage}:reconcile:${hash}`, error);
+    // A hash is an authoritative submission boundary. Receipt reads are not.
+    // Keep the same hash pending regardless of whether the current read failure
+    // was classified as transient or is simply non-authoritative for now.
+    throw new V2TransactionReconciliationPendingError(`${stage}:reconcile`, hash, error);
   }
   if (receipt.status !== "success") throw new Error(`V2_ACTION:${stage}:reverted:${hash}`);
+  clients.onReceipt?.(hash);
   return hash;
+}
+
+export async function reconcileV2Transaction(
+  publicClient: Pick<PublicClient, "getTransactionReceipt">,
+  hash: `0x${string}`,
+): Promise<V2TransactionReconciliation> {
+  try {
+    const receipt = await publicClient.getTransactionReceipt({ hash });
+    return { hash, status: receipt.status === "success" ? "confirmed" : "reverted" };
+  } catch {
+    // A missing receipt or an unavailable RPC is not evidence of a reverted
+    // transaction. The next reconciliation pass must query this same hash.
+    return { hash, status: "pending" };
+  }
 }
 
 export async function readV2PrincipalHandle(clients: V2ActionClients): Promise<Hex> {

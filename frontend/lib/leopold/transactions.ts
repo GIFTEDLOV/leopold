@@ -120,6 +120,14 @@ export type SafeTransactionRecord = {
   updatedAt: number;
 };
 
+export function isUnresolvedV2Transaction(record: SafeTransactionRecord): boolean {
+  return (
+    record.kind.startsWith("v2-") &&
+    Boolean(record.hash) &&
+    (record.stage === "submitted" || record.stage === "confirming")
+  );
+}
+
 const STORAGE_KEY = "leopold.public-transactions.v1";
 
 export function loadSafeTransactions(account: string): SafeTransactionRecord[] {

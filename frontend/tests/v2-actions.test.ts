@@ -6,6 +6,8 @@ import {
   disableV2PrizeSavings,
   enableV2PrizeSavings,
   getV2TestUsdc,
+  isV2TransactionReconciliationPendingError,
+  reconcileV2Transaction,
   revealLatestV2Result,
   revealV2Savings,
   topUpV2EntryBalance,
@@ -124,7 +126,15 @@ function makeClients(overrides: Partial<MockState> = {}) {
     ethereum: { request: vi.fn() },
     account: ACCOUNT,
   } as unknown as V2ActionClients;
-  return { clients, state, readContract, writeContract };
+  return {
+    clients,
+    state,
+    readContract,
+    writeContract,
+    simulateContract: clients.publicClient.simulateContract,
+    waitForTransactionReceipt: clients.publicClient.waitForTransactionReceipt,
+    getTransactionReceipt: clients.publicClient.getTransactionReceipt,
+  };
 }
 
 describe("V2 wallet actions", () => {
@@ -170,6 +180,53 @@ describe("V2 wallet actions", () => {
     probe.writeContract.mockRejectedValueOnce(new Error("wallet response unavailable"));
     await expect(addV2Money(probe.clients, 1_000_000n)).rejects.toThrow("add-money-approval:signature");
     expect(probe.writeContract).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a submitted hash pending when receipt RPC reconciliation times out", async () => {
+    const probe = makeClients({ allowance: 2_000_000n });
+    vi.mocked(probe.waitForTransactionReceipt).mockRejectedValueOnce(new Error("RPC timeout"));
+    const onHash = vi.fn();
+    probe.clients.onHash = onHash;
+
+    try {
+      await addV2Money(probe.clients, 1_000_000n);
+      throw new Error("expected receipt reconciliation to remain pending");
+    } catch (error) {
+      expect(isV2TransactionReconciliationPendingError(error)).toBe(true);
+    }
+    expect(onHash).toHaveBeenCalledWith(HASHES[0]);
+    expect(probe.writeContract).toHaveBeenCalledOnce();
+  });
+
+  it("treats a reverted receipt as a genuine transaction failure", async () => {
+    const probe = makeClients({ allowance: 2_000_000n });
+    vi.mocked(probe.waitForTransactionReceipt).mockResolvedValueOnce({ status: "reverted", logs: [] } as never);
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).rejects.toThrow("reverted");
+    expect(probe.writeContract).toHaveBeenCalledOnce();
+  });
+
+  it("reconciles the same hash later without creating a wallet write", async () => {
+    const probe = makeClients();
+    vi.mocked(probe.getTransactionReceipt).mockRejectedValueOnce(new Error("RPC timeout"));
+    await expect(reconcileV2Transaction(probe.clients.publicClient, HASHES[0])).resolves.toEqual({
+      hash: HASHES[0],
+      status: "pending",
+    });
+    vi.mocked(probe.getTransactionReceipt).mockResolvedValueOnce({ status: "success", logs: [] } as never);
+    await expect(reconcileV2Transaction(probe.clients.publicClient, HASHES[0])).resolves.toEqual({
+      hash: HASHES[0],
+      status: "confirmed",
+    });
+    expect(probe.writeContract).not.toHaveBeenCalled();
+  });
+
+  it("shows a pre-broadcast simulation failure without creating a pending hash", async () => {
+    const probe = makeClients({ allowance: 2_000_000n });
+    vi.mocked(probe.simulateContract).mockRejectedValueOnce(new Error("simulation reverted"));
+
+    await expect(addV2Money(probe.clients, 1_000_000n)).rejects.toThrow("simulation");
+    expect(probe.writeContract).not.toHaveBeenCalled();
   });
 
   it("rejects a changed signer before writing", async () => {

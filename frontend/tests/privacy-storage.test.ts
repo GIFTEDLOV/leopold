@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
-import { loadSafeTransactions, persistSafeTransaction } from "../lib/leopold/transactions";
+import { isUnresolvedV2Transaction, loadSafeTransactions, persistSafeTransaction } from "../lib/leopold/transactions";
 
 describe("privacy-safe transaction persistence", () => {
   beforeEach(() => localStorage.clear());
@@ -36,6 +36,34 @@ describe("privacy-safe transaction persistence", () => {
     expect(raw).not.toMatch(
       /amount|balance|plaintext|private.?key|signature|jwt|token|cipher|proof|handle|decryption|winnings|prize.?result/iu,
     );
+  });
+
+  it("marks a V2 hash as unresolved only while receipt reconciliation is pending", () => {
+    const base = {
+      id: "v2-tx",
+      kind: "v2-add-money",
+      hash: `0x${"3".repeat(64)}` as `0x${string}`,
+      chainId: 11_155_111,
+      account: "0x1111111111111111111111111111111111111111" as `0x${string}`,
+      updatedAt: 3,
+    };
+    expect(isUnresolvedV2Transaction({ ...base, stage: "confirming" })).toBe(true);
+    expect(isUnresolvedV2Transaction({ ...base, stage: "complete" })).toBe(false);
+    expect(isUnresolvedV2Transaction({ ...base, kind: "save", stage: "confirming" })).toBe(false);
+  });
+
+  it("updates the same persisted hash from confirming to complete", () => {
+    const record = {
+      id: "v2-write-1",
+      kind: "v2-add-money",
+      hash: `0x${"4".repeat(64)}` as `0x${string}`,
+      chainId: 11_155_111,
+      account: "0x1111111111111111111111111111111111111111" as `0x${string}`,
+      updatedAt: 4,
+    };
+    persistSafeTransaction({ ...record, stage: "confirming" });
+    persistSafeTransaction({ ...record, stage: "complete", updatedAt: 5 });
+    expect(loadSafeTransactions(record.account)).toEqual([{ ...record, stage: "complete", updatedAt: 5 }]);
   });
 
   it("keeps application auth and private-session modules out of browser credential storage and logs", () => {
