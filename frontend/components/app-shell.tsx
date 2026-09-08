@@ -9,6 +9,7 @@ import { AddMoneyModal } from "./add-money-modal";
 import { useAuth } from "./auth-provider";
 import { useFinancial } from "./financial-provider";
 import { useWalletIdentity } from "./wallet-identity-provider";
+import { WalletGate } from "./wallet-gate";
 import { addMoneyButtonDisabled } from "@/lib/auth/hydration";
 import { V2_ADD_MONEY_EVENT, experienceForPath, type AppExperience } from "@/lib/ui/experience";
 import { useExperience } from "./experience-provider";
@@ -52,7 +53,7 @@ export function isNavigationItemActive(pathname: string, href: string): boolean 
   return isHomeRoute ? pathname === href : pathname === href || pathname.startsWith(href);
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+function AuthenticatedAppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const financial = useFinancial();
   const auth = useAuth();
@@ -346,4 +347,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       {addMoney ? <AddMoneyModal onClose={() => setAddMoney(false)} /> : null}
     </div>
   );
+}
+
+export function AppShell({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  const accountUnavailable = auth.accountStatus === "SIGNED_OUT" || auth.readiness === "SESSION_EXPIRED";
+
+  if (accountUnavailable) return <WalletGate>{null}</WalletGate>;
+  return <AuthenticatedAppShell>{children}</AuthenticatedAppShell>;
 }

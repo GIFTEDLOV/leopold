@@ -5,11 +5,45 @@ import Link from "next/link";
 import { useAuth } from "./auth-provider";
 import { useFinancial } from "./financial-provider";
 import { deriveWalletGateMode } from "@/lib/auth/recovery";
+import styles from "@/components/full-site/leopold-app-ui.module.css";
+
+function AuthGateFrame({
+  testId,
+  title,
+  body,
+  actionLabel,
+  children,
+}: {
+  testId: string;
+  title: string;
+  body: string;
+  actionLabel: string;
+  children?: ReactNode;
+}) {
+  return (
+    <main className={styles.authGateFrame} data-testid={testId}>
+      <section className={styles.authGateCard} aria-labelledby={`${testId}-title`}>
+        <div className={styles.authGateBrand} aria-label="Leopold">
+          <span className={styles.authGateMark}>L</span>
+          <span>Leop<span>old</span></span>
+        </div>
+        <p className={styles.eyebrow}>Account access</p>
+        <h1 className={styles.authGateTitle} id={`${testId}-title`}>{title}</h1>
+        <p className={styles.authGateCopy}>{body}</p>
+        <div className={styles.authGateActions}>
+          <Link className={`${styles.primaryButton} ${styles.authGateAction}`} href="/login">
+            {actionLabel}
+          </Link>
+        </div>
+        {children}
+      </section>
+    </main>
+  );
+}
 
 export function WalletGate({ children }: { children: ReactNode }) {
   const financial = useFinancial();
   const auth = useAuth();
-  const mode = deriveWalletGateMode(auth.accountStatus, auth.financialWalletMetadata.status);
   if (auth.initializationError)
     return (
       <div className="wallet-gate" data-testid="auth-initialization-error" role="alert">
@@ -21,6 +55,16 @@ export function WalletGate({ children }: { children: ReactNode }) {
         </button>
       </div>
     );
+  if (auth.readiness === "SESSION_EXPIRED")
+    return (
+      <AuthGateFrame
+        testId="session-expired-gate"
+        title="Session expired"
+        body="Sign in again to continue. Private values have been cleared."
+        actionLabel="Return to sign in"
+      />
+    );
+  const mode = deriveWalletGateMode(auth.accountStatus, auth.financialWalletMetadata.status);
   if (mode === "AUTH_LOADING")
     return (
       <div className="wallet-gate" data-testid="auth-initializing">
@@ -31,22 +75,14 @@ export function WalletGate({ children }: { children: ReactNode }) {
     );
   if (mode === "SIGNED_OUT")
     return (
-      <div className="wallet-gate">
-        <span className="brand-mark">L</span>
-        <h2>Enter your Leopold account</h2>
-        <p>
-          Start with email or your external wallet. Leopold never holds your private keys; a verified external wallet is
-          still required for financial actions.
-        </p>
-        <Link className="button" href="/login">
-          Continue to sign in
-        </Link>
-        {financial.error ? (
-          <div className="error" role="alert">
-            {financial.error.message}
-          </div>
-        ) : null}
-      </div>
+      <AuthGateFrame
+        testId="signed-out-gate"
+        title="Enter your Leopold account"
+        body="Start with email or your external wallet. Leopold never holds your private keys; a verified external wallet is still required for financial actions."
+        actionLabel="Continue to sign in"
+      >
+        {financial.error ? <div className={styles.authGateError} role="alert">{financial.error.message}</div> : null}
+      </AuthGateFrame>
     );
   if (mode === "PROFILE_INCOMPLETE")
     return (
@@ -84,16 +120,12 @@ export function WalletGate({ children }: { children: ReactNode }) {
         <p>Your account remains signed in. Financial actions are paused and no metadata has been changed.</p>
       </div>
     );
-  if (auth.readiness === "SESSION_EXPIRED" || auth.readiness === "ACCOUNT_CONFLICT")
+  if (auth.readiness === "ACCOUNT_CONFLICT")
     return (
       <div className="wallet-gate">
         <span className="brand-mark">L</span>
-        <h2>{auth.readiness === "SESSION_EXPIRED" ? "Session expired" : "Account conflict"}</h2>
-        <p>
-          {auth.readiness === "SESSION_EXPIRED"
-            ? "Sign in again to continue. Private values have been cleared."
-            : "This credential belongs to another Leopold account. Sign in to that account before linking anything."}
-        </p>
+        <h2>Account conflict</h2>
+        <p>This credential belongs to another Leopold account. Sign in to that account before linking anything.</p>
         <Link className="button" href="/login">
           Return to sign in
         </Link>

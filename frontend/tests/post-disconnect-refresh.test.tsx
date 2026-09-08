@@ -315,5 +315,9 @@ describe("explicit wallet disconnect followed by account rehydration", () => {
 
     expect(window.sessionStorage.getItem(WALLET_SESSION_STORAGE_KEY)).toBeNull();
     expect(dynamic.updateUser).not.toHaveBeenCalled();
+    expect(container.querySelector("aside")).toBeNull();
+    expect(container.querySelector('nav[aria-label="Authenticated application"]')).toBeNull();
+    expect(container.textContent).not.toContain("+ Add Money");
+    expect(container.querySelector('a[href="/login"]')?.textContent).toBe("Continue to sign in");
   });
 });

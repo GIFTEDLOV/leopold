@@ -1305,3 +1305,124 @@
   .addMoneyFormRow{flex-direction:column}
   .addMoneyFormRow>*{flex-basis:auto;width:100%}
 }
+
+/* Account-unavailable gate: deliberately outside the authenticated shell so
+   signed-out and expired sessions never retain private navigation controls. */
+.authGateFrame{
+  --app-ink:#07101d;
+  --app-navy:#102540;
+  --app-paper:#f7f4eb;
+  --app-white:#fffef9;
+  --app-gold:#c9ab60;
+  --app-line:rgba(16,37,64,.17);
+  --app-muted:#637083;
+  --app-radius-lg:18px;
+  box-sizing:border-box;
+  display:grid;
+  place-items:center;
+  width:100%;
+  min-height:100svh;
+  overflow-x:hidden;
+  padding:clamp(24px,6vw,88px);
+  background-color:var(--app-paper);
+  background-image:radial-gradient(rgba(16,37,64,.07) .55px,transparent .55px),linear-gradient(rgba(247,244,235,.92),rgba(247,244,235,.92)),url("/marketing/leopold/leopold-in-app-shine.png");
+  background-size:4px 4px,cover,cover;
+  background-position:0 0,center,center 28%;
+  background-repeat:repeat,no-repeat,no-repeat;
+  color:var(--app-navy);
+  font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+}
+.authGateCard{
+  box-sizing:border-box;
+  width:min(560px,100%);
+  padding:clamp(30px,5vw,54px);
+  border:1px solid var(--app-line);
+  border-bottom:3px solid var(--app-gold);
+  border-radius:var(--app-radius-lg);
+  background:rgba(255,254,249,.93);
+  box-shadow:inset 0 1px rgba(255,255,255,.92),0 18px 50px rgba(16,37,64,.12);
+}
+.authGateBrand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:clamp(46px,8vw,76px);
+  color:var(--app-ink);
+  font:700 20px/1 Georgia,serif;
+  letter-spacing:-.03em;
+}
+.authGateBrand>span>span{color:var(--app-gold)}
+.authGateMark{
+  display:grid;
+  place-items:center;
+  width:32px;
+  height:32px;
+  border:1px solid var(--app-gold);
+  border-radius:50%;
+  color:var(--app-gold);
+  font:700 16px/1 Georgia,serif;
+}
+.authGateTitle{
+  margin:10px 0 14px;
+  color:var(--app-navy);
+  font:500 clamp(36px,5vw,54px)/1 Georgia,serif;
+  letter-spacing:-.045em;
+}
+.authGateCopy{
+  max-width:460px;
+  margin:0;
+  color:var(--app-muted);
+  font-size:15px;
+  line-height:1.7;
+}
+.authGateActions{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.authGateAction{min-width:170px;text-decoration:none}
+.authGateError{
+  margin-top:18px;
+  padding:12px 14px;
+  border:1px solid rgba(152,120,50,.28);
+  border-left:3px solid var(--app-gold);
+  border-radius:var(--app-radius-sm);
+  background:rgba(201,171,96,.12);
+  color:var(--app-ink);
+  font-size:12px;
+  line-height:1.5;
+}
+:global(html[data-leopold-theme="dark"]) .authGateFrame{
+  --app-ink:#f7f4eb;
+  --app-navy:#f7f4eb;
+  --app-paper:#07101d;
+  --app-white:#0d1a2b;
+  --app-line:rgba(129,153,181,.22);
+  --app-muted:#aeb9c8;
+  background-color:#07101d;
+  background-image:radial-gradient(rgba(255,255,255,.045) .55px,transparent .55px),linear-gradient(rgba(7,16,29,.925),rgba(7,16,29,.925)),url("/marketing/leopold/leopold-in-app-shine.png");
+}
+:global(html[data-leopold-theme="dark"]) .authGateCard{
+  background:rgba(13,26,43,.94);
+  border-color:rgba(115,142,173,.26);
+  border-bottom-color:var(--app-gold);
+  box-shadow:0 18px 50px rgba(0,0,0,.3);
+}
+:global(html[data-leopold-theme="dark"]) .authGateError{
+  background:rgba(201,171,96,.12);
+  border-color:rgba(201,171,96,.35);
+  color:#f7f4eb;
+}
+@media(max-width:520px){
+  .authGateFrame{place-items:end center;padding:16px}
+  .authGateCard{width:100%;padding:28px 22px 24px;border-radius:14px}
+  .authGateBrand{margin-bottom:46px}
+  .authGateTitle{font-size:39px}
+  .authGateCopy{font-size:14px}
+  .authGateActions>*{width:100%}
+}
+@media(max-height:560px) and (min-width:521px){
+  .authGateFrame{padding:16px}
+  .authGateCard{padding:20px 28px}
+  .authGateBrand{margin-bottom:20px}
+  .authGateTitle{margin:8px 0 10px;font-size:40px}
+  .authGateCopy{font-size:13px;line-height:1.45}
+  .authGateActions{margin-top:16px}
+  .authGateAction{min-height:34px}
+}
