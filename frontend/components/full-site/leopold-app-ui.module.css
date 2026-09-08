@@ -1140,3 +1140,168 @@
 @media(min-width:801px){
   .v1Frame .content,.v2Frame .content{position:relative;left:-18px}
 }
+
+/* Shared Add Money dialog: keep its presentation local to the current app
+   module while reusing the shell's fixed modal, theme, and action system. */
+.addMoneyModal{
+  min-width:0;
+  color:var(--app-ink);
+}
+.addMoneyHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  padding-right:42px;
+}
+.addMoneyHeader h2{
+  margin:10px 0 0;
+  font:400 clamp(34px,4.2vw,43px)/1 Georgia,serif;
+  letter-spacing:-.04em;
+}
+.addMoneyStepper{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:6px;
+  margin:22px 0 24px;
+}
+.addMoneyStep{
+  height:4px;
+  border-radius:999px;
+  background:var(--app-line);
+}
+.addMoneyStepActive{background:var(--app-gold)}
+.addMoneyCard{
+  display:grid;
+  gap:10px;
+  min-width:0;
+  margin:18px 0;
+  padding:18px;
+  border:1px solid var(--app-line);
+  border-bottom:2px solid rgba(201,171,96,.78);
+  border-radius:var(--app-radius-md);
+  background:var(--app-surface);
+  box-shadow:inset 0 1px rgba(255,255,255,.92),var(--app-shadow-1);
+}
+.addMoneyCard h3{margin:0;font:400 24px/1.1 Georgia,serif}
+.addMoneyBadge{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  max-width:100%;
+  padding:5px 8px;
+  border:1px solid rgba(201,171,96,.5);
+  border-radius:999px;
+  background:rgba(201,171,96,.18);
+  color:#735f2f;
+  font:700 9px/1 "Courier New",monospace;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.addMoneyBadgeNeutral{border-color:var(--app-line);background:rgba(16,37,64,.05);color:var(--app-muted)}
+.addMoneySubtle{
+  margin:0;
+  color:var(--app-muted);
+  font-size:12px;
+  line-height:1.6;
+}
+.addMoneyStat{
+  min-width:0;
+  padding:13px 15px;
+  border:1px solid var(--app-line);
+  border-radius:var(--app-radius-sm);
+  background:var(--app-surface-soft);
+  color:var(--app-navy);
+  font:400 30px/1.1 Georgia,serif;
+  overflow-wrap:anywhere;
+}
+.addMoneyFormRow{
+  display:flex;
+  align-items:stretch;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:18px;
+}
+.addMoneyFormRow>*{
+  flex:1 1 180px;
+  min-width:0;
+}
+.addMoneyModal>.primaryButton,
+.addMoneyModal>.outlineButton,
+.addMoneyCard>.primaryButton,
+.addMoneyCard>.outlineButton{
+  width:100%;
+  min-height:40px;
+  margin-top:12px;
+}
+.addMoneyFormRow>.primaryButton,
+.addMoneyFormRow>.outlineButton{
+  width:auto;
+  min-height:40px;
+  margin-top:0;
+}
+.addMoneyLabel{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin:18px 0 7px;
+  color:var(--app-muted);
+  font:700 9px/1.35 "Courier New",monospace;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.addMoneyInput{
+  display:block;
+  width:100%;
+  min-width:0;
+  min-height:52px;
+  padding:12px 14px;
+  border:1px solid var(--app-line);
+  border-radius:var(--app-radius-sm);
+  outline:0;
+  background:var(--app-white);
+  color:var(--app-ink);
+  font:400 25px/1.1 Georgia,serif;
+}
+.addMoneyInput:focus{border-color:var(--app-gold);box-shadow:var(--app-focus)}
+.addMoneyError,
+.addMoneyTxStatus{
+  margin-top:14px;
+  padding:12px 14px;
+  border:1px solid rgba(152,120,50,.28);
+  border-left:3px solid var(--app-gold);
+  border-radius:var(--app-radius-sm);
+  background:rgba(201,171,96,.12);
+  color:var(--app-ink);
+  font-size:12px;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+.addMoneyTxStatus{color:var(--app-muted)}
+.addMoneyDetails{overflow-wrap:anywhere}
+.addMoneyDetails code{display:block;margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:global(html[data-leopold-theme="dark"]) .addMoneyCard{
+  border-color:rgba(115,142,173,.26);
+  border-bottom-color:var(--app-gold);
+  background:var(--app-surface);
+  box-shadow:var(--app-shadow-1);
+}
+:global(html[data-leopold-theme="dark"]) .addMoneyBadgeNeutral{background:rgba(255,255,255,.05);color:var(--app-muted)}
+:global(html[data-leopold-theme="dark"]) .addMoneyStat,
+:global(html[data-leopold-theme="dark"]) .addMoneyInput{
+  border-color:rgba(129,153,181,.28);
+  background:#0d1a2b;
+  color:#f7f4eb;
+}
+:global(html[data-leopold-theme="dark"]) .addMoneyError,
+:global(html[data-leopold-theme="dark"]) .addMoneyTxStatus{
+  border-color:rgba(201,171,96,.35);
+  background:rgba(201,171,96,.12);
+  color:#f7f4eb;
+}
+@media(max-width:520px){
+  .addMoneyHeader{padding-right:38px}
+  .addMoneyHeader h2{font-size:36px}
+  .addMoneyFormRow{flex-direction:column}
+  .addMoneyFormRow>*{flex-basis:auto;width:100%}
+}
